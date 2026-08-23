@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build output
+engine/dist/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
+
+# Kilo / agent state
+.kilo/
+
+# Temporary / debug
+*.tmp
+*.bak
+debug.ts
+debug.js
+debug2.ts
+debug3.ts
+tools/fix-app.js
+tools/fix_declaring.py
+fix_declaring.py
+result.txt
+exclamations.txt
+temp_*.js
+temp_*.ts
+
+# Playwright artifacts
+.playwright-mcp/
+test-results/
+playwright-report/

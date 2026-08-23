@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#1b5e20">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Preferans</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; width: 100%; overflow: hidden; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: radial-gradient(ellipse at center, #2e7d32 0%, #1b5e20 60%, #0a3d0a 100%);
+    color: #fff;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    user-select: none; -webkit-user-select: none;
+    touch-action: manipulation;
+    overflow: hidden;
+    min-height: 100vh; min-height: 100dvh;
+  }
+
+  /* === TOP BAR === */
+  .top-bar {
+    background: rgba(0,0,0,0.55);
+    padding: 6px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #4caf50;
+    flex-shrink: 0;
+  }
+  .top-bar h1 { font-size: 1em; font-weight: 700; letter-spacing: 0.5px; }
+  .top-info {
+    display: flex; gap: 14px; font-size: 0.85em;
+  }
+  .top-info .label { opacity: 0.7; font-size: 0.85em; }
+  .top-info .value { font-weight: 700; font-size: 1.1em; color: #ffeb3b; }
+  .top-actions { display: flex; gap: 6px; }
+  .icon-btn {
+    background: rgba(255,255,255,0.15);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.25);
+    padding: 6px 10px;
+    font-size: 1em;
+    border-radius: 8px;
+    cursor: pointer;
+    min-width: 40px; min-height: 36px;
+  }
+  .icon-btn:active { background: rgba(255,255,255,0.3); }
+
+  /* === STO (sredina) === */
+  .table-area {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1.4fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 6px;
+    padding: 8px;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* Sto (centar sto) */
+  .table-felt {
+    grid-column: 1 / 4;
+    grid-row: 1 / 3;
+    background: radial-gradient(ellipse at center, #2e7d32 0%, #1b5e20 100%);
+    border: 3px solid #4caf50;
+    border-radius: 200px;
+    box-shadow: inset 0 0 60px rgba(0,0,0,0.4);
+    position: relative;
+    z-index: 0;
+  }
+
+  .player-seat {
+    position: absolute;
+    background: rgba(0,0,0,0.5);
+    border-radius: 12px;
+    padding: 6px 8px;
+    text-align: center;
+    border: 2px solid transparent;
+    transition: border 0.3s, transform 0.2s;
+    min-width: 100px;
+  }
+  .player-seat.active { border-color: #ffeb3b; transform: scale(1.05); box-shadow: 0 0 15px rgba(255,235,59,0.5); }
+  .player-seat.you { border-color: rgba(76,175,80,0.5); }
+
+  .player-name { font-weight: 700; font-size: 0.95em; }
+  .player-seat.active .player-name { color: #ffeb3b; }
+  .player-bule { font-size: 1.1em; font-weight: 700; color: #ffeb3b; margin-top: 2px; }
+  .player-tricks { font-size: 0.8em; opacity: 0.85; }
+  .player-hand-count { font-size: 0.75em; opacity: 0.7; }
+
+  /* Pozicije sedenja */
+  #seat-west { top: 6px; left: 50%; transform: translateX(-50%); } /* Zapad gore */
+  #seat-east { top: 50%; right: 6px; transform: translateY(-50%); } /* Istok desno */
+  #seat-north { display: none; }
+  #seat-south { bottom: 6px; left: 50%; transform: translateX(-50%); }
+  .player-seat.active#seat-west { transform: translateX(-50%) scale(1.05); }
+  .player-seat.active#seat-east { transform: translateY(-50%) scale(1.05); }
+
+  /* Karta u štihu — pozicioniranje unutar felt-a */
+  .trick-slot {
+    position: absolute;
+    background: rgba(0,0,0,0.25);
+    border: 2px dashed rgba(255,255,255,0.2);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 70px;
+    height: 100px;
+  }
+  .trick-slot.has-card { border-style: solid; border-color: rgba(255,255,255,0.5); background: transparent; }
+  .trick-slot.current-turn { border-color: #ffeb3b; box-shadow: 0 0 10px rgba(255,235,59,0.6); }
+  .trick-slot.led { background: rgba(76,175,80,0.3); }
+
+  #slot-west { top: 12px; left: 50%; transform: translateX(-50%); }
+  #slot-east { top: 50%; right: 80px; transform: translateY(-50%); }
+  #slot-south { bottom: 12px; left: 50%; transform: translateX(-50%); }
+
+  /* === DONJI PANEL === */
+  .bottom-panel {
+    background: rgba(0,0,0,0.4);
+    padding: 8px;
+    border-top: 2px solid #4caf50;
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 6px;
+    flex-shrink: 0;
+    max-height: 45vh;
+    overflow-y: auto;
+  }
+
+  /* Bid log */
+  .bid-log {
+    background: rgba(0,0,0,0.3);
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-size: 0.9em;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    min-height: 32px;
+    align-items: center;
+  }
+  .bid-log-empty { opacity: 0.5; font-style: italic; }
+  .bid-entry {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255,255,255,0.08);
+    padding: 3px 8px;
+    border-radius: 14px;
+    font-weight: 600;
+  }
+  .bid-entry.p0 { border-left: 3px solid #4fc3f7; }
+  .bid-entry.p1 { border-left: 3px solid #ff8a80; }
+  .bid-entry.p2 { border-left: 3px solid #ffe082; }
+  .bid-entry strong { font-weight: 800; }
+  .bid-entry.dalje { opacity: 0.55; }
+  .bid-entry.mogu { background: rgba(76,175,80,0.3); }
+  .bid-entry.igra { background: rgba(255,152,0,0.3); }
+
+  /* Bid dugmad */
+  .bid-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(54px, 1fr));
+    gap: 6px;
+    align-items: center;
+  }
+  .bid-controls .section-label {
+    grid-column: 1 / -1;
+    font-size: 0.8em; opacity: 0.7;
+    margin-bottom: -2px;
+  }
+  .bid-btn {
+    background: rgba(255,255,255,0.12);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.25);
+    padding: 12px 6px;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 700;
+    cursor: pointer;
+    min-height: 48px;
+  }
+  .bid-btn:active { background: rgba(255,255,255,0.3); transform: scale(0.96); }
+  .bid-btn.primary { background: #4caf50; border-color: #66bb6a; }
+  .bid-btn.danger { background: #c62828; border-color: #ef5350; }
+  .bid-btn.igra { background: rgba(255,152,0,0.3); border-color: #ff9800; }
+
+  /* === TVOJ HAND === */
+  .hand-area {
+    background: rgba(0,0,0,0.35);
+    padding: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+    min-height: 110px;
+  }
+  .hand-title {
+    font-size: 0.85em;
+    opacity: 0.7;
+    width: 100%;
+    text-align: center;
+    margin-bottom: 2px;
+  }
+
+  /* === KARTICE === */
+  .card {
+    background: white;
+    color: #222;
+    width: 50px;
+    height: 72px;
+    border-radius: 7px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .card.tiny { width: 32px; height: 46px; font-size: 0.7em; }
+  .card.small { width: 42px; height: 60px; font-size: 0.85em; }
+  .card.selected { box-shadow: 0 0 0 3px #ffeb3b, 0 0 12px rgba(255,235,59,0.6); }
+  .card.disabled { opacity: 0.35; cursor: default; }
+  .card.playable { box-shadow: 0 0 0 2px rgba(76,175,80,0.6), 0 2px 5px rgba(0,0,0,0.4); }
+  .card.red { color: #c62828; }
+  .card.black { color: #222; }
+  .card .rank { font-size: 1.2em; line-height: 1; }
+  .card .suit { font-size: 1.5em; line-height: 1; }
+  .card.tiny .rank { font-size: 0.95em; }
+  .card.tiny .suit { font-size: 1.15em; }
+  .card.small .rank { font-size: 1em; }
+  .card.small .suit { font-size: 1.25em; }
+
+  /* === MODAL === */
+  .screen {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .screen.active { display: flex; }
+  .screen .box {
+    background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
+    border-radius: 18px;
+    padding: 24px;
+    max-width: 460px;
+    width: 100%;
+    border: 2px solid rgba(255,255,255,0.2);
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .screen h2 { margin-bottom: 12px; text-align: center; font-size: 1.5em; }
+  .screen p { margin-bottom: 12px; line-height: 1.5; }
+  .screen button { width: 100%; margin-top: 8px; }
+
+  .mode-btn {
+    flex: 1;
+    background: rgba(255,255,255,0.1);
+    border: 2px solid rgba(255,255,255,0.2);
+    padding: 14px;
+    border-radius: 10px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    min-height: 56px;
+    font-size: 1em;
+  }
+  .mode-btn.active { background: #4caf50; border-color: #66bb6a; }
+
+  /* === TRUMP INFO === */
+  .trump-banner {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255,235,59,0.95);
+    color: #1b5e20;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-weight: 800;
+    font-size: 1em;
+    z-index: 5;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  }
+
+  /* === RESPONSIVE === */
+  @media (min-width: 700px) {
+    body { font-size: 1.1em; }
+    .card { width: 60px; height: 86px; }
+    .card .rank { font-size: 1.4em; }
+    .card .suit { font-size: 1.8em; }
+    .trick-slot { width: 84px; height: 120px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <h1>🃏 Preferans</h1>
+  <div class="top-info">
+    <div><div class="label">Potez</div><div class="value" id="turnName">-</div></div>
+    <div><div class="label">Bule</div><div class="value" id="buleInfo">100/100/100</div></div>
+    <div><div class="label">Štih</div><div class="value" id="trickInfo">0/10</div></div>
+  </div>
+  <div class="top-actions">
+    <button class="icon-btn" onclick="restart()">🔄</button>
+  </div>
+</div>
+
+<div class="table-area">
+
+  <!-- Sto (centar) -->
+  <div class="table-felt" id="tableFelt">
+    <div class="trump-banner" id="trumpBanner" style="display:none">♣ Tref</div>
+
+    <!-- Zapad (gore) -->
+    <div class="player-seat" id="seat-west">
+      <div class="player-name" id="name-west">Zapad</div>
+      <div class="player-bule" id="bule-west">100</div>
+      <div class="player-tricks">🎴 <span id="tricks-west">0</span> · 🃏 <span id="cards-west">10</span></div>
+    </div>
+
+    <!-- Istok (desno) -->
+    <div class="player-seat" id="seat-east">
+      <div class="player-name" id="name-east">Istok</div>
+      <div class="player-bule" id="bule-east">100</div>
+      <div class="player-tricks">🎴 <span id="tricks-east">0</span> · 🃏 <span id="cards-east">10</span></div>
+    </div>
+
+    <!-- Jug (dole) -->
+    <div class="player-seat you" id="seat-south">
+      <div class="player-name" id="name-south">Vi (Jug)</div>
+      <div class="player-bule" id="bule-south">100</div>
+      <div class="player-tricks">🎴 <span id="tricks-south">0</span> · 🃏 <span id="cards-south">10</span></div>
+    </div>
+
+    <!-- Štih slotovi -->
+    <div class="trick-slot" id="slot-west"></div>
+    <div class="trick-slot" id="slot-east"></div>
+    <div class="trick-slot" id="slot-south"></div>
+  </div>
+
+</div>
+
+<div class="bottom-panel">
+  <div class="bid-log" id="bidLog">
+    <span class="bid-log-empty">Licitacija...</span>
+  </div>
+  <div class="bid-controls" id="bidControls"></div>
+  <div class="hand-area" id="handArea">
+    <div class="hand-title" id="handTitle">Tvoja ruka</div>
+  </div>
+</div>
+
+<!-- Setup screen -->
+<div class="screen active" id="setupScreen">
+  <div class="box">
+    <h2>🃏 Preferans</h2>
+    <p>Igra za 3 igrača sa 32 karte.</p>
+    <p style="opacity:0.7;font-size:0.9em">Cilj: uzeti više od polovine štihova u proglašenoj igri.</p>
+    <div style="display:flex;gap:8px;margin:16px 0">
+      <button id="mode3ai" class="mode-btn" onclick="setGameMode('3ai')">3 AI<br><small style="opacity:0.7;font-weight:normal">Demo</small></button>
+      <button id="mode1v2" class="mode-btn active" onclick="setGameMode('1v2')">Vi + 2 AI</button>
+    </div>
+    <button class="mode-btn primary" style="min-height:56px;font-size:1.1em" onclick="startGame()">🎮 Kreni!</button>
+  </div>
+</div>
+
+<!-- Result screen -->
+<div class="screen" id="resultScreen">
+  <div class="box">
+    <h2 id="resultTitle">Kraj</h2>
+    <p id="resultMsg"></p>
+    <button class="mode-btn primary" style="min-height:48px" onclick="nextRound()">Sledeći krug</button>
+    <button class="mode-btn" onclick="document.getElementById('setupScreen').classList.add('active');document.getElementById('resultScreen').classList.remove('active');">Završi</button>
+  </div>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
