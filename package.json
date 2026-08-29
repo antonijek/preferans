@@ -1,0 +1,15 @@
+{
+  "name": "preferans",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Preferans web app — dev tooling za pokretanje servera i browser smoke test",
+  "scripts": {
+    "serve": "node tools/serve.js",
+    "test:ui": "node tools/browser-smoke-test.mjs",
+    "test:ui:multi": "node tools/multi-smoke.mjs",
+    "visual:check": "node tools/visual-check.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  }
+}

@@ -234,7 +234,9 @@ Igra mora biti **≥ vrednosti na kojoj je pobednik stao**.
 
 - Pratilac koji je rekao "Dodjem" može pozvati onog koji je rekao "Ne dodjem": **"Idemo zajedno"**.
 - Ako pozvani prihvati — igraju sva trojica kao **partneri** protiv nosioca.
-- Pozvani igrač **ne upisuje bodove** ni za prolaz ni za pad — njegovi bodovi idu pratiocu koji ga je pozvao.
+- Pozvani igrač **ne upisuje bodove** ni za prolaz ni za pad — njegovi bodovi idu pratiocu koji ga je pozvao (štihovi se **sabiraju**).
+- **Prag za prolaz**: pozivalac i pozvani moraju **ZAJEDNO** uhvatiti **najmanje 4 štiha** da bi prošli (dvostruko više nego samostalni pratilac iz 5.2, jer su dvojica) — bez obzira na ishod nosioca. Ako zajedno uhvate manje od 4, pozivalac **raste za ceo iznos** koliko se nosilac spustio/podigao (isto pravilo kao 5.2, primenjeno na zajednički zbir). Ako uhvate 4 ili više — nema promene bule za pozivaoca, samo supe (RULES 9.4, na zajednički zbir).
+- **Poređenje sa nezavisnim pratiocima (5.2)**: ako oba pratioca dođu SVAKI ZASEBNO (bez poziva), svakom treba SVOJIH 2 štiha (ne zajednički zbir). Poziv menja ovo u ZAJEDNIČKI prag od 4.
 
 ## 5.4 Niko ne prati — nosilac automatski dobija
 

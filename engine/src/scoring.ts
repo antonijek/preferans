@@ -41,9 +41,24 @@ export interface FollowerConfig {
   active: Position[];
   kontraš: Position | null;
   pozivalac: Position | null;
+  pozvani?: Position | null;
+  // Broj stihova svakog NEZAVISNOG pratioca (bez poziva/kontre). Ako je dato,
+  // primenjuje se RULES 5.2: nezavisni pratilac treba BAREM 2 stiha da
+  // "prodje" (bez promene bule) — NJEGOVA bula zavisi SAMO od NJEGOVOG
+  // sopstvenog rezultata, NIKAD automatski od toga da li je NOSILAC uspeo ili
+  // pao (potvrdjeno direktno od korisnika). Pratilac koji ne dodje do 2 UVEK
+  // RASTE (podize se) za PUN iznos |declarerDelta|, u OBA smera. Potvrdjeno
+  // iz REFERENTNI_PRIMERI.md (runde #2,#3,#6,#8,#15). Bez ovog polja, koristi
+  // se stari flat pola-pola / sve-jednom fallback.
+  tricksWon?: Partial<Record<Position, number>>;
+  // RULES 9.4.1 — Betl/Igra-Betl NIKAD ne daje bulu independentnim
+  // pratiocima (ni pri uspehu ni pri padu nosioca) — samo fiksne supe,
+  // racunate posebno u game.ts. Uzivo prijavljen bag: pratioci su dobijali
+  // -6 bule (pola od 12) kad je nosilac pao na Betlu.
+  isBetl?: boolean;
 }
 
-// 9.3.1 / 9.4 — Raspodela bule među protivnicima
+// 9.3.1 / 9.4 / 5.2 — Raspodela bule među protivnicima
 export function calculateBulaDistribution(
   declarerDelta: number,
   followersConfig: FollowerConfig,
@@ -55,14 +70,63 @@ export function calculateBulaDistribution(
   const callerPlayer = followersConfig.pozivalac;
 
   if (kontraPlayer !== null) {
-    deltas[kontraPlayer] = -declarerDelta;
+    // RULES 6.3/9.3.2 — kontra je "opklada": kontras SNOSI punu promenu bule
+    // SAMO kad IZGUBI (nosilac ipak uspe, declarerDelta<0 — kontras je
+    // pogresio). Kad kontras POBEDI (obori nosioca, declarerDelta>0), NJEGOVA
+    // bula se NE MENJA — dobija samo supe (racunato posebno u game.ts, na
+    // osnovu nosiočevih stihova). Potvrdjeno kroz SVE primere sa kontrom u
+    // REFERENTNI_PRIMERI.md: kad nosilac padne (runda #11), kontras (Janko)
+    // nema promenu bule, samo supe; u svim primerima gde nosilac uspe uprkos
+    // kontri, kontras dobija PUNU promenu bule. Uzivo prijavljen bag: sistem
+    // je nosioca spustao ALI I kontrasa koji je pobedio, sto ne sme.
+    if (declarerDelta < 0) {
+      deltas[kontraPlayer] = -declarerDelta;
+    }
   } else if (callerPlayer !== null) {
-    deltas[callerPlayer] = -declarerDelta;
+    // RULES 5.3 — pozivalac+pozvani MORAJU ZAJEDNO uhvatiti bar 4 stiha da
+    // "prodju" (bez promene bule) — DVOSTRUKO vise od praga za jednog
+    // samostalnog pratioca (2), jer su dvojica protiv nosioca. Ispod 4,
+    // pozivalac (nikad pozvani) RASTE za CEO iznos |declarerDelta|, bez
+    // obzira na ishod nosioca. Uzivo prijavljeno i potvrdjeno direktno od
+    // korisnika (prag 4, ne 2 — NIJE bio u RULES.md pre ovoga). Raniji bag:
+    // kod je bezuslovno dizao/spustao pozivaoca za declarerDelta cak i sa
+    // 4+ zajednickih stihova — validacija kroz REFERENTNI_PRIMERI.md je
+    // uvek imala i kontru pored poziva, pa je KONTRA grana (iznad) tiho
+    // hvatala te primere; cist poziv-bez-kontre nikad nije bio proveren.
+    const tricksWon = followersConfig.tricksWon;
+    const callee = followersConfig.pozvani ?? null;
+    if (tricksWon !== undefined) {
+      const combined = (tricksWon[callerPlayer] ?? 0) + (callee !== null ? (tricksWon[callee] ?? 0) : 0);
+      if (combined < 4) deltas[callerPlayer] = Math.abs(declarerDelta);
+    } else {
+      deltas[callerPlayer] = -declarerDelta;
+    }
+  } else if (followersConfig.isBetl) {
+    // RULES 9.4.1 — Betl nikad ne daje bulu pratiocima, ni pri uspehu ni pri
+    // padu nosioca. Svi ostaju undefined (bez promene bule) — samo fiksne
+    // supe, racunate posebno u game.ts.
   } else {
     const followers = followersConfig.active;
-    if (followers.length === 1) {
+    const tricksWon = followersConfig.tricksWon;
+    if (tricksWon !== undefined && followers.length > 0) {
+      // RULES 5.2 — svaki nezavisni pratilac treba BAREM 2 stiha da "prodje"
+      // svoj licni prag. Pratilac ISPOD praga (< 2) UVEK PADA (bula RASTE)
+      // za CEO iznos |declarerDelta|, nezavisno, BEZ OBZIRA da li je nosilac
+      // uspeo ili pao. Pratilac NA PRAGU ILI IZNAD (>= 2) NIKAD ne dobija
+      // promenu bule — SAMO supe, opet bez obzira na ishod nosioca. (Uzivo
+      // eksplicitno potvrdjeno i ISPRAVLJENO nazad na ovo posle kratkog
+      // pokusaja "simetricne nagrade" koji je korisnik odbio: "njemu ide
+      // supe a ne smes da ga spustas" — pratilac se NIKAD ne nagradjuje
+      // spustanjem bule, cak ni kad nosilac padne.)
+      const magnitude = Math.abs(declarerDelta);
+      for (const p of followers) {
+        if ((tricksWon[p] ?? 0) < 2) deltas[p] = magnitude;
+      }
+    } else if (followers.length === 1) {
+      // Fallback (nosilac pao, ili nema podataka o stihovima): sve na jednog
       deltas[followers[0]!] = -declarerDelta;
     } else if (followers.length === 2) {
+      // Fallback: pola-pola
       const half = -declarerDelta / 2;
       deltas[followers[0]!] = half;
       deltas[followers[1]!] = half;

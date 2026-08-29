@@ -7,7 +7,8 @@
   "scripts": {
     "build": "tsc",
     "test": "node --import tsx --test \"test/*.test.ts\"",
-    "play": "node --import tsx ../tools/play-cli.ts"
+    "play": "node --import tsx ../tools/play-cli.ts",
+    "diag": "node --import tsx tools/diag-scoring.ts"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

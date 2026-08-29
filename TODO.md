@@ -1,13 +1,202 @@
 # TODO — Preferans projekat
 
-Status: **Engine radi (64/66 testova), UI delimično, ima bagova u IGRA toku**
+## 🔴 PREDAJA NOVOJ SESIJI (2026-08-29) — PROČITAJ OVO PRVO
 
-**Poslednja sesija završena sa:**
-- Engine 64/66 testova prolazi (2 IGRA testovi padaju — bidding winner logika izmenjena za MOGU/MOGU popravku)
-- UI layout (sto, veće karte, bidding log) — radi
-- IGRA tok — engine kod dodat (`sayIgra`/`declareIgra`), app.js prepravljen, ALI testovi padaju
-- Bidding winner logika — popravljena u dva navrata (MOGU postavlja bidLevel, bidders uključuje igraPlayer)
-- Server pokrenut u pozadini (process `bgp_02f3a885b0015PVzN24DKTC9GR`) — **U NOVOJ SESIJI TREBA PONOVO POKRENUTI**
+**Trenutno stanje**: `cd engine && npm test` → **152/152 testova prolazi**.
+`npm run test:ui:multi -- 20` (iz root-a) → **20/20 partija čisto**, poslednji put
+potvrđeno posle SVIH ispravki ispod. Server: `node tools/serve.js` iz `D:\preferans`
+(port 8000) — proveri `netstat -ano | grep ":8000"` pre pokretanja, prethodna
+sesija je možda ostavila proces da radi.
+
+**Radni obrazac koji korisnik EKSPLICITNO traži** (rekao više puta, frustriran
+kad se ne poštuje): NE pokretati pun test+build+smoke ciklus (traje dugo) posle
+SVAKE sitne izmene. Skupiti više prijavljenih bagova, popraviti ih SVE, pa tek
+onda pokrenuti jedan test/smoke krug na kraju batch-a.
+
+**Bagovi pronađeni i popravljeni danas (2026-08-29)** — svi potvrđeni uživo od
+korisnika i/ili unakrsno protiv RULES.md / REFERENTNI_PRIMERI.md / spoljnih
+izvora (WebSearch: preferansklub.com, idoc.pub, pdfcoffee.com):
+
+1. **Automatski prekid runde na 5. štihu odbrane** (`game.ts`,
+   `isDeclarerCertainlyDown()`, pozvano iz `resolveTrick()`) — čim odbrana
+   (svi ne-nosioci ZAJEDNO) uhvati toliko štihova da nosilac matematički više
+   ne može stići do praga (5 za standardne/Igra igre, 1 za Betl), runda staje
+   ODMAH, bez igranja preostalih štihova. Potvrđeno nezavisno na
+   preferansklub.com i pdfcoffee.com ("Rezultat Pratioca je limitiran na
+   maksimum od 5 štihova... igra se prekida").
+2. **Supa formula kod kontre kad nosilac padne** — koristila je NOSIOČEVE
+   preostale štihove umesto ZBIRA ODBRANE (svi ne-nosioci zajedno, uvek tačno
+   5 zahvaljujući ispravci #1). Potvrđeno REFERENTNI_PRIMERI.md rundom #11
+   ("Janko: 80 supa = 5×8×2", gde je 5 = odbrana zajedno — ranije se to
+   poklapalo sa nosiočevim štihovima SAMO slučajno jer je taj primer imao 5-5
+   podelu, pa greška nije bila uočena.
+3. **DUPLIRAN AI bidding tajmer** (`app.js`, `startGame()`/`nextRound()`/
+   `restart()`) — pored ispravnog tajmera u `renderBiddingPanel()`, postojao
+   je DRUGI koji je čitao `game.state.currentBidder` TEK kad tajmer opali
+   (posle 500ms) umesto da ga zaključa odmah. Ako bi red u međuvremenu
+   stigao baš do čoveka, taj zaostali tajmer je zvao AI logiku ZA ČOVEKA,
+   mimo dugmadi, bez ikakvog traga u konzoli. **Ovo je najverovatniji uzrok**
+   dugo neuhvatljivih bagova "pise da sam rekao 3 a nisam", "licitacije nije
+   ni bilo, odmah uzimam talon", "dodjem/ne dodjem se pojavilo bez licitacije".
+   Uklonjena sva 3 duplirana mesta — sad postoji SAMO jedan mehanizam
+   zakazivanja (u `renderBiddingPanel()`). NIJE 100% potvrđeno da je ovo bio
+   JEDINI uzrok te klase bagova — ako se ponovi, proveri F12 konzolu (sad ima
+   `logTrustedAction()` dijagnostika na SVAKOM dugmetu akcije, ne samo bidding).
+4. **Refe mehanizam bio mrtav kod** (`game.ts`, `handleRefe()` + `newHand()`)
+   — `state.refeUsed` (zastava za ×2 množilac) se NIGDE nije postavljala na
+   `true`, samo na `false` u `newHand()`. Cela ×2 refe-mehanika nikad nije
+   radila. Dodatno, `handleRefe()` je pogrešno odmah upisivao refe SVA TRI
+   igrača čim bi svi rekli "dalje" — po RULES.md 7.3, refe se troši SAMO
+   nosiocu SLEDEĆE (upravo podeljene) ruke, i to TEK kad se ta ruka završi.
+   Popravljeno: `handleRefe()` sad samo naoružava `refeUsed=true` za sledeću
+   ruku (posle `newHand()` poziva, jer `newHand()` resetuje na `false`); stvarna
+   potrošnja (`refeCount[declarer]++`) već je postojala ispravno u `endHand()`.
+5. **Poziv (Zovem X) bez kontre — pogrešan prag I pogrešan zbir** — dve
+   odvojene greške u istoj formuli (`scoring.ts` `calculateBulaDistribution`,
+   `game.ts` `activeFollowers`):
+   - Formula je BEZUSLOVNO dizala/spuštala pozivaoca za `-declarerDelta`,
+     ignorišući broj štihova. Ispravljeno da koristi prag (kao 5.2), ali:
+   - Korisnik je uživo potvrdio da prag za pozivaoca+pozvanog ZAJEDNO nije 2
+     (kao samostalni pratilac) nego **4** — dvostruko, jer su dvojica protiv
+     nosioca. Ovo NIJE bilo u RULES.md — dodato u sekciju 5.3.
+   - `activeFollowers` (koji gradi `tricksWon` mapu) je gledao SAMO
+     `followChoices[p] === 'DODJEM'`, pa je POZVANI partner (koji kaže
+     NE_DODJEM ali stvarno igra) ispadao iz zbira — njegovi štihovi su se
+     uvek računali kao 0. Popravljeno da koristi `isPlayerActive()`.
+6. **Talon banner nestajao prebrzo** (`app.js`, `renderStatusBar()`) — talon
+   se prikazivao samo tokom DISCARDING/DECLARING, nestajao čim bi nosilac
+   proglasio igru — prebrzo da se stigne pogledati šta je AI kupio. Prošireno
+   da traje kroz FOLLOW_DECLARING/KONTRA_DECLARING i dok ne prođe prvi štih
+   igranja (`trickCount === 0`).
+7. Dodat backdrop-click (klik van kutije zatvara) na 📊 Tabela modal — mera
+   predostrožnosti za mobilne dodire koji možda ne registruju tačan klik na
+   "Zatvori" (nepotvrđen uzrok, samo dodatna sigurnosna mreža).
+
+**Dijagnostika i dalje aktivna** (`app.js`, `logTrustedAction()`): SVAKO
+dugme akcije (bid, mogu, igra, declare, dodjem/ne dodjem, poziv, kontra,
+odbacivanje, igranje karte) loguje u F12 konzolu da li je klik bio stvaran
+(`isTrusted`) i pun snapshot stanja. Ako se pojavi bilo koja "phantom
+action" prijava opet, PRVO tražiti F12 → Console izveštaj pre bilo kakve
+izmene koda.
+
+**Odbijeno da se uradi** (i treba ostati odbijeno): korisnik je tražio da se
+rasčlani (reverse-engineer) tuđi kompajlirani komercijalni Preferans program
+(`Ipref.exe`, Delphi) — string dump, DIE analiza, itd. — kao izvor za
+poređenje pravila. Odbijeno oba puta (i sopstvena analiza i tuđa gotova
+analiza koju je korisnik doneo) — nije ni etički ni praktično korisno (samo
+Delphi UI imena komponenti, nema formula). Ako korisnik ponovo predloži ovo,
+ista odluka važi. Alternativa koja VAŽI: korisnik igra taj drugi program
+(legitimna upotreba, ne rasčlanjivanje) i javlja REZULTATE/brojeve za sporne
+scenarije — to je ok i korisno.
+
+**Sledeći korak za novu sesiju**: čekati da korisnik javi sledeći bag uživo
+(igra na localhost:8000). Ne pokretati preventivne test cikluse dok se ne
+skupi bar par prijava. RULES.md je ažuriran (sekcija 5.3, prag 4) — ostaje
+jedini izvor istine, ali OVA sesija je pokazala da čak i on ima rupe (npr.
+prag za poziv uopšte nije bio naveden pre danas) — ne oklevati da se doda
+novo pravilo kad korisnik uživo potvrdi nešto što nedostaje.
+
+---
+
+## 🟡 STARIJA PREDAJA (2026-08-28, kasno uveče) — istorijski kontekst
+
+Korisnik prelazi na novu Claude sesiju posle duge noćne sesije popravki. Nemoj
+krenuti od nule — pročitaj ovo i ostatak fajla pre bilo kakve izmene koda.
+
+**Šta je SIGURNO ispravno i testirano** (nemoj ponovo menjati bez jakog razloga):
+- Engine: 119/119 testova (`cd engine && npm test`). Pokriva licitaciju,
+  kontru (uklj. Betl/Sans), "niko ne prati", "Pik bez kontre", IGRA tok.
+- Browser: `npm run test:ui` i `npm run test:ui:multi -- 20` (iz root-a) —
+  headless partije, AI protiv AI, hvataju prave zastoje. **Poslednji pun
+  rezultat: 20/20 čisto** — ALI ovaj run je bio PRE poslednje izmene (AI
+  logika igranja karata u `aiPlayCard()`, `app.js`). **Pokreni
+  `npm run test:ui:multi -- 20` JOŠ JEDNOM pre bilo čega drugog** da
+  potvrdiš da ta izmena ne pravi nove zastoje.
+- Dvokoračni IGRA tok je VRAĆEN na original po zahtevu korisnika: `sayIgra(player)`
+  (bez imena igre) → posle svih odgovora ide u DECLARING fazu → tek tu
+  `declareIgra(game)` bira konkretnu igru. NE MENJAJ ovo na "odmah imenuj igru"
+  — to je bila moja greška ranije večeras, korisnik je eksplicitno tražio da
+  se vrati na dvokoračni tok.
+- "Mogu X" pravilo — korisnik EKSPLICITNO potvrdio: igrač MORA da je licitirao
+  BAREM JEDNOM (bilo koju vrednost) u ovoj rundi da bi imao pravo na "Mogu X"
+  za BILO KOJU trenutnu vrednost X (ne mora biti tačno ta vrednost koju je on
+  licitirao). Implementirano u `game.ts` `bid()`: `p.bidLevel > 0` uslov.
+  Ovo JE potvrđeno tačno — korisnikova poruka: "rekao sam bilo sta licitirao,
+  ako sam ja rekao 2, posle mogu da kazem bilo koje mogu X, mogu 4, mogu 5...".
+
+**🔴 OTVORENO PITANJE — nisam stigao da rešim, korisnik je frustriran:**
+
+Korisnik je prijavio: kliknuo "Mogu 4", i ODMAH se licitacija završila, ali je
+DRUGI igrač (ne on) postao nosilac i proglasio Herc — iako je ON rekao Mogu 4.
+
+Moja hipoteza (NIJE POTVRĐENA, nisam dobio tačan redosled od korisnika pre
+prekida sesije): u `checkBiddingEnd()` (`game.ts`, grana `notPassed.length >= 2`
+/ `allSaidMoguForCurrent`), kad SVI aktivni igrači potvrde istu vrednost
+(bilo BID bilo MOGU), pobednik se određuje ovako:
+```js
+const winner = notPassed.find(p =>
+  this.state.bids.some(b => b.player === p && b.type === 'BID' && b.value === this.state.currentBid)
+);
+```
+Ovo bira igrača koji ima STVARAN "BID" zapis za tu vrednost — ako je korisnik
+samo rekao "Mogu 4" (MOGU zapis, ne BID), a NEKI DRUGI igrač je ranije stvarno
+BID-ovao 4, taj DRUGI igrač postaje nosilac, ne korisnik koji je "mogu"-ovao.
+
+**Pitanje koje treba postaviti korisniku pre bilo kakve izmene:** Da li je ovo
+očekivano ponašanje ("mogu" samo znači "ne dižem dalje", nosilac ostaje onaj
+ko je STVARNO prvi licitirao tu vrednost) ili bag? Treba TAČAN redosled ko je
+šta licitirao pre "Mogu 4" da se sa sigurnošću utvrdi da li je ovo tačno.
+NE MENJAJ ovu logiku bez tog konkretnog primera — večeras sam 2 puta menjao
+"Mogu" pravilo tamo-amo bez dovoljno informacija i to je iscrpelo korisnika.
+
+**Takođe netestirano posle poslednje izmene** (AI logika igranja karata u
+`app.js`, `aiPlayCard()` — sad ima cilj: nosilac pokušava da uzme štih,
+pratilac udara samo kad nosilac trenutno vodi štih): pokreni
+`npm run test:ui:multi -- 20` da potvrdiš da ne pravi nove zastoje.
+
+---
+
+Status (2026-08-28): **Engine 119/119 testova, UI odigrava celu partiju do kraja (potvrđeno 20+ nezavisnih headless-browser partija bez zastoja)**
+
+**Poslednja sesija (Claude, noćna) — obiman prolaz kroz korektnost pravila + UI:**
+
+Engine bug-ovi (`engine/src/game.ts`), svi sa novim/proširenim testovima:
+1. Licitacija se prerano završavala kad ostane 1 aktivan bidder koji jos nista nije licitirao — popravljeno da mora stvarno odigrati potez (REFA scenario).
+2. Redosled kontriranja bio obrnut ("desni od nosioca" = `(winner+2)%3`, ne `nextPlayer(winner)`).
+3. "Može" logika nije pratila redosled — drugi pratilac nije dobijao šansu za kontru. Dodato `followersInKontraOrder()`.
+4. **Licitacija je dozvoljavala skok** (npr. odmah "5" umesto 2→3→4→5) — sad `bid()` traži tačno `currentBid+1`. Otkrio korisnik uživo testirajući.
+5. **"Mogu X" nije dozvoljeno igraču koji NIJE UOPŠTE licitirao** u toj rundi (`p.bidLevel > 0` je uslov, pored `value===currentBid`) — korisnik eksplicitno potvrdio ovo pravilo. Napomena: UI provera je ranije bila STROŽA od engine provere (tražila `bidLevel===currentBid` tačno, ne samo `bidLevel>0`), što je verovatno pravi uzrok "Mogu je nestalo" utiska — sad su usklađene, obe traže samo "makar jednom licitirao ovu rundu". Test: `e2e.test.ts` "Mogu X nije dozvoljeno...".
+6. **FOLLOW_DECLARING deadlock** kad oba pratioca kažu "Ne dođem" — dodato `handleNoOneFollows()` (RULES 5.4: nosilac automatski dobija 10 štihova).
+7. **Kontra je bila potpuno onemogućena za Betl/Sans** — u koliziji sa RULES.md 6.9 i sa 3 primera iz REFERENTNI_PRIMERI.md (runde #4, #10, #14). Popravljeno, sad prolaze kroz KONTRA_DECLARING kao i ostale igre.
+8. **"Pik bez kontre" (RULES 7.1.1)** — bilo potpuno neimplementirano (test je bio prazan). Dodato `handlePikWithoutKontra()` sa sve 3 grane (refe / bez refe / neko u šeširu).
+9. **"Igra" tiebreak** — drugi igrač koji kaže Igra je tiho prepisivao prvog bez poređenja jačine. `sayIgra(player, game)` sad odmah traži igru i poredi po RULES 3.4.1 (jača pobeđuje, izjednačenje → prvi pobeđuje). Ukinut poseban `declareIgra()` poziv — IGRA sad ide direktno u FOLLOW_DECLARING.
+10. **`bid()` je numerička licitacija dozvoljavala i posle "Igra"** (drugi igrač je mogao beskonačno raditi normalan bid dok engine čeka njihov odgovor na Igra) — uzrokovalo stvaran deadlock, uhvaćeno multi-seed testom. Popravljeno: `bid()` odbija kad `igraPlayer !== null`.
+11. **`renderFollowing()` "Zovi/Igram sam" UI kod je bio mrtav** — uslov je proveravao `undecided === callerCandidate` unutar grane koja se izvršava SAMO dok neko još nije odlučio, pa se nikad nije gađao trenutak kad oba pratioca VEĆ odluče. Uzrokovalo stvaran FOLLOW_DECLARING zastoj, uhvaćeno kroz `npm run test:ui:multi`. Prepisana cela funkcija.
+12. Obrisan mrtav kod: `engine/src/bidding.ts` (nije ga koristio `game.ts`, imao i pokvaren komentar od lošeg find-replace-a), i 3 scratch skripte (`remove-dup*.cjs`, `update-test.cjs`).
+
+AI popravke (`app.js`):
+- `aiBidTurn()` licitira jedan korak odjednom (RULES 3.2), ne skače na ciljanu vrednost; poštuje isto "Mogu" i "Igra zamrzava numeriku" pravilo.
+- `renderFollowing()`'s AI heuristika (`hand.length>=4`) je bila uvek `true` (ruka je uvek 10 karata) — zamenjena stvarnom procenom (broj aduta/visokih karata).
+- Dodata odbrana od "stale setTimeout" trke na SVIM odloženim AI pozivima (bid/discard/declare/follow/kontra) — svaki proverava da stanje igre nije već napredovalo pre nego što deluje. Otkriveno posle korisnikovog izveštaja "piše da sam rekao 3 a nisam rekao ništa".
+
+UI (RULES.md prikaz, korisnikov zahtev "sve da bude vidljivo"):
+- **Contract banner** (ko igra šta, kontra nivo) — uvek vidljiv čim je igra proglašena.
+- **Poslednji štih** — trajna traka (3 karte + pobednik), izvor `state.tricks.at(-1)` (engine već čuvao, UI nije čitao).
+- **Tabela (📊 dugme)** — modal sa: trenutne bule, refe iskorišćeno/dozvoljeno po igraču, **supe "ko kome duguje" matrica** (kumulativna kroz partiju), i istorija svake ruke (krug/nosilac/igra/kontra/rezultat/bule). Napaja se novim `engine` poljem `state.lastHandResult` (popunjava se na SVAKOM kraju ruke, uklj. nove RULES 5.4/7.1.1 puteve).
+- Kompaktan Σ-supe i 🔁-refe bedž na svakom sedištu (uvek vidljivo, bez klika).
+- Raspored karata u ruci sortiran: tref → herc → pik → karo, A→7 unutar boje (korisnikov zahtev).
+- Centralizovan `dispatch` obrazac za korisničke akcije (priprema za budući multiplayer — klijent kasnije samo menja OVO mesto da šalje na server umesto lokalnog engine poziva).
+
+Alati:
+- `npm run test:ui` — jedna headless-browser partija (postojalo).
+- `npm run test:ui:multi -- N` — N nezavisnih partija, hvata retke seed-zavisne zastoje (novo, ovim je uhvaćeno oba stvarna zastoja gore).
+- `npm run visual:check` — screenshotovi ključnih UI trenutaka u `tools/shots/`.
+- `.claude/settings.json` — allowlist za `npm test`/`npm run *` da se smanje permission-prompt prekidi.
+
+**Otkriveno, nije menjano (van obima, treba pitati korisnika):**
+- `state.refeUsed` (množilac ×2 za "partiju pod refeom") se nigde stvarno ne postavlja na `true` — trenutni `handleRefe()` je pojednostavljena verzija ("Po tvom pravilu" komentar u kodu, iz ranije sesije). Realna refe-doubling mehanika (RULES 7.3: sledeća ruka koju nosilac sa neiskorišćenom refom dobije se duplira) NIJE implementirana. Namerno nedirano — ne menjati bez pitanja korisnika, jer je prošla svesna pojednostavljivanja.
+- `engine/src/ai.ts` — potpuno odvojen, testiran (`engine/test/ai.test.ts`) AI modul koji `app.js` uopšte ne koristi (app.js ima svoju jednostavniju inline AI logiku). Moguća osnova za buduće poboljšanje AI-ja.
+- `engine/tools/test-full-game.ts` — manuelni CLI test cele partije, koristi `ai.ts`, radi nezavisno od `app.js`.
 
 ---
 
@@ -90,11 +279,14 @@ node tools/serve.js
 
 ## ⚠️ POZNATI BAGOVI
 
+### Popravljeno (2026-08-27)
+1. ~~Bidding winner logika~~ — popravljeno, vidi rezime na vrhu.
+2. ~~IGRA proglašenje~~ — `sayIgra`/`declareIgra` tok testiran (e2e testovi), radi.
+3. ~~AI se zaglavi u PLAYING fazi~~ — popravljeno u `app.js` (render() sad pokreće AI lanac).
+
 ### Kritični (moraju se popraviti)
-1. **Bidding winner logika** — ponekad se winner ne postavi automatski kad bidding teče kroz sve igrače. Test u browseru: bidding P1→P2→P0→P1 ponekad ne postavlja winner.
-2. **IGRA proglašenje** — bidding "IGRA" je samo reč, proglašenje konkretne igre u DECLARING fazi je delimično implementirano (dodati `sayIgra`/`declareIgra` u engine.ts i `aiChooseIgraGame` u app.js, ali treba testiranje).
-3. **Discarding logika** — discard UI za AI radi, ali za čoveka treba testiranje.
-4. **Mobile responsive** — veći ekrani (>700px) rade, manji imaju problema sa vidljivošću dugmadi.
+1. **Discarding UI za čoveka** — AI discard radi, ali čovek (mod "Vi + 2 AI") treba manuelno testiranje u browseru.
+2. **Mobile responsive** — veći ekrani (>700px) rade, manji imaju problema sa vidljivošću dugmadi.
 
 ### Manji
 5. Bidding log formatiranje — dugme "Mogu 5" ima mali tekst (wrap-uje se u dva reda na uskim ekranima)

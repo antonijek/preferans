@@ -42,6 +42,21 @@ export type IgraGame = Extract<Game, `Igra-${string}`>;
 export type TrumpGame = Exclude<Game, 'Betl' | 'Sans' | 'Igra-Betl' | 'Igra-Sans'>;
 export type NoTrumpGame = 'Betl' | 'Sans' | 'Igra-Betl' | 'Igra-Sans';
 
+// Legalne akcije koje UI moze da prikaze
+export type LegalAction =
+  | { type: 'pass'; player: Position; label: string }
+  | { type: 'bid'; player: Position; value: number; label: string }
+  | { type: 'mogu'; player: Position; value: number; label: string }
+  | { type: 'igra'; player: Position; label: string }
+  | { type: 'discard-info'; player: Position; handSize: number; label: string }
+  | { type: 'declare'; player: Position; game: Game; label: string }
+  | { type: 'follow'; player: Position; choice: 'DODJEM' | 'NE_DODJEM'; label: string }
+  | { type: 'call'; player: Position; callee: Position; label: string }
+  | { type: 'continueWithoutCall'; player: Position; label: string }
+  | { type: 'kontra'; player: Position; level: ContraLevel; label: string }
+  | { type: 'moze'; player: Position; label: string }
+  | { type: 'playCard'; player: Position; cardId: string; label: string };
+
 export type GamePhase =
   | 'WAITING'
   | 'DEALING'
@@ -153,12 +168,17 @@ export interface GameState {
   declaredGame: Game | null;
   trump: Suit | null;
   talon: Card[];
+  // Snimak talona u trenutku uzimanja (RULES: vidljivo dok nosilac ne
+  // proglasi igru) — `talon` se prazni cim ga nosilac uzme u ruku, ovo polje
+  // pamti koje su to karte bile do sledece podele.
+  lastTalon: Card[];
   discard: Card[];
   currentTrick: TrickCard[];
   tricks: TrickCard[][];
   trickCount: number;
   followChoices: (FollowChoice | null)[];
   caller: Position | null;
+  callee: Position | null;
   kontraPlayer: Position | null;
   kontraLevel: ContraLevel | null;
   mozeCount: number;
@@ -168,12 +188,25 @@ export interface GameState {
   scores: [number, number, number];
   bulas: [number, number, number];
   refeCount: [number, number, number];
+  lastHandResult: EndOfHandResult | null;
 }
 
 export interface ScoreUpdate {
   bulas: [number, number, number];
   supeDelta: [number, number, number];
   refeConsumed?: Position;
+}
+
+export interface EndOfHandResult {
+  bulas: [number, number, number];
+  supeDelta: [number, number, number];
+  passed: boolean;
+  winner: Position | null;
+  winnerGame: Game | null;
+  kontraLevel: ContraLevel | null;
+  refeConsumed: Position | null;
+  refeActive: boolean;
+  bulasAfter: [number, number, number];
 }
 
 export function createEmptyPlayer(id: string, name: string, position: Position): Player {

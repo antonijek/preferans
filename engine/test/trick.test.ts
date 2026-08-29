@@ -52,15 +52,44 @@ test('isCardLegal: mora pratiti boju ako ima', () => {
 });
 
 test('isCardLegal: bez lead boje, u adutskoj igri — sve legalno (sve aduti)', () => {
-  const hand = [A, K];
-  const trick = [tc(0, nine)];
+  const hand = [A, K]; // oba pik (adut)
+  const trick = [tc(0, nine)]; // herc vođen, nema ga u ruci
   assert.equal(isCardLegal(A, hand, trick, '♠'), true);
   assert.equal(isCardLegal(K, hand, trick, '♠'), true);
 });
 
-test('isCardLegal: bez lead boje, kad ima i adut i neadut — neadut nelegalan', () => {
+test('isCardLegal TEST B: HERC adut, nema Pik — samo HERC legalno', () => {
+  // B ima: HERC 10 (adut), KARO 3, TREF K — nema Pik, ima adut
+  const hand = [ten, three, makeCard('♣', 'K')]; // 10=herc (adut), 3=karo, K=tref
+  const trick = [tc(0, A)]; // pik vođen
+  // HERC 10 je JEDINI legalan (mora adut)
+  assert.equal(isCardLegal(ten, hand, trick, '♥'), true);
+  assert.equal(isCardLegal(three, hand, trick, '♥'), false);
+  assert.equal(isCardLegal(makeCard('♣', 'K'), hand, trick, '♥'), false);
+});
+
+test('isCardLegal TEST B2: KARO vođena, B ima KARO — samo KARO legalno', () => {
+  // B ima: KARO 3, HERC 10 (adut), TREF K
+  const hand = [three, ten, makeCard('♣', 'K')];
+  const trick = [tc(0, three)]; // karo vođen
+  // KARO 3 je JEDINI legalan (mora pratiti Karo)
+  assert.equal(isCardLegal(three, hand, trick, '♥'), true);
+  assert.equal(isCardLegal(ten, hand, trick, '♥'), false);
+  assert.equal(isCardLegal(makeCard('♣', 'K'), hand, trick, '♥'), false);
+});
+
+test('isCardLegal TEST B3: nema Pik ni Herc — sve legalno', () => {
+  // B ima: KARO 3, TREF K
+  const hand = [three, makeCard('♣', 'K')]; // 3=karo, K=tref
+  const trick = [tc(0, A)]; // pik vođen
+  assert.equal(isCardLegal(three, hand, trick, '♥'), true);
+  assert.equal(isCardLegal(makeCard('♣', 'K'), hand, trick, '♥'), true);
+});
+
+test('isCardLegal: bez lead boje, kad ima i adut i neadut — SAMO adut legalan (po ispravnom pravilu)', () => {
   const hand = [A, three]; // A je pik (adut), 3 je karo (neadut)
   const trick = [tc(0, nine)]; // herc vođen, nema ga u ruci
+  // Po ispravnom pravilu: nema Pik, ima Pik (adut), MORA adut
   assert.equal(isCardLegal(A, hand, trick, '♠'), true); // adut OK
   assert.equal(isCardLegal(three, hand, trick, '♠'), false); // neadut NE
 });

@@ -4,10 +4,10 @@ Web aplikacija za igranje Preferansa (srpska kartaška igra za 3 igrača).
 
 ## Status
 
-- ✅ Engine (TypeScript) — kompletan, 66/66 testova
-- ⚠️ UI (Vanilla JS) — delimično, ima bagova
-- ⚠️ AI — osnovni
-- ❌ Backend — tek treba
+- ✅ Engine (TypeScript) — 119/119 testova (`cd engine && npm test`), pravila usklađena sa RULES.md + REFERENTNI_PRIMERI.md (licitacija, kontra na svim igrama uklj. Betl/Sans, "niko ne prati", "Pik bez kontre", Igra tiebreak)
+- ✅ UI (Vanilla JS) — "3 AI" i "Vi + 2 AI" mod odigravaju celu partiju do kraja bez zastoja (potvrđeno preko 20+ nezavisnih headless-browser partija, `npm run test:ui:multi`), sa vidljivom tabelom bula/supa/refa
+- ⚠️ AI — osnovni (radi, ali strategija je primitivna); postoji odvojen testiran `engine/src/ai.ts` koji UI ne koristi
+- ❌ Backend — tek treba (engine je framework-agnostic, spreman da radi server-side bez izmena)
 
 Pogledaj [TODO.md](./TODO.md) za detaljan status i plan.
 
@@ -48,6 +48,21 @@ node tools/serve.js
 
 # 4. Otvori browser
 # http://localhost:8000/preferans.html
+```
+
+## Browser smoke test (UI + engine zajedno)
+
+```bash
+npm install         # instalira Playwright (jednom)
+npm run test:ui     # pokreće server, odigra 2 cele partije u headless Chromium-u
+```
+
+Ovo hvata bagove koje `engine` testovi ne mogu vidjeti (npr. AI se zaglavi u UI-ju),
+jer stvarno pokreće `app.js` u browseru, ne samo engine funkcije.
+
+```bash
+npm run test:ui:multi -- 20   # N nezavisnih partija — hvata retke, seed-zavisne zastoje
+npm run visual:check          # screenshotovi kljucnih trenutaka u tools/shots/
 ```
 
 ## CLI testiranje

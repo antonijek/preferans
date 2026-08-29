@@ -16,32 +16,40 @@ export function trickWinner(trickCards: TrickCard[], trump: Suit | null): Positi
 }
 
 // 8.3 — Da li je data karta legalna
-// Prvi igrač u štihu može bilo koju kartu.
-// Ako ima kartu u lead boji, MORA je odigrati.
-// Ako nema, u adutskoj igri MORA adut (ako ga ima).
-// U betlu/sansu može bilo koju.
+//
+// PRAVILO (po specu, Slučaj 1, 2, 3):
+// 1. Ako igrač ima lead boju → MORA igrati lead boju
+// 2. Ako nema lead boju ALI ima adut → MORA igrati adut
+// 3. Ako nema ni lead ni adut → može bilo koju kartu
+//
+// Izvođač i pratilac igraju po istom pravilu.
+// U betlu/sansu nema aduta → koristi se pravilo 1+3.
 export function isCardLegal(
   card: Card,
   hand: Card[],
   trickCards: TrickCard[],
   trump: Suit | null,
 ): boolean {
+  // Vodi (nema karata u štihu) — može bilo koju
   if (trickCards.length === 0) return true;
+
   const leadSuit = trickCards[0]!.card.suit;
   const inLeadSuit = hand.some(c => c.suit === leadSuit);
+
+  // Slučaj 1: Ima lead boju → samo lead boja
   if (inLeadSuit) {
-    if (card.suit !== leadSuit) return false;
-    return true;
+    return card.suit === leadSuit;
   }
-  // Nema lead boje
+
+  // Slučaj 2: Nema lead boju, ali ima adut → samo adut
   if (trump !== null) {
     const hasTrump = hand.some(c => c.suit === trump);
     if (hasTrump) {
-      // U adutskoj igri mora adut
       return card.suit === trump;
     }
   }
-  // Betl/Sans ili nema aduta — može bilo koju
+
+  // Slučaj 3: Nema ni lead ni adut → bilo koja
   return true;
 }
 

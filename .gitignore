@@ -44,3 +44,4 @@ temp_*.ts
 .playwright-mcp/
 test-results/
 playwright-report/
+tools/shots/
