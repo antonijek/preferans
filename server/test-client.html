@@ -2,54 +2,207 @@
 <html lang="sr">
 <head>
 <meta charset="utf-8">
-<title>Preferans M3 test client</title>
+<title>Preferans test klijent</title>
 <style>
-  body { font-family: monospace; margin: 1em; }
-  #seat { font-weight: bold; font-size: 1.2em; }
-  textarea { width: 100%; height: 60px; }
-  pre { background: #f0f0f0; padding: 1em; max-height: 400px; overflow: auto; }
-  button { margin-top: 0.5em; }
-  .examples { color: #555; font-size: 0.9em; }
+  body { font-family: monospace; margin: 1em; max-width: 1000px; }
+  fieldset { margin-bottom: 1em; }
+  input[type=text], input[type=email], input[type=password], input[type=number] { width: 200px; }
+  textarea { width: 100%; height: 50px; }
+  pre { background: #f0f0f0; padding: 1em; max-height: 300px; overflow: auto; }
+  button { margin: 0.2em; }
+  #status { font-weight: bold; }
+  .row { margin-bottom: 0.4em; }
+  #kibicRequests div { background: #fffae0; padding: 0.4em; margin: 0.2em 0; }
+  #chatLog div { margin: 0.1em 0; }
 </style>
 </head>
 <body>
-  <div id="seat">Seat: ?</div>
-  <div>
-    <textarea id="action">{"type":"bid","player":0,"value":2}</textarea>
+  <h2>Preferans test klijent</h2>
+  <div id="status">Nisi ulogovan.</div>
+
+  <fieldset id="authBox">
+    <legend>1) Nalog</legend>
+    <div class="row">
+      <input type="email" id="email" placeholder="email" value="test@test.com">
+      <input type="password" id="password" placeholder="lozinka" value="test1234">
+      <button onclick="doRegister()">Registruj</button>
+      <button onclick="doLogin()">Uloguj</button>
+    </div>
+  </fieldset>
+
+  <fieldset id="roomBox" disabled>
+    <legend>2) Soba</legend>
+    <div class="row">
+      <button onclick="createRoom()">Napravi sobu</button>
+      <input type="text" id="joinCode" placeholder="kod sobe">
+      <button onclick="joinRoom()">Pridruži se (igrač)</button>
+      <button onclick="joinAsSpectator()">Pridruži se (kibicer)</button>
+      <button onclick="toggleLock()">Zaključaj/otključaj sobu</button>
+    </div>
+  </fieldset>
+
+  <fieldset id="kibicBox" disabled>
+    <legend>3) Kibic</legend>
+    <div class="row">
+      Zatraži uvid u kartu sedišta:
+      <input type="number" id="kibicTargetSeat" min="0" max="2" value="0" style="width:50px">
+      <button onclick="requestKibic()">Zatraži kibic</button>
+    </div>
+    <div id="kibicRequests"></div>
+  </fieldset>
+
+  <fieldset id="actionBox" disabled>
+    <legend>4) Akcija u igri</legend>
+    <textarea id="action">{"type":"pass"}</textarea>
     <br>
-    <button onclick="sendAction()">Send action</button>
-  </div>
-  <p class="examples">
-    Primeri: {"type":"bid","player":0,"value":2} &middot;
-    {"type":"pass","player":1} &middot;
-    {"type":"sayIgra","player":0}
-  </p>
+    <button onclick="sendAction()">Pošalji akciju</button>
+    <p style="color:#555">Primeri: {"type":"bid","value":2} &middot; {"type":"pass"} &middot; {"type":"sayIgra"}<br>
+    (polje "player"/"caller" NE treba slati — server ga sam popunjava po tvom sedištu)</p>
+  </fieldset>
+
+  <fieldset id="chatBox" disabled>
+    <legend>5) Chat</legend>
+    <input type="text" id="chatText" placeholder="poruka" style="width:300px">
+    <button onclick="sendChat()">Pošalji</button>
+    <div id="chatLog"></div>
+  </fieldset>
+
   <h3>State (live):</h3>
-  <pre id="state">(waiting for connection...)</pre>
+  <pre id="state">(nema konekcije)</pre>
   <h3>Log:</h3>
   <pre id="log"></pre>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const params = new URLSearchParams(location.search);
-    const seat = params.get('seat') || '0';
-    document.getElementById('seat').textContent = 'Seat: ' + seat;
+    let token = localStorage.getItem('pref_token') || null;
+    let socket = null;
+    let mySeat = null;
 
     const log = (msg) => {
       const el = document.getElementById('log');
       el.textContent = new Date().toLocaleTimeString() + ' ' + msg + '\n' + el.textContent;
     };
 
-    const socket = io('/', { query: { seat } });
+    function setStatus(text) {
+      document.getElementById('status').textContent = text;
+    }
 
-    socket.on('connect', () => log('connected as seat ' + seat));
-    socket.on('game:state', (state) => {
-      document.getElementById('state').textContent = JSON.stringify(state, null, 2);
-      log('state updated, phase=' + state.phase);
-    });
-    socket.on('game:action-rejected', (action) => log('REJECTED: ' + JSON.stringify(action)));
-    socket.on('game:error', (msg) => log('ERROR: ' + msg));
-    socket.on('disconnect', () => log('disconnected'));
+    async function doRegister() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const res = await fetch('/api/register', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (data.token) { onLoggedIn(data.token); } else { log('registracija: ' + JSON.stringify(data)); }
+    }
+
+    async function doLogin() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const res = await fetch('/api/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (data.token) { onLoggedIn(data.token); } else { log('login: ' + JSON.stringify(data)); }
+    }
+
+    function onLoggedIn(t) {
+      token = t;
+      localStorage.setItem('pref_token', token);
+      setStatus('Ulogovan. Konektujem socket...');
+      connectSocket();
+    }
+
+    function connectSocket() {
+      if (socket) socket.disconnect();
+      socket = io('/', { auth: { token } });
+
+      socket.on('connect', () => {
+        setStatus('Povezan (socket id: ' + socket.id + ')');
+        document.getElementById('roomBox').disabled = false;
+        log('socket connected');
+      });
+      socket.on('connect_error', (e) => { setStatus('Greška konekcije: ' + e.message); log('connect_error: ' + e.message); });
+
+      socket.on('game:state', (state) => {
+        document.getElementById('state').textContent = JSON.stringify(state, null, 2);
+        document.getElementById('actionBox').disabled = false;
+        document.getElementById('chatBox').disabled = false;
+        log('state updated, phase=' + state.phase);
+      });
+      socket.on('game:action-rejected', (a) => log('ODBIJENO: ' + JSON.stringify(a)));
+      socket.on('game:error', (msg) => log('GREŠKA: ' + msg));
+
+      socket.on('kibic:incoming-request', (p) => {
+        const div = document.createElement('div');
+        div.innerHTML = `Kibic zahtev od <b>${p.name}</b> (userId ${p.spectatorUserId})
+          <button onclick="respondKibic(${p.spectatorUserId}, true)">Odobri</button>
+          <button onclick="respondKibic(${p.spectatorUserId}, false)">Odbij</button>`;
+        document.getElementById('kibicRequests').appendChild(div);
+        document.getElementById('kibicBox').disabled = false;
+      });
+
+      socket.on('room:lock-changed', (p) => log('soba ' + (p.locked ? 'zaključana' : 'otključana')));
+
+      socket.on('chat:backlog', (msgs) => {
+        const el = document.getElementById('chatLog');
+        el.innerHTML = '';
+        msgs.forEach(appendChatMessage);
+      });
+      socket.on('chat:message', appendChatMessage);
+    }
+
+    function appendChatMessage(m) {
+      const el = document.getElementById('chatLog');
+      const div = document.createElement('div');
+      const who = m.role === 'player' ? `Sedište ${m.seat}` : 'Kibicer';
+      div.textContent = `[${new Date(m.ts).toLocaleTimeString()}] ${m.name} (${who}): ${m.text}`;
+      el.appendChild(div);
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function ack(event, payload) {
+      return new Promise((resolve) => socket.emit(event, payload, resolve));
+    }
+
+    async function createRoom() {
+      const res = await ack('room:create', {});
+      log('room:create -> ' + JSON.stringify(res));
+      if (res.code) { mySeat = res.seat; document.getElementById('joinCode').value = res.code; }
+    }
+
+    async function joinRoom() {
+      const code = document.getElementById('joinCode').value;
+      const res = await ack('room:join', { code });
+      log('room:join -> ' + JSON.stringify(res));
+      if (typeof res.seat === 'number') mySeat = res.seat;
+    }
+
+    async function joinAsSpectator() {
+      const code = document.getElementById('joinCode').value;
+      const res = await ack('room:join-as-spectator', { code });
+      log('room:join-as-spectator -> ' + JSON.stringify(res));
+      document.getElementById('kibicBox').disabled = false;
+    }
+
+    async function toggleLock() {
+      const res = await ack('room:toggle-lock', {});
+      log('room:toggle-lock -> ' + JSON.stringify(res));
+    }
+
+    function requestKibic() {
+      const targetSeat = Number(document.getElementById('kibicTargetSeat').value);
+      socket.emit('kibic:request', { targetSeat });
+      log('poslat kibic:request za sedište ' + targetSeat);
+    }
+
+    function respondKibic(spectatorUserId, approve) {
+      socket.emit('kibic:respond', { spectatorUserId, approve });
+      log('kibic:respond -> spectatorUserId=' + spectatorUserId + ' approve=' + approve);
+    }
 
     function sendAction() {
       try {
@@ -60,6 +213,15 @@
         log('invalid JSON: ' + e.message);
       }
     }
+
+    function sendChat() {
+      const text = document.getElementById('chatText').value;
+      if (!text.trim()) return;
+      socket.emit('chat:send', { text });
+      document.getElementById('chatText').value = '';
+    }
+
+    if (token) { setStatus('Postoji sačuvan token, konektujem...'); connectSocket(); }
   </script>
 </body>
 </html>
