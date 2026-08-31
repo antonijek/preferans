@@ -1,0 +1,42 @@
+import { Game } from '../../../engine/dist/game.js';
+import type { Socket } from 'socket.io';
+import type { Position } from '../../../engine/dist/types.js';
+
+export interface SpectatorInfo {
+  userId: number;
+  name: string;
+  socket: Socket | null;
+  kibicSeats: Set<Position>;
+}
+
+export interface ChatMessage {
+  name: string;
+  role: 'player' | 'spectator';
+  seat: Position | null;
+  text: string;
+  ts: number;
+}
+
+export const CHAT_LOG_LIMIT = 50;
+
+export interface RoomState {
+  code: string;
+  game: Game;
+  locked: boolean;
+  seatUserIds: [number | null, number | null, number | null];
+  sockets: [Socket | null, Socket | null, Socket | null];
+  spectators: Map<number, SpectatorInfo>; // keyed by userId
+  chatLog: ChatMessage[];
+}
+
+export function createRoomState(code: string): RoomState {
+  return {
+    code,
+    game: new Game({ seed: Date.now() }),
+    locked: false,
+    seatUserIds: [null, null, null],
+    sockets: [null, null, null],
+    spectators: new Map(),
+    chatLog: [],
+  };
+}

@@ -4,6 +4,11 @@ package-lock.json
 
 # Build output
 engine/dist/
+server/dist/
+
+# Server secrets / local data
+server/.env
+server/data.db
 
 # IDE / Editor
 .vscode/
