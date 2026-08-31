@@ -46,11 +46,54 @@ let handGeneration = 0;
 let game = createGame({ seed: Date.now() & 0xffff });
 let mode = '1v2';
 
+// === ONLINE MOD ===
+// mySeat: koje sedište (0/1/2) KONTROLIŠE ovaj klijent — dodeljuje ga server
+// pri room:create/room:join, ostaje null dok se ne pridruzimo sobi.
+let mySeat = null;
+let onlineSocket = null;
+let onlineToken = null;
+try { onlineToken = localStorage.getItem('pref_token'); } catch (e) { /* privatni mod ili blokiran storage — ok, samo bez pamcenja */ }
+
+// "game" u online modu NIJE prava engine Game instanca — nema pristup
+// serveru/rng-u/protivnickim rukama. To je tanak "proksi" istog oblika
+// (isti nazivi metoda, isto .state) koji SVAKI poziv samo prosledi serveru
+// preko socketa; server je jedini izvor istine. Ovo je namerno — sve
+// postojece render/user-action funkcije vec pozivaju game.bid()/game.state.X
+// bez ikakve izmene, isti kod radi i lokalno i online.
+function createOnlineGameProxy(socket) {
+  const proxy = { state: null };
+  const send = (type, extra) => { socket.emit('game:action', { type, ...extra }); return true; };
+  proxy.bid = (player, value) => send('bid', { value });
+  proxy.pass = () => send('pass', {});
+  proxy.sayIgra = () => send('sayIgra', {});
+  proxy.declareIgra = (player, g) => send('declareIgra', { game: g });
+  proxy.discard = (player, cardIds) => send('discard', { cardIds });
+  proxy.declareGame = (player, g) => send('declareGame', { game: g });
+  proxy.follow = (player, choice) => send('follow', { choice });
+  proxy.call = (caller, callee) => send('call', { callee });
+  proxy.continueWithoutCall = () => send('continueWithoutCall', {});
+  proxy.kontra = (player, level) => send('kontra', { level });
+  proxy.moze = () => send('moze', {});
+  proxy.playCard = (player, cardId) => send('playCard', { cardId });
+  // Ove dve NISU akcije — cisto citanje izvedenih vrednosti koje bi inace
+  // zahtevalo dupliranje privatne engine logike (followersInKontraOrder,
+  // pravila pracenja boje) u browseru. Server ih vec racuna (ima pravu Game
+  // instancu) i salje kao deo redigovanog stanja — vidi server/src/socket/
+  // roomEvents.ts buildClientState().
+  proxy.expectedKontraPlayerPublic = () => proxy.state?.expectedKontraPlayer ?? null;
+  proxy.getLegalCards = () => proxy.state?.legalCards ?? [];
+  return proxy;
+}
+
 // Da li je DATI igrac trenutno pod ljudskom kontrolom (klikovi u UI-ju),
 // nasuprot AI-ju. '3human' je testni mod (korisnikov zahtev) — čovek igra
 // SVA TRI mesta za sto, da moze rucno da postavi tacne scenarije bez
-// zavisnosti od AI ponasanja.
+// zavisnosti od AI ponasanja. U 'online' modu nema AI uopste (sva tri mesta
+// su stvarni udaljeni ljudi) — "human" ovde znaci "MOJE sediste", ne "nije
+// AI", jer klijent sme da prikaze dugmad/prihvati klik SAMO za sopstveno
+// sediste, nikad za tudje (druga dva su stvarni ljudi na drugim uredjajima).
 function isHuman(player) {
+  if (mode === 'online') return player === mySeat;
   if (mode === '3ai') return false;
   if (mode === '3human') return true;
   return player === 0; // '1v2'
@@ -554,6 +597,8 @@ function renderBiddingPanel() {
       igraBtn.onclick = (e) => userSayIgra(e, player);
       ctrl.appendChild(igraBtn);
     }
+  } else if (isAITurn && mode === 'online') {
+    ctrl.appendChild(el('div', 'section-label', `Čeka se ${POS_LABELS[player]}...`));
   } else if (isAITurn) {
     ctrl.appendChild(el('div', 'section-label', `AI (${SEAT_PLAYER_NAME[player]}) razmišlja...`));
     const gen = handGeneration;
@@ -574,6 +619,11 @@ function renderDiscarding() {
 
   const winner = s.winner;
   const isAI = !isHuman(winner);
+
+  if (isAI && mode === 'online') {
+    ctrl.appendChild(el('div', 'section-label', `Čeka se ${POS_LABELS[winner]} (baca 2 karte)...`));
+    return;
+  }
 
   if (isAI) {
     ctrl.appendChild(el('div', 'section-label', `${POS_LABELS[winner]} baci 2 karte...`));
@@ -643,6 +693,11 @@ function renderDeclaring() {
     const log = $('bidLog');
     log.innerHTML = `<span class="bid-entry p${player}"><strong>${POS_LABELS[player]}</strong> proglašava svoju Igru (${s.igraCompetitors.length} igrača rekla Igra — poredi se jačina)</span>`;
 
+    if (!isHuman(player) && mode === 'online') {
+      ctrl.appendChild(el('div', 'section-label', `Čeka se ${POS_LABELS[player]} (proglašava Igru)...`));
+      return;
+    }
+
     if (!isHuman(player)) {
       const gen = handGeneration;
       ctrl.appendChild(el('div', 'section-label', `${POS_LABELS[player]} proglašava igru (Igra)...`));
@@ -672,6 +727,11 @@ function renderDeclaring() {
   const winner = s.winner;
   const isAI = !isHuman(winner);
   const isIgra = s.igraPlayer === winner;
+
+  if (isAI && mode === 'online') {
+    ctrl.appendChild(el('div', 'section-label', `Čeka se ${POS_LABELS[winner]} (bira igru)...`));
+    return;
+  }
 
   if (isAI) {
     const gen = handGeneration;
@@ -753,6 +813,8 @@ function renderFollowing() {
       const ne = el('button', 'bid-btn danger', 'Ne dodjem');
       ne.onclick = (e) => { logTrustedAction('userFollow NE_DODJEM', e); game.follow(undecided, 'NE_DODJEM'); render(); };
       ctrl.appendChild(ne);
+    } else if (mode === 'online') {
+      ctrl.appendChild(el('div', 'section-label', `Čeka se ${POS_LABELS[undecided]}...`));
     } else {
       ctrl.appendChild(el('div', 'section-label', `${POS_LABELS[undecided]} razmišlja...`));
       // Dodji ako ima bar 2 "sigurna" stiha (adut A/K/D sa duzinom, ili
@@ -790,6 +852,8 @@ function renderFollowing() {
     const solo = el('button', 'bid-btn primary', 'Igram sam');
     solo.onclick = (e) => { logTrustedAction('userContinueWithoutCall', e); game.continueWithoutCall(); render(); };
     ctrl.appendChild(solo);
+  } else if (mode === 'online') {
+    ctrl.appendChild(el('div', 'section-label', `Čeka se ${POS_LABELS[callerCandidate]}...`));
   } else {
     ctrl.appendChild(el('div', 'section-label', `${POS_LABELS[callerCandidate]} razmišlja (poziv)...`));
     const gen = handGeneration;
@@ -842,6 +906,8 @@ function renderKontra() {
     const mozeBtn = el('button', 'bid-btn primary', 'Moze');
     mozeBtn.onclick = (e) => { logTrustedAction('userMoze', e); game.moze(expected); render(); };
     ctrl.appendChild(mozeBtn);
+  } else if (mode === 'online') {
+    ctrl.appendChild(el('div', 'section-label', `Čeka se ${POS_LABELS[expected]}...`));
   } else {
     ctrl.appendChild(el('div', 'section-label', `${POS_LABELS[expected]} razmišlja...`));
     // Kontra ako ima 4+ aduta, ili 3+ aduta sa 2+ visoke karte u adutu
@@ -870,6 +936,7 @@ function renderKontra() {
 // KO je trenutno na potezu (hot-seat), da bi se moglo rucno postaviti bilo
 // koji scenario za sve tri pozicije. U '1v2'/'3ai' modu uvek je pozicija 0.
 function activeHandOwner(s) {
+  if (mode === 'online') return mySeat;
   if (mode !== '3human') return 0;
   if (s.phase === 'PLAYING') return s.currentPlayer;
   if (s.phase === 'BIDDING') return s.currentBidder;
@@ -878,6 +945,12 @@ function activeHandOwner(s) {
 
 function renderHand() {
   const s = game.state;
+
+  // Kibicer (online spectator) nema svoje sediste/ruku da prikaze.
+  if (mode === 'online' && mySeat === null) {
+    $('handArea').innerHTML = '';
+    return;
+  }
 
   if (s.phase === 'DISCARDING' && isHuman(s.winner)) {
     // Discard UI vec renderovan u renderDiscarding() — ne diraj handArea
@@ -934,7 +1007,7 @@ function render() {
 
   if (game.state.phase === 'PLAYING') {
     const isHumanTurn = isHuman(game.state.currentPlayer);
-    if (!isHumanTurn) {
+    if (!isHumanTurn && mode !== 'online') {
       const gen = handGeneration;
       setTimeout(() => { if (gen === handGeneration) aiPlayTurn(); }, 450);
     }
@@ -1352,6 +1425,224 @@ function resultAction() {
   }
 }
 
+// === ONLINE: login/registracija ===
+
+function goOnline() {
+  $('setupScreen').classList.remove('active');
+  $('loginScreen').classList.add('active');
+  $('loginError').textContent = '';
+  if (onlineToken) connectOnlineSocket();
+}
+
+async function doRegister() {
+  await onlineAuth('/api/register');
+}
+
+async function doLogin() {
+  await onlineAuth('/api/login');
+}
+
+async function onlineAuth(path) {
+  const email = $('loginEmail').value.trim();
+  const password = $('loginPassword').value;
+  $('loginError').textContent = '';
+  if (!email || !password) { $('loginError').textContent = 'Unesi email i lozinku.'; return; }
+  try {
+    const res = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!data.token) { $('loginError').textContent = data.error || 'Greška.'; return; }
+    onlineToken = data.token;
+    try { localStorage.setItem('pref_token', onlineToken); } catch (e) { /* ok bez pamcenja */ }
+    connectOnlineSocket();
+  } catch (e) {
+    $('loginError').textContent = 'Ne mogu da se povežem sa serverom.';
+  }
+}
+
+// === ONLINE: socket konekcija + prelaz na sto ===
+
+// Ucitava socket.io klijent SAMO kad se stvarno udje u online mod — namerno
+// NEMA <script> tag za ovo u preferans.html. Taj put (/socket.io/socket.io.js)
+// postoji samo na PRAVOM multiplayer serveru; kad se stranica servira preko
+// tools/serve.js (cist static server za lokalno AI testiranje, bez backend-a)
+// takav tag bi bio 404 u konzoli na SVAKOM ucitavanju stranice — uzivo uhvaceno
+// od npm run test:ui:multi (strogo prati konzolu, sve partije su prijavljivane
+// kao "ERR" iako su se stvarno odigrale, samo zbog tog 404 logа).
+function loadSocketIoScript() {
+  return new Promise((resolve, reject) => {
+    if (typeof io !== 'undefined') { resolve(); return; }
+    const script = document.createElement('script');
+    script.src = '/socket.io/socket.io.js';
+    script.onload = resolve;
+    script.onerror = () => reject(new Error('Server nije dostupan (nema backend konekcije sa ove adrese).'));
+    document.head.appendChild(script);
+  });
+}
+
+async function connectOnlineSocket() {
+  try {
+    await loadSocketIoScript();
+  } catch (e) {
+    $('loginError').textContent = e.message;
+    return;
+  }
+  if (onlineSocket) onlineSocket.disconnect();
+
+  mode = 'online';
+  mySeat = null;
+  game = createOnlineGameProxy(onlineSocket = io('/', { auth: { token: onlineToken } }));
+  window.game = game; // F12 debug (createGame() radi ovo za lokalni mod, ovde je isti obicaj)
+
+  onlineSocket.on('connect', () => {
+    $('loginScreen').classList.remove('active');
+    $('roomScreen').classList.add('active');
+    $('roomError').textContent = '';
+  });
+  onlineSocket.on('connect_error', (err) => {
+    onlineSocket = null;
+    $('loginScreen').classList.add('active');
+    $('roomScreen').classList.remove('active');
+    $('loginError').textContent = 'Greška konekcije: ' + err.message;
+  });
+  onlineSocket.on('game:state', (state) => {
+    game.state = state;
+    if (!document.body.classList.contains('online-in-game')) {
+      document.body.classList.add('online-in-game');
+      $('loginScreen').classList.remove('active');
+      $('roomScreen').classList.remove('active');
+      $('setupScreen').classList.remove('active');
+      $('chatToggleBtn').style.display = '';
+      document.querySelector('.top-actions [onclick="restart()"]')?.style.setProperty('display', 'none');
+      renderSeats();
+    }
+    render();
+  });
+  onlineSocket.on('game:action-rejected', (action) => {
+    console.warn('[online] akcija odbijena od servera:', action);
+  });
+  onlineSocket.on('game:error', (msg) => {
+    console.error('[online] server greška:', msg);
+  });
+  onlineSocket.on('room:lock-changed', (p) => {
+    $('roomStatus').textContent = p.locked ? '🔒 Soba je zaključana.' : '🔓 Soba je otključana.';
+  });
+  onlineSocket.on('kibic:incoming-request', (p) => {
+    showKibicRequestBanner(p.spectatorUserId, p.name);
+  });
+  onlineSocket.on('chat:backlog', (msgs) => {
+    $('chatLog').innerHTML = '';
+    msgs.forEach(appendChatMessageOnline);
+  });
+  onlineSocket.on('chat:message', appendChatMessageOnline);
+}
+
+function backToSetup() {
+  if (onlineSocket) { onlineSocket.disconnect(); onlineSocket = null; }
+  document.body.classList.remove('online-in-game');
+  mode = '1v2';
+  mySeat = null;
+  $('loginScreen').classList.remove('active');
+  $('roomScreen').classList.remove('active');
+  $('chatScreen').classList.remove('active');
+  $('chatToggleBtn').style.display = 'none';
+  $('kibicRequestPanel').style.display = 'none';
+  $('setupScreen').classList.add('active');
+}
+
+// === ONLINE: sobe ===
+
+function createRoomOnline() {
+  onlineSocket.emit('room:create', {}, (res) => {
+    if (res.error) { $('roomError').textContent = res.error; return; }
+    mySeat = res.seat;
+    $('roomCodeInput').value = res.code;
+    $('roomStatus').innerHTML = `Kod sobe: <b style="font-size:1.3em">${res.code}</b> — podeli ga sa drugarima. Čeka se još igrača...`;
+  });
+}
+
+function joinRoomOnline() {
+  const code = $('roomCodeInput').value.trim().toUpperCase();
+  if (!code) { $('roomError').textContent = 'Unesi kod sobe.'; return; }
+  onlineSocket.emit('room:join', { code }, (res) => {
+    if (res.error) { $('roomError').textContent = res.error; return; }
+    mySeat = res.seat;
+    $('roomStatus').textContent = `Pridružen sobi ${res.code}, čeka se početak...`;
+  });
+}
+
+function joinAsSpectatorOnline() {
+  const code = $('roomCodeInput').value.trim().toUpperCase();
+  if (!code) { $('roomError').textContent = 'Unesi kod sobe.'; return; }
+  onlineSocket.emit('room:join-as-spectator', { code }, (res) => {
+    if (res.error) { $('roomError').textContent = res.error; return; }
+    mySeat = null;
+    $('roomStatus').textContent = `Kibiciraš sobu ${res.code}.`;
+    $('kibicRequestPanel').style.display = '';
+  });
+}
+
+function toggleLockOnline() {
+  onlineSocket.emit('room:toggle-lock', {}, (res) => {
+    if (res.error) $('roomError').textContent = res.error;
+  });
+}
+
+// === ONLINE: kibic ===
+
+function requestKibicOnline(seat) {
+  onlineSocket.emit('kibic:request', { targetSeat: seat });
+}
+
+function showKibicRequestBanner(spectatorUserId, name) {
+  // textContent svuda ispod (ne el()'s innerHTML) — `name` je korisnikov
+  // email, nepouzdan unos koji se salje SVIM ostalim igracima u sobi preko
+  // ovog banera; kroz innerHTML bi to bio pravi XSS (npr. neko se registruje
+  // sa "<script>..." kao email).
+  const banner = document.createElement('div');
+  banner.className = 'kibic-request-banner';
+  const span = document.createElement('span');
+  span.textContent = `${name} traži kibic uvid u tvoje karte.`;
+  banner.appendChild(span);
+  const approve = document.createElement('button');
+  approve.textContent = 'Odobri';
+  approve.onclick = () => { onlineSocket.emit('kibic:respond', { spectatorUserId, approve: true }); banner.remove(); };
+  const deny = document.createElement('button');
+  deny.textContent = 'Odbij';
+  deny.onclick = () => { onlineSocket.emit('kibic:respond', { spectatorUserId, approve: false }); banner.remove(); };
+  banner.appendChild(approve);
+  banner.appendChild(deny);
+  $('kibicBanners').appendChild(banner);
+}
+
+// === ONLINE: chat ===
+
+function toggleChat() {
+  $('chatScreen').classList.toggle('active');
+}
+
+function sendChatOnline() {
+  const input = $('chatInput');
+  const text = input.value.trim();
+  if (!text || !onlineSocket) return;
+  onlineSocket.emit('chat:send', { text });
+  input.value = '';
+}
+
+function appendChatMessageOnline(m) {
+  // textContent (ne innerHTML) — m.text/m.name su tudji unos (chat poruka,
+  // email drugog igraca), nikad ih ne tretirati kao HTML.
+  const log = $('chatLog');
+  const who = m.role === 'player' ? POS_LABELS[m.seat] : `${m.name} (kibicer)`;
+  const div = document.createElement('div');
+  div.textContent = `${who}: ${m.text}`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
 function setGameMode(m) {
   mode = m;
   $('mode3ai').classList.toggle('active', m === '3ai');
@@ -1372,10 +1663,22 @@ window.userSayIgra = userSayIgra;
 window.toggleScore = toggleScore;
 window.render = render; // korisno za dijagnostiku/testiranje preko konzole
 window.restart = () => {
+  if (mode === 'online') return; // nema smisla resetovati tudju online partiju
   discardSelected = new Set();
   game.newHand(0);
   render();
 };
+window.goOnline = goOnline;
+window.doLogin = doLogin;
+window.doRegister = doRegister;
+window.backToSetup = backToSetup;
+window.createRoomOnline = createRoomOnline;
+window.joinRoomOnline = joinRoomOnline;
+window.joinAsSpectatorOnline = joinAsSpectatorOnline;
+window.toggleLockOnline = toggleLockOnline;
+window.requestKibicOnline = requestKibicOnline;
+window.toggleChat = toggleChat;
+window.sendChatOnline = sendChatOnline;
 
 // INIT
 renderSeats();

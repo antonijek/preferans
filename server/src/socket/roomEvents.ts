@@ -9,6 +9,7 @@ import type { RoomState, ChatMessage } from '../rooms/RoomState.js';
 import { CHAT_LOG_LIMIT } from '../rooms/RoomState.js';
 import type { Position } from '../../../engine/dist/types.js';
 import { redactStateFor } from '../redact.js';
+import type { Viewer } from '../redact.js';
 import { applyAction, withAuthenticatedActor } from './gameEvents.js';
 import type { GameAction } from './gameEvents.js';
 
@@ -18,14 +19,35 @@ function sendChatBacklog(socket: Socket, room: RoomState): void {
   socket.emit('chat:backlog', room.chatLog);
 }
 
+// A couple of small values (whose turn it is to kontra, which of MY OWN
+// cards are currently legal to play) require private engine logic
+// (`followersInKontraOrder`, trick-following rules) that isn't worth
+// duplicating client-side — the server already has the authoritative `Game`
+// instance right here, so it just computes them once and rides along with
+// the redacted state. Neither leaks anything: expectedKontraPlayer is public
+// (same visibility as currentBidder/currentPlayer), and legalCards is
+// derived purely from cards the viewer can already see (their own hand).
+function buildClientState(room: RoomState, viewer: Viewer) {
+  const redacted = redactStateFor(room.game.state, viewer);
+  const legalCards =
+    viewer.type === 'player' && room.game.state.phase === 'PLAYING'
+      ? room.game.getLegalCards(viewer.seat)
+      : [];
+  return {
+    ...redacted,
+    expectedKontraPlayer: room.game.expectedKontraPlayerPublic(),
+    legalCards,
+  };
+}
+
 function broadcastRoomState(room: RoomState): void {
   room.sockets.forEach((socket, seat) => {
-    socket?.emit('game:state', redactStateFor(room.game.state, { type: 'player', seat: seat as Position }));
+    socket?.emit('game:state', buildClientState(room, { type: 'player', seat: seat as Position }));
   });
   room.spectators.forEach((spectator) => {
     spectator.socket?.emit(
       'game:state',
-      redactStateFor(room.game.state, { type: 'spectator', kibicSeats: spectator.kibicSeats })
+      buildClientState(room, { type: 'spectator', kibicSeats: spectator.kibicSeats })
     );
   });
 }
@@ -74,7 +96,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
       if (existingLocation.role === 'player') {
         const seat = joinAsPlayer(room, userId, socket);
         if (seat !== null) {
-          socket.emit('game:state', redactStateFor(room.game.state, { type: 'player', seat }));
+          socket.emit('game:state', buildClientState(room, { type: 'player', seat }));
           sendChatBacklog(socket, room);
         }
       } else {
@@ -84,7 +106,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
           socket.join(room.code);
           socket.emit(
             'game:state',
-            redactStateFor(room.game.state, { type: 'spectator', kibicSeats: spectator.kibicSeats })
+            buildClientState(room, { type: 'spectator', kibicSeats: spectator.kibicSeats })
           );
           sendChatBacklog(socket, room);
         }
@@ -132,7 +154,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     socket.join(room.code);
     setUserLocation(userId, { code: room.code, role: 'spectator' });
     ack?.({ code: room.code });
-    socket.emit('game:state', redactStateFor(room.game.state, { type: 'spectator', kibicSeats }));
+    socket.emit('game:state', buildClientState(room, { type: 'spectator', kibicSeats }));
     sendChatBacklog(socket, room);
   });
 
@@ -167,7 +189,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     spectator.kibicSeats.add(loc.seat);
     spectator.socket?.emit(
       'game:state',
-      redactStateFor(room.game.state, { type: 'spectator', kibicSeats: spectator.kibicSeats })
+      buildClientState(room, { type: 'spectator', kibicSeats: spectator.kibicSeats })
     );
   });
 

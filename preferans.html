@@ -613,6 +613,40 @@
   }
   .setup-field input[type="number"]:focus { outline: none; border-color: #66bb6a; }
 
+  .text-field { margin: 10px 0; text-align: left; }
+  .text-field label { display: block; font-size: 0.85em; opacity: 0.85; margin-bottom: 4px; }
+  .text-field input {
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(255,255,255,0.1);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    color: white;
+    font-size: 1em;
+    padding: 10px 12px;
+  }
+  .text-field input:focus { outline: none; border-color: #66bb6a; }
+  .field-error { color: #ef5350; min-height: 1.2em; font-size: 0.85em; margin: 6px 0; }
+
+  .chat-log { text-align: left; max-height: 280px; overflow-y: auto; margin-bottom: 10px; font-size: 0.9em; }
+  .chat-log div { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+
+  .kibic-request-banner {
+    position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+    background: #2b2f36; border: 2px solid #66bb6a; border-radius: 10px;
+    padding: 10px 14px; z-index: 500; display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  .kibic-request-banner button { width: auto; margin: 0; padding: 6px 12px; min-height: unset; }
+
+  #kibicRequestPanel {
+    position: fixed; top: 70px; right: 12px; z-index: 400;
+    background: #2b2f36; border: 2px solid rgba(255,255,255,0.2); border-radius: 10px;
+    padding: 10px 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  #kibicRequestPanel label { display: block; font-size: 0.85em; margin-bottom: 6px; }
+  #kibicRequestPanel .icon-btn { min-width: unset; padding: 6px 10px; font-size: 0.85em; }
+
   .score-box { max-width: 640px; }
   .score-section-title { font-size: 0.85em; opacity: 0.7; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 0.5px; }
   .score-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
@@ -805,6 +839,7 @@
     <div><div class="label">Štih</div><div class="value" id="trickInfo">0/10</div></div>
   </div>
   <div class="top-actions">
+    <button class="icon-btn" id="chatToggleBtn" onclick="toggleChat()" style="display:none">💬</button>
     <button class="icon-btn" onclick="toggleScore()">📊</button>
     <button class="icon-btn" onclick="restart()">🔄</button>
   </div>
@@ -910,6 +945,74 @@
       <input type="number" id="setupRefeCount" value="2" min="0" step="1">
     </div>
     <button class="mode-btn primary" style="min-height:56px;font-size:1.1em" onclick="startGame()">🎮 Kreni!</button>
+    <button class="mode-btn" style="margin-top:14px" onclick="goOnline()">🌐 Igraj online</button>
+  </div>
+</div>
+
+<!-- Online: login -->
+<div class="screen" id="loginScreen">
+  <div class="box setup-box">
+    <h2 class="setup-title">Online</h2>
+    <div class="text-field">
+      <label for="loginEmail">Email</label>
+      <input type="email" id="loginEmail" placeholder="tvoj@email.com" autocomplete="username">
+    </div>
+    <div class="text-field">
+      <label for="loginPassword">Lozinka</label>
+      <input type="password" id="loginPassword" placeholder="lozinka" autocomplete="current-password">
+    </div>
+    <div class="field-error" id="loginError"></div>
+    <div style="display:flex;gap:8px">
+      <button class="mode-btn primary" onclick="doLogin()">Uloguj se</button>
+      <button class="mode-btn" onclick="doRegister()">Registruj se</button>
+    </div>
+    <button class="mode-btn" style="margin-top:16px" onclick="backToSetup()">← Nazad</button>
+  </div>
+</div>
+
+<!-- Online: soba -->
+<div class="screen" id="roomScreen">
+  <div class="box setup-box">
+    <h2 class="setup-title">Soba</h2>
+    <div id="roomStatus" style="margin-bottom:12px;min-height:1.4em"></div>
+    <button class="mode-btn primary" onclick="createRoomOnline()">Napravi novu sobu</button>
+    <div class="text-field">
+      <label for="roomCodeInput">Kod sobe</label>
+      <input type="text" id="roomCodeInput" placeholder="npr. 9A7AU" style="text-transform:uppercase">
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="mode-btn" onclick="joinRoomOnline()">Pridruži se</button>
+      <button class="mode-btn" onclick="joinAsSpectatorOnline()">Kibiciraj</button>
+    </div>
+    <button class="mode-btn" onclick="toggleLockOnline()">🔒 Zaključaj/otključaj sobu</button>
+    <div class="field-error" id="roomError"></div>
+    <button class="mode-btn" style="margin-top:16px" onclick="backToSetup()">← Nazad</button>
+  </div>
+</div>
+
+<!-- Online: kibic zahtevi (spectator strana) i dolazni zahtevi (player strana) -->
+<div id="kibicRequestPanel" style="display:none">
+  <div class="setup-field">
+    <label>Zatraži kibic uvid:</label>
+    <div style="display:flex;gap:6px">
+      <button class="icon-btn" onclick="requestKibicOnline(0)">Jug</button>
+      <button class="icon-btn" onclick="requestKibicOnline(1)">Istok</button>
+      <button class="icon-btn" onclick="requestKibicOnline(2)">Zapad</button>
+    </div>
+  </div>
+</div>
+<div id="kibicBanners"></div>
+
+<!-- Online: chat -->
+<div class="screen" id="chatScreen" onclick="if (event.target === this) toggleChat()">
+  <div class="box score-box">
+    <h2>💬 Chat</h2>
+    <div id="chatLog" class="chat-log"></div>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="chatInput" placeholder="poruka..." onkeydown="if(event.key==='Enter')sendChatOnline()">
+      <button class="mode-btn" style="width:auto" onclick="sendChatOnline()">Pošalji</button>
+    </div>
+    <button class="mode-btn" onclick="toggleChat()">Zatvori</button>
   </div>
 </div>
 
