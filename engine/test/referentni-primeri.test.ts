@@ -193,7 +193,7 @@ test('REFERENTNI_PRIMERI Runda #4 — Mirko Igra->Betl (auto-prati), Darko kontr
   );
   winIgra(game, 0);
   assert.equal(game.state.phase, 'DECLARING');
-  assert.equal(game.declareIgra('Igra-Betl'), true);
+  assert.equal(game.declareIgra(0, 'Igra-Betl'), true);
   assert.equal(game.state.talon.length, 2, 'talon se NE uzima kod Igra');
   assert.equal(game.state.players[0]!.hand.length, 10);
   // Popravljen bag ove sesije: Igra-Betl MORA auto-pratiti kao obican Betl
@@ -390,7 +390,7 @@ test('REFERENTNI_PRIMERI Runda #10 — Mirko Igra->Sans, kontra dat, rekontra, S
     ['8♣', '7♣'],
   );
   winIgra(game, 0);
-  assert.equal(game.declareIgra('Igra-Sans'), true);
+  assert.equal(game.declareIgra(0, 'Igra-Sans'), true);
   assert.equal(game.state.talon.length, 2);
   game.follow(1, 'DODJEM');
   game.follow(2, 'DODJEM');
@@ -520,7 +520,7 @@ test('REFERENTNI_PRIMERI Runda #14 — Darko Igra->Betl (auto-prati), Mirko kont
     ['8♣', '7♣'],
   );
   winIgra(game, 1);
-  assert.equal(game.declareIgra('Igra-Betl'), true);
+  assert.equal(game.declareIgra(1, 'Igra-Betl'), true);
   assert.equal(game.state.phase, 'KONTRA_DECLARING', 'Igra-Betl auto-prati (popravljen bag)');
   assert.equal(game.expectedKontraPlayerPublic(), 0, 'Mirko je desni od Darka — konzistentno sa formulom');
   assert.equal(game.kontra(0, 'KONTRA'), true);

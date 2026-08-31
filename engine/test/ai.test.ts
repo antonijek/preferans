@@ -307,3 +307,214 @@ test('ai: choosePlayCard — avoidTricks bez lead boje baca najslabiju (Betl nem
   });
   assert.equal(c!.rank, '7', 'nema lead boju — bezbedno baca najslabiju');
 });
+
+// === BIDDING preko chooseBidAction — wire-up testovi (app.js aiBidTurn) ===
+
+test('ai: chooseBidAction — Mogu-eligible (nadmasen), niko jos nije potvrdio → MOGU', () => {
+  const hand = makeHand([
+    ['A', '♣'], ['K', '♣'], ['9', '♣'], ['7', '♣'],
+    ['9', '♥'], ['8', '♥'], ['9', '♦'], ['7', '♦'], ['7', '♠'], ['8', '♠'],
+  ]);
+  const action = chooseBidAction({
+    hand,
+    currentBid: 3,
+    bidStartPlayer: 0 as any,
+    currentBidder: 0 as any,
+    passedPlayers: new Set(),
+    playerBidLevel: 2, // vec licitirao 2, nadmasen na 3
+    bids: [],
+  });
+  assert.equal(action.type, 'MOGU');
+  if (action.type === 'MOGU') assert.equal(action.value, 3);
+});
+
+test('ai: chooseBidAction — Mogu vec potvrdio NEKO DRUGI → PASS, ne MOGU ponovo', () => {
+  const hand = makeHand([
+    ['A', '♣'], ['K', '♣'], ['9', '♣'], ['7', '♣'],
+    ['9', '♥'], ['8', '♥'], ['9', '♦'], ['7', '♦'], ['7', '♠'], ['8', '♠'],
+  ]);
+  const action = chooseBidAction({
+    hand,
+    currentBid: 3,
+    bidStartPlayer: 0 as any,
+    currentBidder: 0 as any,
+    passedPlayers: new Set(),
+    playerBidLevel: 2,
+    bids: [{ player: 1 as any, type: 'MOGU', value: 3 }],
+  });
+  assert.equal(action.type, 'PASS', 'samo JEDAN igrac sme potvrditi Mogu za datu vrednost');
+});
+
+test('ai: chooseBidAction — drzim vrh, jaka boja → BID (podizanje rezervisano za onog ko NIJE nadmasen)', () => {
+  const hand = makeHand([
+    ['A', '♣'], ['K', '♣'], ['Q', '♣'], ['9', '♣'],
+    ['9', '♥'], ['8', '♥'], ['9', '♦'], ['7', '♦'], ['7', '♠'], ['8', '♠'],
+  ]);
+  const action = chooseBidAction({
+    hand,
+    currentBid: 2,
+    bidStartPlayer: 0 as any,
+    currentBidder: 0 as any,
+    passedPlayers: new Set(),
+    playerBidLevel: 2, // drzim vrh (playerBidLevel === currentBid)
+    bids: [],
+  });
+  assert.equal(action.type, 'BID');
+  if (action.type === 'BID') assert.equal(action.value, 3);
+});
+
+// === Konvencija izlaska pratioca protiv Sansa (Pik na kontri, Tref bez kontre) ===
+
+test('ai: choosePlayCard — Sans, pratilac, BEZ kontre, prvi stih → vodi najmanjim TREFOM', () => {
+  const hand = makeHand([
+    ['K', '♣'], ['9', '♣'], ['7', '♣'],
+    ['A', '♠'], ['K', '♥'], ['Q', '♦'],
+  ]);
+  const c = choosePlayCard({
+    hand,
+    currentTrick: [],
+    trump: null,
+    declaredGame: 'Sans',
+    winnerTricks: 0,
+    isDeclarer: false,
+    kontraLevel: null,
+    trickCount: 0,
+  });
+  assert.equal(c!.suit, '♣');
+  assert.equal(c!.rank, '7', 'najmanji tref');
+});
+
+test('ai: choosePlayCard — Sans, pratilac, SA kontrom, prvi stih → vodi najmanjim PIKOM', () => {
+  const hand = makeHand([
+    ['K', '♠'], ['9', '♠'], ['7', '♠'],
+    ['A', '♣'], ['K', '♥'], ['Q', '♦'],
+  ]);
+  const c = choosePlayCard({
+    hand,
+    currentTrick: [],
+    trump: null,
+    declaredGame: 'Sans',
+    winnerTricks: 0,
+    isDeclarer: false,
+    kontraLevel: 'KONTRA',
+    trickCount: 0,
+  });
+  assert.equal(c!.suit, '♠');
+  assert.equal(c!.rank, '7', 'najmanji pik');
+});
+
+test('ai: choosePlayCard — Sans konvencija, pratilac nema ciljanu boju → pada na standardnu logiku', () => {
+  const hand = makeHand([
+    ['A', '♠'], ['K', '♥'], ['Q', '♦'], // nema treva
+  ]);
+  const c = choosePlayCard({
+    hand,
+    currentTrick: [],
+    trump: null,
+    declaredGame: 'Sans',
+    winnerTricks: 0,
+    isDeclarer: false,
+    kontraLevel: null,
+    trickCount: 0,
+  });
+  assert.ok(c, 'mora izabrati kartu i bez ciljane boje');
+});
+
+test('ai: choosePlayCard — Sans konvencija se NE primenjuje na NOSIOCA (samo pratilac)', () => {
+  const hand = makeHand([
+    ['7', '♠'], ['9', '♣'], ['A', '♥'],
+  ]);
+  const c = choosePlayCard({
+    hand,
+    currentTrick: [],
+    trump: null,
+    declaredGame: 'Sans',
+    winnerTricks: 0,
+    isDeclarer: true, // nosilac sopstvenog Sansa
+    kontraLevel: null,
+    trickCount: 0,
+  });
+  // Standardna logika (najslabija ukupno) bira 7♠, NE forsira tref (9♣)
+  assert.equal(c!.suit, '♠');
+  assert.equal(c!.rank, '7');
+});
+
+test('ai: choosePlayCard — Sans konvencija se NE primenjuje van PRVOG stiha ruke', () => {
+  const hand = makeHand([
+    ['7', '♠'], ['9', '♣'], ['A', '♥'],
+  ]);
+  const c = choosePlayCard({
+    hand,
+    currentTrick: [],
+    trump: null,
+    declaredGame: 'Sans',
+    winnerTricks: 0,
+    isDeclarer: false,
+    kontraLevel: null,
+    trickCount: 1, // vec je odigran bar jedan stih
+  });
+  assert.equal(c!.suit, '♠');
+  assert.equal(c!.rank, '7', 'standardna najslabija karta, konvencija samo za trickCount===0');
+});
+
+// === Ne "pregazi" saigraca koji vec drzi stih ===
+
+test('ai: choosePlayCard — saigrac (ne nosilac) vodi stih, ja imam jacu kartu → bacam najslabiju, ne pregazujem', () => {
+  const hand = makeHand([
+    ['A', '♦'], ['8', '♦'], // 8 slabija od saigraceve Dame, A jaca
+  ]);
+  const c = choosePlayCard({
+    hand,
+    currentTrick: [
+      { player: 0 as any, card: { id: '7♦', rank: '7', suit: '♦' } }, // nosilac vodi slabo
+      { player: 1 as any, card: { id: 'Q♦', rank: 'Q', suit: '♦' } }, // saigrac (moj tim) trenutno vodi
+    ],
+    trump: '♥',
+    declaredGame: 'Herc',
+    winnerTricks: 0,
+    isDeclarer: false,
+    myPosition: 2 as any,
+    declarer: 0 as any,
+  });
+  assert.equal(c!.rank, '8', 'ne pregazujem saigraca — bacam najslabiju, ne As');
+});
+
+test('ai: choosePlayCard — NOSILAC (ne saigrac) vodi stih → normalno pokusavam pobedu', () => {
+  const hand = makeHand([
+    ['A', '♦'], ['8', '♦'],
+  ]);
+  const c = choosePlayCard({
+    hand,
+    currentTrick: [
+      { player: 1 as any, card: { id: '7♦', rank: '7', suit: '♦' } }, // saigrac vodi slabo
+      { player: 0 as any, card: { id: 'Q♦', rank: 'Q', suit: '♦' } }, // NOSILAC trenutno vodi
+    ],
+    trump: '♥',
+    declaredGame: 'Herc',
+    winnerTricks: 0,
+    isDeclarer: false,
+    myPosition: 2 as any,
+    declarer: 0 as any,
+  });
+  assert.equal(c!.rank, 'A', 'nosilac vodi (ne saigrac) — pokusavam pobedu kao ranije');
+});
+
+test('ai: choosePlayCard — saigrac vodi stih, ja ionako nemam jacu kartu → nepromenjeno ponasanje', () => {
+  const hand = makeHand([
+    ['8', '♦'],
+  ]);
+  const c = choosePlayCard({
+    hand,
+    currentTrick: [
+      { player: 0 as any, card: { id: '7♦', rank: '7', suit: '♦' } },
+      { player: 1 as any, card: { id: 'Q♦', rank: 'Q', suit: '♦' } },
+    ],
+    trump: '♥',
+    declaredGame: 'Herc',
+    winnerTricks: 0,
+    isDeclarer: false,
+    myPosition: 2 as any,
+    declarer: 0 as any,
+  });
+  assert.equal(c!.rank, '8', 'jedina karta u boji — nema razlike sa starim ponasanjem');
+});

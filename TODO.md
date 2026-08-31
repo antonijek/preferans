@@ -1,6 +1,83 @@
 # TODO — Preferans projekat
 
-## 🔴 PREDAJA NOVOJ SESIJI (2026-08-29) — PROČITAJ OVO PRVO
+## 🔴 PREDAJA NOVOJ SESIJI (2026-08-30, noćna sesija) — PROČITAJ OVO PRVO
+
+**Kontekst**: korisnik je otišao na spavanje i eksplicitno dao dozvolu da se
+radi bez prekida celu noć ("dajem ti unapred sve dozvole... ako vidiš da si
+negde zapeo probaj drugi pristup") — zato je ova sesija radila i spore
+headless regresije (nešto što je ranije EKSPLICITNO tražio da se NE radi dok
+je on aktivan i čeka, vidi obrazac ispod).
+
+**ISPRAVKA zastarele tvrdnje iz prethodne "predaje" (ispod)**: `engine/src/ai.ts`
+NIJE mrtav kod — `app.js` već koristi `chooseDiscard/chooseFollow/chooseKontra/
+choosePlayCard/chooseCallOrAlone/chooseBidAction/evaluateHand` odatle. Samo su
+`chooseIgraConfirm`/`chooseUseRefe` i dalje neiskorišćeni (verovatno nepotrebni —
+refe se rešava automatski u engine-u, ne kroz AI izbor).
+
+**Trenutno stanje**: `cd engine && npm test` → **173/173**. `npm run
+test:ui:multi -- 100` (iz root-a, root uzrok ranijih "zaglavljivanja" — vidi
+niže) → pokrenuto, proveri rezultat ako nije stigao pre nego što nastaviš.
+Server: `node tools/serve.js` iz `D:\preferans` (port 8000).
+
+**VAŽNO — zašto se `npm run test:ui:multi`/`npm run visual:check` ranije
+"zaglavljivalo bez izlaza" satima**: ovi alati SAMI pokreću svoj server
+(`spawn` u `tools/multi-smoke.mjs`/`tools/visual-check.mjs`) na portu 8000.
+Ako je već pokrenut `node tools/serve.js` ručno (za korisnika da testira
+uživo), dolazi do konflikta i alat visi. UVEK proveri/ugasi ručni server pre
+pokretanja ovih alata: `netstat -ano | grep ":8000"`, pa `taskkill` ako
+postoji, PRE `npm run test:ui:multi`. Takođe — kad Bash komanda ide kroz
+`| tail -N`, nema NIKAKVOG izlaza dok proces ne završi (tail čeka EOF) — ne
+zaključuj da je nešto zaglavljeno na osnovu prazne background-output
+datoteke, prvo probaj BEZ `| tail`.
+
+**Šta je urađeno večeras (2026-08-29 uveče → 2026-08-30 noć), redom:**
+
+1. **AI poboljšanja** — `aiBidTurn` (app.js) sad koristi testirani
+   `chooseBidAction` (ai.ts) umesto grubog skeniranja boja. Pratilac protiv
+   Sansa sad izlazi iz Pika (uz kontru) / Trefa (bez kontre), samo na prvom
+   štihu ruke. AI pratilac više ne "pregazi" saigrača koji već drži štih.
+2. **Bidding bag**: igrač koji je Mogu-eligible ali je Mogu VEĆ zauzet od
+   drugog SME da podigne licitaciju (ranije ostajao zaglavljen na "Dalje").
+   `game.ts` `bid()` + `getLegalActions()` + `ai.ts` `chooseBidAction()`.
+3. **Refe — potpuno predizajniran model** (3 uzastopne runde ispravki uživo
+   sa korisnikom, videti RULES.md sekciju 7 za finalnu, tačnu verziju):
+   - Kad refe "okine" (svi dalje, ILI Pik bez kontre/niko-ne-prati-na-Piku)
+     → SVA TRI igrača dobijaju po 1 refu "na raspolaganju" (`state.refePending`),
+     odvojeno od "iskorišćeno" (`state.refeCount`). Svako je troši SAM kad
+     LIČNO postane nosilac neke ODIGRANE rune (ne mora biti odmah sledeća).
+   - Novo OKIDANJE (dodela/redeal) kod "niko ne prati" je SAMO za Pik (ne
+     Igra-Pik, ne bilo koja druga igra) — ista tri-grana logika kao "Pik bez
+     kontre" (šešir-izuzetak / dodela-ako-ima-budžeta / redeal-bez-budžeta).
+   - ALI potrošnja VEĆ POSTOJEĆE raspoložive refe (od ranijeg trigera) VAŽI
+     NA SVAKOJ igri kod "niko ne prati", ne samo Piku — refa je lična
+     osobina igrača, ne vezana za mehanizam kojim se ruka završava.
+   - `game.ts`: novi `awardRefeToAll()`, `handleUnplayedHand()` (deljena
+     Pik-bez-kontre/Pik-niko-ne-prati logika), `consumeRefeIfPending()`.
+4. **"Svi kažu Igra" bag (RULES 3.4.1)** — engine je ranije proglašavao
+   pobednika = PRVI koji je rekao Igra, bez ikakvog traženja da ostali
+   TAKOĐE proglase svoju igru i bez poređenja jačine. Popravljeno — novi
+   `state.igraCompetitors`/`igraDeclarations`, `declareIgra(player, game)`
+   sad zahteva SVE konkurente da proglase, pa poredi jačinu (izjednačenje →
+   prvi koji je rekao Igra pobeđuje).
+5. **UI**: nov mod "Vi na sve 3" (`mode==='3human'`) — čovek kontroliše sva
+   tri mesta, za ručno testiranje scenarija (`isHuman(player)` helper svuda
+   umesto starih `mode==='1v2' && player===0` provera). Podesiva početna
+   bula/broj refea na setup ekranu (`createGame()` factory, ne više fiksno
+   `new Game()` na modul-load). CSS bag "igra na pola ekrana" — `.status-bar.empty
+   { display:none }` je uklanjao element iz CSS grid toka (body je grid sa 4
+   eksplicitna reda), pomerajući SVE ostale elemente u pogrešne redove —
+   ispravljeno na vizuelno kolabiranje bez uklanjanja iz grid-a. Talon sad
+   prikazan kao STVARNE karte u sredini stola (`#talonCenter`), ne sitan
+   tekst-bedž.
+6. Preostalo za sledeću sesiju: korisnik je tražio da se layout dodatno
+   uporedi sa Ipref.exe screenshot-ovima (poslao 2 slike u chatu, nisu
+   sačuvane kao fajlovi — ako ih opet pošalje, sačuvaj referencu). Mobile
+   portret top-bar tekst se malo lomi ("100/100/100" preloma na "/100") —
+   manji kozmetički nedostatak, nije hitno.
+
+---
+
+## 🔴 PREDAJA NOVOJ SESIJI (2026-08-29) — PROČITAJ OVO PRVO (ISTORIJSKI — vidi noviju predaju iznad za trenutno stanje)
 
 **Trenutno stanje**: `cd engine && npm test` → **152/152 testova prolazi**.
 `npm run test:ui:multi -- 20` (iz root-a) → **20/20 partija čisto**, poslednji put

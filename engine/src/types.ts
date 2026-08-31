@@ -27,6 +27,11 @@ export interface Player {
   bidLevel: number;
   kontraLevel: ContraLevel | null;
   follows: FollowChoice | null;
+  // RULES 3.4: igrac sme reci "Igra" SAMO ako mu je to prvi potez u licitaciji
+  // ove runde. Cim odigra bilo sta drugo (broj ili "dalje") na svom PRVOM
+  // potezu, trajno gubi pravo na "Igra" do kraja te runde (uzivo prijavljen
+  // bag — ranije je "Igra" ostajala ponudjena tokom cele licitacije).
+  igraEligible: boolean;
 }
 
 export type FollowChoice = 'DODJEM' | 'NE_DODJEM';
@@ -70,7 +75,13 @@ export type GamePhase =
   | 'TRICK_RESULT'
   | 'SCORING'
   | 'REFE'
-  | 'GAME_OVER';
+  | 'GAME_OVER'
+  // Kraj CELE partije (RULES 9.1: "partija traje dok zbir bula svih igrača
+  // ne postane 0"), ne samo jedne ruke — razlikuje se od GAME_OVER (koji
+  // engine koristi za kraj SVAKE pojedinačne ruke, partija se inače
+  // nastavlja sledećom rukom). Postavlja se u endHand() kad zbir bula
+  // dostigne 0 (posle eventualnog capovanja ruke, vidi capHandToMatchEnd()).
+  | 'MATCH_OVER';
 
 export interface BidAction {
   type: 'BID';
@@ -182,12 +193,27 @@ export interface GameState {
   kontraPlayer: Position | null;
   kontraLevel: ContraLevel | null;
   mozeCount: number;
-  refeUsed: boolean;
   refeOccurred: boolean;
   igraPlayer: Position | null;
   scores: [number, number, number];
   bulas: [number, number, number];
+  // RULES 7 — refe budžet po igraču. refeCount = koliko je SVAKI igrač VEĆ
+  // POTROŠIO (iskorišćeno), max refePerPlayer. refePending = koliko refa
+  // ima "na raspolaganju" (dodeljeno kad "svi dalje" ili "Pik bez kontre"
+  // trigeruje refe, ALI JOŠ NIJE potrošeno) — dodeljuje se SVA TRI igrača
+  // odjednom (ne samo budućem nosiocu), a svaki ga troši SAM tek kad on
+  // lično sledeći put postane nosilac neke ruke (ne mora biti odmah sledeća
+  // ruka za onog ko ga ne potroši prvi). Potvrđeno direktno od korisnika.
   refeCount: [number, number, number];
+  refePending: [number, number, number];
+  // RULES 3.4.1 — kad VIŠE igrača kaže "Igra", svako mora proglasiti SVOJU
+  // igru pre nego što se odredi pobednik (najjača igra pobeđuje; kod
+  // izjednačenja pobeđuje prvi koji je rekao "Igra"). igraCompetitors je
+  // redosled prijave (null van ovog tiebreak toka — uobičajen slučaj gde je
+  // samo JEDAN igrač rekao Igra ne prolazi kroz ovo, vidi checkBiddingEnd).
+  // igraDeclarations čuva proglašenu igru svakog dok svi ne prijave.
+  igraCompetitors: Position[] | null;
+  igraDeclarations: Partial<Record<Position, Game>>;
   lastHandResult: EndOfHandResult | null;
 }
 
@@ -221,5 +247,6 @@ export function createEmptyPlayer(id: string, name: string, position: Position):
     bidLevel: 0,
     kontraLevel: null,
     follows: null,
+    igraEligible: true,
   };
 }

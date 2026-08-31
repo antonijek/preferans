@@ -7,15 +7,29 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Preferans</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; width: 100%; overflow: hidden; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: radial-gradient(ellipse at center, #2e7d32 0%, #1b5e20 60%, #0a3d0a 100%);
+    /* Korisnikov utisak: pozadina iste (zelene) boje kao sto cini da se sto
+       ne razlikuje od prostora oko njega — "izgleda isto kao sto". Tamna
+       neutralna pozadina (soba/sto oko stola) jasno odvaja felt kao
+       poseban, kompaktan objekat i ostavlja prostor sa strane vidljivo
+       "van stola" za buduce info-panele. */
+    background: radial-gradient(ellipse at center, #2c2f33 0%, #1a1c1e 55%, #0a0b0c 100%);
     color: #fff;
     display: grid;
-    grid-template-rows: auto auto 1fr auto;
+    /* Sto (3. red) ima MINIMALNU visinu (140px) umesto goleg 1fr — na
+       niskim prozorima (laptop sa uskim viewport-om, korisnikov uzivo
+       prijavljen bag: karte se seku na dnu, pojavljuje se scroll) sto se
+       SKUPLJA da ustupi prostor donjem panelu (bid-log + dugmad + cela
+       ruka karata), umesto da nepotrebno drzi prazan prostor dok se donji
+       panel vestacki ogranicava na fiksnih 45vh (vidi .bottom-panel). */
+    grid-template-rows: auto auto minmax(140px, 1fr) auto;
     user-select: none; -webkit-user-select: none;
     touch-action: manipulation;
     overflow: hidden;
@@ -27,28 +41,40 @@
     background: rgba(0,0,0,0.55);
     padding: 6px 10px;
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
     border-bottom: 2px solid #4caf50;
     flex-shrink: 0;
   }
-  .top-bar h1 { font-size: 1em; font-weight: 700; letter-spacing: 0.5px; }
+  .top-bar h1 { font-family: 'Cinzel', serif; font-size: 1.1em; font-weight: 700; letter-spacing: 0.5px; }
   .top-info {
     display: flex; gap: 14px; font-size: 0.85em;
   }
+  /* Uzak ekran: "Potez/Bule/Stih" grupa nije stala u isti red sa naslovom +
+     dugmadima, pa se TEKST unutar vrednosti (npr. "100/100/100") lomio na 2
+     reda usred broja — izgledalo je slomljeno. Sad cela grupa prelama u
+     SOPSTVENI red ispod, centrirano — citljivo i namerno izgleda. */
+  @media (max-width: 480px) {
+    .top-info { flex: 1 1 100%; order: 3; justify-content: center; gap: 10px; margin-top: 2px; }
+    .top-info .value { font-size: 1em; }
+  }
   .top-info .label { opacity: 0.7; font-size: 0.85em; }
-  .top-info .value { font-weight: 700; font-size: 1.1em; color: #ffeb3b; }
+  .top-info .value { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 1.15em; letter-spacing: 0.3px; color: #ffeb3b; }
   .top-actions { display: flex; gap: 6px; }
   .icon-btn {
-    background: rgba(255,255,255,0.15);
+    background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%);
     color: white;
-    border: 1px solid rgba(255,255,255,0.25);
+    border: 1px solid rgba(255,255,255,0.28);
     padding: 6px 10px;
     font-size: 1em;
     border-radius: 8px;
     cursor: pointer;
     min-width: 40px; min-height: 36px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    transition: transform 0.1s, background 0.15s;
   }
+  .icon-btn:hover { background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.15) 100%); }
   .icon-btn:active { background: rgba(255,255,255,0.3); }
 
   /* === STATUS BAR (ugovor + poslednji stih) === */
@@ -63,24 +89,45 @@
     min-height: 0;
     border-bottom: 1px solid rgba(76,175,80,0.4);
   }
-  .status-bar.empty { display: none; }
+  /* NAPOMENA (uzivo prijavljen bag — "igra se na pola ekrana, gornjeg"):
+     display:none ovde UKLANJA element iz grid layout-a (body je CSS grid sa
+     4 eksplicitna reda: auto auto 1fr auto). Kad status-bar nestane iz grid
+     toka, preostala 3 elementa (top-bar, table-area, bottom-panel) se
+     auto-rasporede u redove 1/2/3 UMESTO 1/3/4 — table-area upadne u
+     "auto" red (kolabira na sadrzaj jer su mu deca position:absolute) a
+     bottom-panel upadne u "1fr" red (ali ostaje ogranicen svojim sopstvenim
+     max-height:45vh) — poslednji "auto" red ostaje prazan, cela donja
+     polovina ekrana ostaje neiskoriscena. Vizuelno kolabiranje na 0 visine
+     (bez uklanjanja iz grid toka) postize isti efekat bez ovog sporednog
+     dejstva. */
+  .status-bar.empty { min-height: 0; padding: 0; border-bottom: none; overflow: hidden; }
   .contract-info { font-weight: 700; color: #ffeb3b; }
   .contract-info .kontra-tag { color: #ff8a80; margin-left: 4px; }
   .contract-info .refe-tag { color: #4fc3f7; margin-left: 4px; }
-  .last-trick-info { opacity: 0.85; display: flex; align-items: center; gap: 6px; }
+  .last-trick-info { opacity: 0.85; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .last-trick-info .mini-card { font-weight: 700; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.15); }
   .last-trick-info .mini-card.red { color: #ff8a80; }
   .talon-info { display: flex; align-items: center; gap: 6px; color: #b39ddb; }
   .talon-info .mini-card { font-weight: 700; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.15); }
   .talon-info .mini-card.red { color: #ff8a80; }
   .defense-info { opacity: 0.9; color: #80cbc4; }
+  /* Odbrana + poslednji stih sad zive u levom bocnom panelu (korisnikov
+     zahtev), van .status-bar trake — svaka dobija svoju karticu-pozadinu da
+     se cita kao odvojen element na tamnoj pozadini oko stola. */
+  #leftSidePanel .defense-info,
+  #leftSidePanel .last-trick-info {
+    background: rgba(0,0,0,0.35);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 0.85em;
+  }
 
   /* === Supe/refe po sedistu === */
   /* Levo/desno supe odnos oko bula (korisnikov format: [levi sused] [bule]
      [desni sused]) — pozitivno = sused MENI duguje, negativno = JA dugujem
      susedu, kumulativno kroz celu partiju. */
-  .bula-row { display: flex; align-items: baseline; justify-content: center; gap: 5px; margin-top: 2px; }
-  .supe-side { font-size: 0.75em; font-weight: 700; min-width: 1.6em; opacity: 0.65; }
+  .bula-row { display: flex; align-items: baseline; justify-content: center; gap: 3px; margin-top: 2px; }
+  .supe-side { font-size: 0.65em; font-weight: 700; min-width: 1.2em; opacity: 0.65; }
   .supe-side.positive { color: #a5d6a7; opacity: 1; }
   .supe-side.negative { color: #ff8a80; opacity: 1; }
 
@@ -98,101 +145,236 @@
     z-index: 300;
   }
 
-  /* === STO (sredina) === */
+  /* === STO (sredina) + bocni paneli ===
+     Korisnikov zahtev: pošto je sto skraćen/suzen, prostor sa strane treba
+     iskoristiti — licitacija (bid-log + bid-controls) ide DESNO, odbrana +
+     poslednji štih idu LEVO, umesto da zauzimaju pune trake iznad/ispod
+     stola. MOBILE-FIRST: bazni (uski ekran) raspored je JEDNA kolona,
+     naslagano levi-panel/sto/desni-panel — 3 bocne kolone (levo+sto+desno)
+     bi na telefonu bile uze od same dugmadi. Sirok 3-kolonski raspored
+     dolazi tek iznad breakpoint-a (vidi @media min-width:900px na dnu),
+     korisnikov uzivo prijavljen bag: "izgled na mobilnom je bas los" kad je
+     ranije 3-kolonski raspored bio bezuslovan. */
   .table-area {
     position: relative;
-    display: grid;
-    grid-template-columns: 1fr 1.4fr 1fr;
-    grid-template-rows: 1fr 1fr;
-    gap: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     padding: 8px;
     min-height: 0;
-    overflow: hidden;
+    overflow-y: auto;
+  }
+  /* Zajednicka "kartica" pozadina za ceo panel (korisnikov zahtev — "da
+     bude ljepsi prikaz") umesto da dugmad/log lebde bez zajednicke podloge. */
+  .side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: rgba(0,0,0,0.22);
+    border-radius: 14px;
+    padding: 10px;
   }
 
-  /* Sto (centar sto) */
+  /* Sto (centar sto). Korisnikov utisak: puni-siroki OVAL (border-radius:200px
+     na sirokom-plitkom kontejneru) izgleda kao razvucena "pilula", ne kao
+     prirodan sto. Zaobljen PRAVOUGAONIK sa umerenim radijusom izgleda
+     prirodnije na bilo kojoj sirini/visini i i dalje jasno cita kao "sto". */
   .table-felt {
-    grid-column: 1 / 4;
-    grid-row: 1 / 3;
-    background: radial-gradient(ellipse at center, #2e7d32 0%, #1b5e20 100%);
+    grid-column: 2;
+    grid-row: 1;
+    /* Suptilna tkanina-tekstura (ukrstene tanke linije niskog kontrasta)
+       preko postojece boje — bez toga sto izgleda kao ravna boja umesto
+       platna, korisnikov utisak "moze da bude lepse". */
+    background:
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 5px),
+      repeating-linear-gradient(-45deg, rgba(0,0,0,0.03) 0px, rgba(0,0,0,0.03) 1px, transparent 1px, transparent 5px),
+      radial-gradient(ellipse at center, #2e7d32 0%, #1b5e20 100%);
     border: 3px solid #4caf50;
-    border-radius: 200px;
+    border-radius: 28px;
     box-shadow: inset 0 0 60px rgba(0,0,0,0.4);
     position: relative;
     z-index: 0;
+    /* Korisnikov zahtev (runda 1): sto se razvlacio preko CELOG sirokog
+       ekrana, izgledao predugacak/uzak — tad je kriv bio OBLIK (puna elipsa/
+       pilula, vidi border-radius istoriju) i prazan donji panel oko svega
+       par dugmadi koji je odavao utisak neiskoriscenog prostora. Sad kad je
+       .bid-controls kompaktan/centriran (vidi dole) umesto da se razvlaci
+       preko cele sirine, taj utisak nestaje, pa sto sme da bude siri i
+       koristi vise prostora na velikim ekranima — samo je gornja granica
+       ostavljena da spreci apsurdnu distorziju na ultra-sirokim (21:9+)
+       monitorima. */
+    /* Korisnikov zahtev, 2. runda: i posle ogranicavanja VISINE i dalje je
+       delovalo "predugacak" — jer je i dalje bio SIROK skoro cele sirine
+       ekrana (max-width 1400px) uz sad nisku visinu (460px), sto je davao
+       spljosten/izduzen oblik u DRUGOM pravcu (traka, ne sto). Sad je i
+       SIRINA znatno smanjena da sto bude proporcija bliza pravom stolu
+       (~2:1), sa dosta vidljivog prostora sa strane za buduce info-panele
+       (korisnikov sledeci zahtev). */
+    max-width: min(70vw, 820px);
+    width: 100%;
+    justify-self: center;
+    /* MORA biti height (ne samo max-height): sva deca stola su
+       position:absolute (van normalnog toka), pa bez eksplicitne visine
+       "prirodna" visina sadrzaja racuna se kao ~0 i sto se kolabira na tanku
+       traku (uzivo pronadjen bag pri prvom pokusaju).
+       NAPOMENA (drugi uzivo pronadjen bag — "na mobilnom kad se okrene ekran
+       nista se ne vidi"): height:100% je OK u DESKTOP gridu (.table-area je
+       tu jedan red, sto je jedino dete tog reda) ali NIJE OK u MOBILE-FIRST
+       flex-column .table-area (sto ima 2 bocna panela kao BRACU/sibling-e u
+       ISTOM flex kontejneru) — height:100% je trazio 100% table-area visine
+       SAMO za sebe, gurajuci bocne panele van/preklapajuci ih na niskim
+       (landscape telefon) ekranima. Fiksna vh-vrednost (ne %) radi identicno
+       ispravno u oba konteksta jer se ne racuna u odnosu na roditelja. */
+    height: min(54vh, 480px);
+    min-height: 160px;
+    align-self: center;
   }
+  /* Suptilan watermark u sredini stola — popunjava prazninu pre nego što
+     ima karata/talona/trump-a da se prikaže (korisnikov utisak "sto deluje
+     prazno"). display:none-ovan cim ima bilo kog drugog sadrzaja u sredini
+     (klasa .table-felt.has-center-content, postavlja se iz JS-a). */
+  .table-watermark {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 5em;
+    opacity: 0.06;
+    pointer-events: none;
+    user-select: none;
+    z-index: 0;
+  }
+  .table-felt.has-center-content .table-watermark { display: none; }
 
+  /* Zapad/Istok su sad na uskim bocnim marginama stola (vidi pozicije
+     sedenja ispod) — korisnikov zahtev da se ove kutije smanje da bi stale.
+     Manji padding/min-width/fontovi drze isti sadrzaj (ime, bula, stihovi)
+     ali u kompaktnijem obliku. */
   .player-seat {
     position: absolute;
     background: rgba(0,0,0,0.5);
-    border-radius: 12px;
-    padding: 6px 8px;
+    border-radius: 10px;
+    padding: 4px 6px;
     text-align: center;
     border: 2px solid transparent;
     transition: border 0.3s, transform 0.2s;
-    min-width: 100px;
+    min-width: 72px;
   }
   .player-seat.active { border-color: #ffeb3b; transform: scale(1.05); box-shadow: 0 0 15px rgba(255,235,59,0.5); }
   .player-seat.you { border-color: rgba(76,175,80,0.5); }
 
-  .player-name { font-weight: 700; font-size: 0.95em; }
+  .dealer-badge {
+    position: absolute;
+    top: -8px; left: -8px;
+    background: #ffeb3b;
+    color: #1b5e20;
+    font-size: 0.75em;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    border: 1px solid rgba(0,0,0,0.3);
+  }
+  .player-name { font-weight: 700; font-size: 0.8em; white-space: nowrap; }
   .player-seat.active .player-name { color: #ffeb3b; }
-  .player-bule { font-size: 1.1em; font-weight: 700; color: #ffeb3b; margin-top: 2px; }
-  .player-tricks { font-size: 0.8em; opacity: 0.85; }
+  .player-bule { font-family: 'Oswald', sans-serif; font-size: 1.05em; font-weight: 700; letter-spacing: 0.3px; color: #ffeb3b; margin-top: 1px; }
+  .player-tricks { font-size: 0.65em; opacity: 0.85; white-space: nowrap; }
   .player-hand-count { font-size: 0.75em; opacity: 0.7; }
 
-  /* Pozicije sedenja */
-  #seat-west { top: 6px; left: 50%; transform: translateX(-50%); } /* Zapad gore */
-  #seat-east { top: 50%; right: 6px; transform: translateY(-50%); } /* Istok desno */
+  /* Pozicije sedenja — korisnikov zahtev: klasican trougao (2 igraca na
+     duzim (bocnim) stranama, treci na sredini), ne izduzeno-vertikalan
+     raspored (Zapad gore/centrirano, Istok sa strane) koji je terao sto da
+     bude visok/uzan da bi sve stalo. Zapad sad ogledalo Istoka — oba na
+     sredini svoje bocne strane — a Jug ostaje na sredini donje ivice. */
+  #seat-west { top: 50%; left: 10px; transform: translateY(-50%); } /* Zapad levo */
+  #seat-east { top: 50%; right: 10px; transform: translateY(-50%); } /* Istok desno */
   #seat-north { display: none; }
   #seat-south { bottom: 6px; left: 50%; transform: translateX(-50%); }
-  .player-seat.active#seat-west { transform: translateX(-50%) scale(1.05); }
+  .player-seat.active#seat-west { transform: translateY(-50%) scale(1.05); }
   .player-seat.active#seat-east { transform: translateY(-50%) scale(1.05); }
 
-  /* Karta u štihu — pozicioniranje unutar felt-a */
+  /* Karta u štihu — pozicioniranje unutar felt-a. Prazan slot je RANIJE
+     uvek prikazivao poledjinu karte (ljubicasta sara) da se ne cita kao
+     "leteca kutija bez veze sa igracem" — ali na kompaktnijem trouglastom
+     rasporedu to je ispalo obrnuto: 3 uvek-vidljive "karte" u sredini stola
+     bez ijedne stvarno odigrane delovale su kao nejasan sum ("3 karte na
+     stolu, ne znam cemu sluze" — korisnikov utisak). Prazan slot je sad
+     nevidljiv (providan, bez ivice) — samo current-turn (ciji je red) daje
+     suptilan nagovestaj, a stvarna karta (.has-card) se pojavljuje tek kad
+     je STVARNO odigrana. */
   .trick-slot {
     position: absolute;
-    background: rgba(0,0,0,0.25);
-    border: 2px dashed rgba(255,255,255,0.2);
-    border-radius: 10px;
+    background: transparent;
+    border: 2px solid transparent;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 70px;
-    height: 100px;
+    width: 68px;
+    height: 92px;
   }
-  .trick-slot.has-card { border-style: solid; border-color: rgba(255,255,255,0.5); background: transparent; }
+  .trick-slot.has-card { border-color: rgba(255,255,255,0.5); box-shadow: 0 2px 6px rgba(0,0,0,0.35); }
   .trick-slot.current-turn { border-color: #ffeb3b; box-shadow: 0 0 10px rgba(255,235,59,0.6); }
   .trick-slot.led { background: rgba(76,175,80,0.3); }
+  /* Blaga nasumicna (ali stabilna, vidi cardRotationDeg u app.js) rotacija
+     odigrane karte — korisnikov zahtev, prirodniji izgled "bacanja". */
+  .trick-slot .card { transform: rotate(var(--rot, 0deg)); }
 
-  #slot-west { top: 12px; left: 50%; transform: translateX(-50%); }
-  #slot-east { top: 50%; right: 80px; transform: translateY(-50%); }
-  #slot-south { bottom: 12px; left: 50%; transform: translateX(-50%); }
+  /* Animacija odigravanja karte — karta se "spusti" u stih-slot umesto da se
+     trenutno pojavi. Klasa .card-dropped se dodaje SAMO novoodigranoj karti
+     (vidi renderTrick u app.js — poredi trenutnu duzinu stiha sa prethodnom),
+     ne repriza se pri svakom re-renderu istog stanja. */
+  @keyframes cardDrop {
+    0% { transform: translateY(-34px) scale(0.82); opacity: 0; }
+    60% { transform: translateY(3px) scale(1.04); opacity: 1; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+  }
+  .card-dropped { animation: cardDrop 0.3s ease-out; }
+
+  /* Slotovi u trouglu okrenutom ka centru stola, prate novi raspored sedenja
+     (Zapad levo / Istok desno / Jug dole-sredina) — procenti umesto fiksnih
+     px da ostanu proporcionalni bez obzira na (sad ograničenu) visinu stola.
+     Korisnikov zahtev: karte su bile predaleko jedna od druge — priblizene
+     ka centru (34% umesto 24%); Jug-ova karta je i dalje bila preniska
+     (blizu sedista) — podignuta skoro do nivoa Zapad/Istok (46% umesto
+     32%), ne mora biti tacno u ravni, samo vidno visa. */
+  /* 41%/44% je bilo previse blizu (korisnikov utisak posle probe) — vraceno
+     na blaziju sredinu izmedju originalnog 34% i probanog 41%. */
+  #slot-west { top: 50%; left: 37%; transform: translateY(-50%); }
+  #slot-east { top: 50%; right: 37%; transform: translateY(-50%); }
+  #slot-south { bottom: 42%; left: 50%; transform: translateX(-50%); }
 
   /* === DONJI PANEL === */
+  /* Korisnikov zahtev: bid-log i bid-controls su se preselili u desni bocni
+     panel (vidi .side-panel/#rightSidePanel) — donji panel sad drzi SAMO
+     ruku karata, pa moze da bude veci/prostraniji. */
   .bottom-panel {
     background: rgba(0,0,0,0.4);
     padding: 8px;
     border-top: 2px solid #4caf50;
-    display: grid;
-    grid-template-rows: auto auto;
-    gap: 6px;
     flex-shrink: 0;
-    max-height: 45vh;
+    max-height: 82vh;
     overflow-y: auto;
   }
 
-  /* Bid log */
+  /* Bid log — pravougaonik pozadine se ranije razvlacio na CELU sirinu
+     bottom-panel-a dok su sadrzaji (par unosa) ostajali zbijeni levo, sto je
+     na sirokom ekranu ostavljalo veliku praznu tamnu povrsinu (isti utisak
+     "prazan prostor" kao i kod bid-controls dugmadi, vidi belesku gore).
+     width:fit-content + centriranje reda cini da pozadina prati sadrzaj. */
   .bid-log {
     background: rgba(0,0,0,0.3);
     border-radius: 8px;
-    padding: 6px 8px;
-    font-size: 0.9em;
+    padding: 4px 8px;
+    font-size: 0.85em;
     display: flex;
     flex-wrap: wrap;
-    gap: 4px 8px;
-    min-height: 32px;
+    gap: 3px 6px;
+    min-height: 24px;
     align-items: center;
+    justify-content: center;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
   }
   .bid-log-empty { opacity: 0.5; font-style: italic; }
   .bid-entry {
@@ -212,38 +394,68 @@
   .bid-entry.mogu { background: rgba(76,175,80,0.3); }
   .bid-entry.igra { background: rgba(255,152,0,0.3); }
 
-  /* Bid dugmad */
+  /* Bid dugmad — korisnikov utisak "donja polovina ekrana prazna" resen je
+     ranije zbijanjem dugmadi na sredinu, ali korisnik je posle trazio JOS
+     kompaktniji red (manje visine, vise prostora stolu) i da dugmad SLOBODNO
+     popune sirinu (ne moraju da ostanu mala/zbijena) — flex:1 im dozvoljava
+     da se razvuku i ravnomerno podele red, dok je visina/padding smanjen da
+     ceo red zauzima manje vertikalnog prostora. */
+  /* Korisnikov zahtev: sva dugmad (Dalje/broj/Igra) u ISTOM redu, a label
+     ("TVOJ POTEZ") u levi ugao pored njih umesto u sopstveni red iznad —
+     section-label vise NE forsira prelom reda (bio flex-basis:100%), sad
+     sedi kao prvi (najlevlji) element istog reda. flex-wrap ostaje kao
+     bezbednosna mreza za uzak ekran gde sve ipak ne stane u jedan red. */
   .bid-controls {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(54px, 1fr));
-    gap: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 5px 8px;
     align-items: center;
+    width: 100%;
   }
   .bid-controls .section-label {
-    grid-column: 1 / -1;
-    font-size: 0.8em; opacity: 0.7;
-    margin-bottom: -2px;
+    flex: 0 0 auto;
+    text-align: left;
+    font-size: 0.72em; opacity: 0.65;
+    white-space: nowrap;
+    margin-right: 2px;
   }
   .bid-btn {
-    background: rgba(255,255,255,0.12);
+    background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%);
     color: white;
-    border: 1px solid rgba(255,255,255,0.25);
-    padding: 12px 6px;
+    border: 1px solid rgba(255,255,255,0.28);
+    padding: 7px 14px;
     border-radius: 8px;
-    font-size: 1em;
+    font-size: 0.95em;
     font-weight: 700;
     cursor: pointer;
-    min-height: 48px;
+    min-height: 34px;
+    min-width: 56px;
+    max-width: 170px;
+    flex: 1 1 80px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    transition: transform 0.1s, box-shadow 0.15s, background 0.15s;
   }
-  .bid-btn:active { background: rgba(255,255,255,0.3); transform: scale(0.96); }
-  .bid-btn.primary { background: #4caf50; border-color: #66bb6a; }
-  .bid-btn.danger { background: #c62828; border-color: #ef5350; }
-  .bid-btn.igra { background: rgba(255,152,0,0.3); border-color: #ff9800; }
+  .bid-btn:hover { background: linear-gradient(180deg, rgba(255,255,255,0.26) 0%, rgba(255,255,255,0.12) 100%); }
+  .bid-btn:active { background: rgba(255,255,255,0.3); transform: scale(0.96); box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+  .bid-btn.primary { background: linear-gradient(180deg, #5cbf60 0%, #43a047 100%); border-color: #66bb6a; }
+  .bid-btn.primary:hover { background: linear-gradient(180deg, #66c96a 0%, #4caf50 100%); }
+  .bid-btn.danger { background: linear-gradient(180deg, #d32f2f 0%, #b71c1c 100%); border-color: #ef5350; }
+  .bid-btn.danger:hover { background: linear-gradient(180deg, #dd3a3a 0%, #c62828 100%); }
+  /* max-width sprecava da dugme razvuce CELI red grid-a kad je samo (retko
+     koriscena opcija ne treba da izgleda "teze" od common-case dugmadi
+     brojeva) — korisnikov utisak "veliki nezgrapan blok". */
+  .bid-btn.igra { background: rgba(255,152,0,0.3); border-color: #ff9800; max-width: 140px; line-height: 1.3; }
 
   /* === TVOJ HAND === */
+  /* Suptilna linija+senka odvaja "tvoje karte" od licitacione/kontrolne
+     zone iznad — jasnija hijerarhija (bidding-log/dugmad = info+akcije,
+     hand-area = ono sto fizicki drzis u ruci). */
   .hand-area {
-    background: rgba(0,0,0,0.35);
-    padding: 6px;
+    background: rgba(0,0,0,0.3);
+    border-top: 1px solid rgba(255,255,255,0.12);
+    box-shadow: inset 0 3px 8px -4px rgba(0,0,0,0.5);
+    padding: 10px 6px 6px;
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
@@ -263,8 +475,8 @@
   .card {
     background: white;
     color: #222;
-    width: 50px;
-    height: 72px;
+    width: 68px;
+    height: 96px;
     border-radius: 7px;
     display: flex;
     flex-direction: column;
@@ -278,9 +490,31 @@
     flex-shrink: 0;
   }
   .card.tiny { width: 32px; height: 46px; font-size: 0.7em; }
-  .card.small { width: 42px; height: 60px; font-size: 0.85em; }
+  /* .small = karta odigrana u stih-slot. Ranije 42x60 u 70x100 slotu je
+     ostavljalo "ogroman padding" oko karte (korisnikov utisak) — uvecano i
+     slot ispod je stegnut da ga tesno prati. */
+  .card.small { width: 58px; height: 82px; font-size: 1.05em; }
+
+  /* Lepezasto preklapanje karata u ruci — JS postavlja --rot/--lift po karti
+     (vidi applyHandFan u app.js), CSS ih primenjuje + dodaje hover-podizanje
+     bez gubljenja bazne rotacije. Samo za ruku (hand-area), ne za talon/stih
+     karte koje ostaju ravne. */
+  .hand-area .card {
+    transform: rotate(var(--rot, 0deg)) translateY(var(--lift, 0px));
+    transform-origin: bottom center;
+  }
+  .hand-area .card:not(.disabled):hover {
+    transform: rotate(var(--rot, 0deg)) translateY(calc(var(--lift, 0px) - 10px)) scale(1.08);
+    z-index: 50 !important;
+  }
+  .hand-area .card + .card { margin-left: -16px; }
   .card.selected { box-shadow: 0 0 0 3px #ffeb3b, 0 0 12px rgba(255,235,59,0.6); }
-  .card.disabled { opacity: 0.35; cursor: default; }
+  /* opacity je ovde pravio "crtu" preko karte — kod preklopljenih
+     (lepezastih) karata u ruci, ivica/senka SUSEDNE nadmocnije (neprozirne)
+     karte je providela KROZ providnu zabranjenu kartu na mestu preklapanja.
+     filter:brightness ne uvodi providnost pa nema tog artefakta — karta
+     ostaje puna, samo zatamnjena (korisnikov zahtev). */
+  .card.disabled { filter: brightness(0.66); cursor: default; }
   .card.playable { box-shadow: 0 0 0 2px rgba(76,175,80,0.6), 0 2px 5px rgba(0,0,0,0.4); }
   .card.red { color: #c62828; }
   .card.black { color: #222; }
@@ -311,14 +545,44 @@
     border: 2px solid rgba(255,255,255,0.2);
     max-height: 90vh;
     overflow-y: auto;
+    transition: border-color 0.3s, box-shadow 0.3s;
   }
-  .screen h2 { margin-bottom: 12px; text-align: center; font-size: 1.5em; }
-  .screen p { margin-bottom: 12px; line-height: 1.5; }
+  /* Kraj CELE partije (MATCH_OVER) — vise vizuelnog "wow" efekta nego obican
+     kraj runde, pošto je ovo najvazniji trenutak da igra ostavi dobar utisak. */
+  .screen .box.match-over {
+    border-color: #ffeb3b;
+    box-shadow: 0 0 40px rgba(255,235,59,0.5), 0 8px 30px rgba(0,0,0,0.6);
+    animation: match-over-glow 2s ease-in-out infinite;
+  }
+  @keyframes match-over-glow {
+    0%, 100% { box-shadow: 0 0 40px rgba(255,235,59,0.5), 0 8px 30px rgba(0,0,0,0.6); }
+    50% { box-shadow: 0 0 60px rgba(255,235,59,0.8), 0 8px 30px rgba(0,0,0,0.6); }
+  }
+  .screen h2 { font-family: 'Cinzel', serif; margin-bottom: 12px; text-align: center; font-size: 1.5em; }
+  /* Setup ekran — bogatiji vizuelni identitet (korisnikov zahtev: "da
+     privucem igrace izgledom") umesto golog teksta naslova. */
+  .setup-box { position: relative; overflow: hidden; }
+  .setup-title {
+    font-family: 'Cinzel', serif;
+    font-size: 2.2em !important;
+    font-weight: 800;
+    background: linear-gradient(180deg, #ffffff 0%, #c8e6c9 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    letter-spacing: 0.5px;
+    margin-bottom: 2px !important;
+  }
+  .setup-suits { text-align: center; font-size: 1.4em; margin-bottom: 14px; letter-spacing: 10px; opacity: 0.85; }
+  .setup-suits .red { color: #ef5350; }
+  .setup-suits .black { color: #eceff1; }
+  .screen h2.match-over-title { font-size: 1.8em; animation: match-over-title-pulse 1.4s ease-in-out infinite; }
+  @keyframes match-over-title-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  .screen p, .screen #resultMsg { margin-bottom: 12px; line-height: 1.5; }
   .screen button { width: 100%; margin-top: 8px; }
 
   .mode-btn {
     flex: 1;
-    background: rgba(255,255,255,0.1);
+    background: linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 100%);
     border: 2px solid rgba(255,255,255,0.2);
     padding: 14px;
     border-radius: 10px;
@@ -327,8 +591,27 @@
     cursor: pointer;
     min-height: 56px;
     font-size: 1em;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    transition: transform 0.1s, box-shadow 0.15s, background 0.15s, border-color 0.15s;
   }
-  .mode-btn.active { background: #4caf50; border-color: #66bb6a; }
+  .mode-btn:hover { background: linear-gradient(180deg, rgba(255,255,255,0.24) 0%, rgba(255,255,255,0.1) 100%); border-color: rgba(255,255,255,0.35); }
+  .mode-btn:active { transform: scale(0.97); }
+  .mode-btn.active { background: linear-gradient(180deg, #5cbf60 0%, #43a047 100%); border-color: #66bb6a; box-shadow: 0 2px 8px rgba(76,175,80,0.5); }
+
+  .setup-field { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0; }
+  .setup-field label { font-size: 0.9em; opacity: 0.85; }
+  .setup-field input[type="number"] {
+    width: 80px;
+    background: rgba(255,255,255,0.1);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
+    font-size: 1em;
+    padding: 8px 10px;
+    text-align: center;
+  }
+  .setup-field input[type="number"]:focus { outline: none; border-color: #66bb6a; }
 
   .score-box { max-width: 640px; }
   .score-section-title { font-size: 0.85em; opacity: 0.7; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -338,36 +621,174 @@
   .score-table td:first-child, .score-table th:first-child { text-align: left; }
   .score-table tbody tr:hover { background: rgba(255,255,255,0.05); }
   .score-empty { opacity: 0.5; font-style: italic; font-size: 0.9em; padding: 8px 0; }
-  .debt-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.92em; border-bottom: 1px solid rgba(255,255,255,0.08); }
-  .debt-row .amount { font-weight: 700; color: #ffeb3b; }
-  /* Tradicionalni format "lista za bulu": [levi sused] ime bule [desni sused] */
-  .debt-row.score-triple { display: grid; grid-template-columns: 44px 1fr auto 44px; align-items: center; gap: 6px; }
-  .score-triple-side { font-weight: 700; font-size: 0.85em; opacity: 0.55; text-align: center; }
+  .score-triple-side { font-weight: 700; font-size: 0.85em; opacity: 0.55; text-align: center; min-width: 1.6em; }
   .score-triple-side.positive { color: #a5d6a7; opacity: 1; }
   .score-triple-side.negative { color: #ff8a80; opacity: 1; }
 
-  /* === TRUMP INFO === */
-  .trump-banner {
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(255,235,59,0.95);
-    color: #1b5e20;
+  /* Igrac-blokovi — isti vizuelni jezik kao kutije na stolu. Sad se koriste
+     SAMO za konacni plasman na kraju partije (3 kartice jedna do druge ima
+     smisla tu, za rangiranje) — "Trenutne bule" u tabeli koristi ODVOJEN,
+     jednokarticni "fokalni" prikaz ispod (korisnikov zahtev — 3 male
+     kartice odjednom mu se nisu svidjale). */
+  .score-players-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .score-player-card {
+    background: rgba(0,0,0,0.3);
+    border: 2px solid transparent;
+    border-radius: 10px;
+    padding: 6px 10px;
+    text-align: center;
+    min-width: 84px;
+  }
+  .score-player-card.winner { border-color: #ffeb3b; box-shadow: 0 0 14px rgba(255,235,59,0.5); }
+  .score-player-name { font-weight: 700; font-size: 0.9em; }
+  .score-player-row { display: flex; align-items: baseline; justify-content: center; gap: 4px; margin-top: 2px; }
+  .score-player-bula { font-family: 'Oswald', sans-serif; font-size: 1.2em; font-weight: 700; letter-spacing: 0.3px; color: #ffeb3b; }
+  .score-refe-dots { display: inline-flex; gap: 2px; margin-left: 4px; }
+  /* Refe vizuelno: prazan obrub = jos nije dodeljena, zlatna/upaljena =
+     na raspolaganju (aktivna), precrtana = potrosena. */
+  .refe-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.3); position: relative; }
+  .refe-dot.pending { background: #ffd54f; border-color: #ffd54f; box-shadow: 0 0 4px rgba(255,213,79,0.7); }
+  .refe-dot.used { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.25); }
+  .refe-dot.used::after { content: ''; position: absolute; top: 50%; left: -2px; right: -2px; height: 1.5px; background: #ff8a80; transform: rotate(45deg); }
+
+  /* "Trenutne bule" — JEDNA fokalna kartica nalik tradicionalnom papirnom
+     listu za bulu (ime suseda IZNAD njegove supe, levo i desno), sa
+     strelicom ispod za kruzno prebacivanje fokusa na sledeceg igraca. */
+  .score-focal-card {
+    background: rgba(0,0,0,0.3);
+    border-radius: 14px;
+    padding: 14px 16px 10px;
+    max-width: 320px;
+    margin: 0 auto;
+  }
+  .score-focal-neighbors {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8em;
+    opacity: 0.65;
+    font-weight: 600;
+    padding: 0 4px;
+  }
+  .score-focal-row { display: flex; align-items: center; justify-content: space-between; margin-top: 2px; }
+  .score-focal-row .score-triple-side { font-size: 1.3em; min-width: 2.2em; }
+  .score-focal-center { text-align: center; flex: 1; }
+  .score-focal-name { display: block; font-weight: 700; font-size: 0.9em; opacity: 0.85; }
+  .score-focal-bula { display: block; font-family: 'Oswald', sans-serif; font-size: 2em; font-weight: 700; color: #ffeb3b; letter-spacing: 0.3px; }
+  .score-focal-refe { text-align: center; font-size: 0.85em; opacity: 0.8; margin-top: 8px; }
+  .score-focal-refe .refe-dot { margin-left: 2px; }
+  .score-focal-nav { text-align: center; margin-top: 10px; }
+  .score-nav-btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: #fff;
     padding: 6px 16px;
     border-radius: 20px;
-    font-weight: 800;
-    font-size: 1em;
-    z-index: 5;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    font-weight: 600;
+    font-size: 0.9em;
+    cursor: pointer;
   }
+  .score-nav-btn:hover { background: rgba(255,255,255,0.18); }
+
+
+  /* === TALON (centar sto) — korisnikov zahtev: prikazi kao stvarne karte,
+     ne kao sitan tekst-bedz u statusnoj traci (inspirisano rasporedom iz
+     Ipref screenshot-a — talon vidljiv u sredini stola dok se ne odigra). */
+  .talon-center {
+    position: absolute;
+    /* top:50% (bilo 62%) — pomereno je ranije nizе zbog trump-banner-a iznad
+       (uklonjen, korisnikov zahtev), sad slobodno centrirano. */
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    z-index: 4;
+  }
+  .talon-center-label {
+    font-size: 0.7em;
+    font-weight: 700;
+    opacity: 0.75;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: rgba(0,0,0,0.4);
+    padding: 1px 8px;
+    border-radius: 8px;
+  }
+  .talon-center-cards { display: flex; gap: 4px; }
 
   /* === RESPONSIVE === */
   @media (min-width: 700px) {
     body { font-size: 1.1em; }
-    .card { width: 60px; height: 86px; }
+    .card { width: 76px; height: 108px; }
     .card .rank { font-size: 1.4em; }
     .card .suit { font-size: 1.8em; }
-    .trick-slot { width: 84px; height: 120px; }
+    .card.small { width: 68px; height: 94px; }
+    .trick-slot { width: 76px; height: 102px; }
+    .hand-area .card + .card { margin-left: -24px; }
+  }
+
+  /* Siri raspored: sto + bocni paneli jedan pored drugog (korisnikov
+     zahtev). Ispod ovoga (telefon/uzak tablet) sve ostaje naslagano u JEDNU
+     kolonu (vidi mobile-first bazu gore) — nema dovoljno sirine za 2 bocna
+     panela + citljiv sto istovremeno. */
+  @media (min-width: 900px) {
+    .table-area {
+      display: grid;
+      /* Korisnikov zahtev: paneli treba da idu "skroz do stola". Sa 1fr
+         srednjom kolonom, na sirokim monitorima je ta kolona MNOGO sira od
+         samog stola (sto ima max-width:820px, vidi .table-felt) — sto
+         ostaje centrirano u koloni, a paneli (u SUSEDNIM kolonama) zbog
+         toga izgledaju daleko iako je grid gap mali. Srednja kolona sad
+         ima ISTI max kao sto (minmax(0,820px)) — kolona vise nije sira od
+         stola, pa paneli sede odmah uz njegovu stvarnu ivicu. Visak prostora
+         na vrlo sirokim ekranima ide NA IVICE cele .table-area (justify-
+         content:center), ne izmedju panela i stola. */
+      grid-template-columns: minmax(0, 260px) minmax(0, 820px) minmax(0, 260px);
+      grid-template-rows: 1fr;
+      justify-content: center;
+      gap: 3px;
+      overflow: hidden;
+    }
+    .side-panel {
+      grid-row: 1;
+      align-self: center;
+      max-height: 100%;
+      overflow-y: auto;
+    }
+    #leftSidePanel { grid-column: 1; }
+    #rightSidePanel { grid-column: 3; }
+    /* Dugmad/log u koloni umesto redu — u uskoj bocnoj koloni izgledaju
+       bolje jedno-ispod-drugog nego zbijeni u red koji stalno lomi red. */
+    #rightSidePanel .bid-log { flex-direction: column; align-items: stretch; width: 100%; margin: 0; }
+    #rightSidePanel .bid-entry { justify-content: center; }
+    #rightSidePanel .bid-controls { flex-direction: column; align-items: stretch; }
+    #rightSidePanel .bid-controls .section-label { text-align: center; }
+    #rightSidePanel .bid-btn { width: 100%; max-width: none; flex: none; }
+  }
+
+  /* Kompaktan mod za NISKE ekrane (telefon u landscape-u — sirina moze biti
+     velika ali visina je vrlo mala). Korisnikov uzivo prijavljen bag: "kad
+     se okrene ekran nista se ne vidi" — sto+paneli (naslagani u mobile-first
+     koloni) i ruka karata zajedno lako prevazidju 350-400px visine, pa je
+     .table-area morao da skroluje da se stigne do dugmadi za licitaciju.
+     Manji sto/sedista/padding ovde oslobadjaju dovoljno prostora da SVE
+     (bez skrolovanja) stane na tipican telefon-u-landscape-u ekran. */
+  @media (max-height: 480px) {
+    .table-felt { height: min(38vh, 220px); min-height: 130px; }
+    .player-seat { padding: 2px 5px; min-width: 60px; }
+    .player-name { font-size: 0.7em; }
+    .player-bule { font-size: 0.9em; }
+    .player-tricks { font-size: 0.58em; }
+    .top-bar { padding: 3px 8px; }
+    .bottom-panel { padding: 4px 8px; }
+    .hand-area { min-height: 60px; gap: 4px; }
+    .side-panel { padding: 6px; gap: 4px; }
+    .card { width: 46px; height: 66px; }
+    .card .rank { font-size: 1em; }
+    .card .suit { font-size: 1.1em; }
+    .bid-btn { padding: 5px 10px; min-height: 28px; font-size: 0.85em; }
+    .bid-log { padding: 2px 6px; min-height: 18px; font-size: 0.75em; }
   }
 </style>
 </head>
@@ -376,7 +797,10 @@
 <div class="top-bar">
   <h1>🃏 Preferans</h1>
   <div class="top-info">
-    <div><div class="label">Potez</div><div class="value" id="turnName">-</div></div>
+    <!-- "Potez" polje uklonjeno (korisnikov zahtev) — dupliralo je isto sto
+         vec pise pored dugmadi za akciju (POTEZ: Ime / Dodjem-NeDodjem itd.),
+         a za PLAYING fazu aktivno sediste je vec vizuelno oznaceno (zuti
+         obrub), pa tekst gore nije bio potreban ni tu. -->
     <div><div class="label">Bule</div><div class="value" id="buleInfo">100/100/100</div></div>
     <div><div class="label">Štih</div><div class="value" id="trickInfo">0/10</div></div>
   </div>
@@ -389,47 +813,59 @@
 <div class="status-bar" id="statusBar">
   <div class="contract-info" id="contractBanner" style="display:none"></div>
   <div class="talon-info" id="talonBanner" style="display:none"></div>
-  <div class="defense-info" id="defenseBanner" style="display:none"></div>
-  <div class="last-trick-info" id="lastTrickBanner" style="display:none"></div>
 </div>
 
 <div class="table-area">
 
+  <!-- Levi bocni panel: odbrana (ko je dosao/zvao) + poslednji stih —
+       korisnikov zahtev, oslobodjeni prostor sa strane skracenog stola. -->
+  <div class="side-panel" id="leftSidePanel">
+    <div class="defense-info" id="defenseBanner" style="display:none"></div>
+    <div class="last-trick-info" id="lastTrickBanner" style="display:none"></div>
+  </div>
+
   <!-- Sto (centar) -->
   <div class="table-felt" id="tableFelt">
-    <div class="trump-banner" id="trumpBanner" style="display:none">♣ Tref</div>
+    <div class="table-watermark">🃏</div>
+    <div class="talon-center" id="talonCenter" style="display:none">
+      <div class="talon-center-label">Talon</div>
+      <div class="talon-center-cards" id="talonCenterCards"></div>
+    </div>
 
     <!-- Zapad (gore) -->
     <div class="player-seat" id="seat-west">
+      <span class="dealer-badge" id="dealer-west" title="Delilac" style="display:none">🂠</span>
       <div class="player-name" id="name-west">Zapad</div>
       <div class="bula-row">
         <span class="supe-side" id="supe-left-west"></span>
         <span class="player-bule" id="bule-west">100</span>
         <span class="supe-side" id="supe-right-west"></span>
       </div>
-      <div class="player-tricks">🎴 <span id="tricks-west">0</span> · 🃏 <span id="cards-west">10</span> <span id="refe-west"></span></div>
+      <div class="player-tricks">🎴 <span id="tricks-west">0</span> <span id="refe-west"></span></div>
     </div>
 
     <!-- Istok (desno) -->
     <div class="player-seat" id="seat-east">
+      <span class="dealer-badge" id="dealer-east" title="Delilac" style="display:none">🂠</span>
       <div class="player-name" id="name-east">Istok</div>
       <div class="bula-row">
         <span class="supe-side" id="supe-left-east"></span>
         <span class="player-bule" id="bule-east">100</span>
         <span class="supe-side" id="supe-right-east"></span>
       </div>
-      <div class="player-tricks">🎴 <span id="tricks-east">0</span> · 🃏 <span id="cards-east">10</span> <span id="refe-east"></span></div>
+      <div class="player-tricks">🎴 <span id="tricks-east">0</span> <span id="refe-east"></span></div>
     </div>
 
     <!-- Jug (dole) -->
     <div class="player-seat you" id="seat-south">
+      <span class="dealer-badge" id="dealer-south" title="Delilac" style="display:none">🂠</span>
       <div class="player-name" id="name-south">Vi (Jug)</div>
       <div class="bula-row">
         <span class="supe-side" id="supe-left-south"></span>
         <span class="player-bule" id="bule-south">100</span>
         <span class="supe-side" id="supe-right-south"></span>
       </div>
-      <div class="player-tricks">🎴 <span id="tricks-south">0</span> · 🃏 <span id="cards-south">10</span> <span id="refe-south"></span></div>
+      <div class="player-tricks">🎴 <span id="tricks-south">0</span> <span id="refe-south"></span></div>
     </div>
 
     <!-- Štih slotovi -->
@@ -438,27 +874,40 @@
     <div class="trick-slot" id="slot-south"></div>
   </div>
 
+  <!-- Desni bocni panel: licitacioni log + dugmad — korisnikov zahtev,
+       oslobodjeni prostor sa strane skracenog stola. -->
+  <div class="side-panel" id="rightSidePanel">
+    <div class="bid-log" id="bidLog">
+      <span class="bid-log-empty">Licitacija...</span>
+    </div>
+    <div class="bid-controls" id="bidControls"></div>
+  </div>
+
 </div>
 
 <div class="bottom-panel">
-  <div class="bid-log" id="bidLog">
-    <span class="bid-log-empty">Licitacija...</span>
-  </div>
-  <div class="bid-controls" id="bidControls"></div>
-  <div class="hand-area" id="handArea">
-    <div class="hand-title" id="handTitle">Tvoja ruka</div>
-  </div>
+  <div class="hand-area" id="handArea"></div>
 </div>
 
 <!-- Setup screen -->
 <div class="screen active" id="setupScreen">
-  <div class="box">
-    <h2>🃏 Preferans</h2>
-    <p>Igra za 3 igrača sa 32 karte.</p>
-    <p style="opacity:0.7;font-size:0.9em">Cilj: uzeti više od polovine štihova u proglašenoj igri.</p>
+  <div class="box setup-box">
+    <h2 class="setup-title">Preferans</h2>
+    <div class="setup-suits"><span class="red">♥</span><span class="black">♠</span><span class="red">♦</span><span class="black">♣</span></div>
+    <!-- Korisnikov zahtev: opisni tekst ("Igra za 3 igraca...", "Cilj...")
+         uklonjen sa setup ekrana, deluje ciscije bez njega. -->
     <div style="display:flex;gap:8px;margin:16px 0">
       <button id="mode3ai" class="mode-btn" onclick="setGameMode('3ai')">3 AI<br><small style="opacity:0.7;font-weight:normal">Demo</small></button>
       <button id="mode1v2" class="mode-btn active" onclick="setGameMode('1v2')">Vi + 2 AI</button>
+      <button id="mode3human" class="mode-btn" onclick="setGameMode('3human')">Vi na sve 3<br><small style="opacity:0.7;font-weight:normal">Testiranje</small></button>
+    </div>
+    <div class="setup-field">
+      <label for="setupStartBula">Početna bula (svi igrači)</label>
+      <input type="number" id="setupStartBula" value="100" min="1" step="1">
+    </div>
+    <div class="setup-field">
+      <label for="setupRefeCount">Refe po igraču</label>
+      <input type="number" id="setupRefeCount" value="2" min="0" step="1">
     </div>
     <button class="mode-btn primary" style="min-height:56px;font-size:1.1em" onclick="startGame()">🎮 Kreni!</button>
   </div>
@@ -466,11 +915,10 @@
 
 <!-- Result screen -->
 <div class="screen" id="resultScreen">
-  <div class="box">
+  <div class="box" id="resultBox">
     <h2 id="resultTitle">Kraj</h2>
-    <p id="resultMsg"></p>
-    <button class="mode-btn primary" style="min-height:48px" onclick="nextRound()">Sledeći krug</button>
-    <button class="mode-btn" onclick="document.getElementById('setupScreen').classList.add('active');document.getElementById('resultScreen').classList.remove('active');">Završi</button>
+    <div id="resultMsg"></div>
+    <button class="mode-btn primary" style="min-height:48px" id="nextRoundBtn" onclick="resultAction()">Igraj</button>
   </div>
 </div>
 

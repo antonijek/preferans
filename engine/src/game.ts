@@ -90,12 +90,14 @@ export class Game {
       kontraPlayer: null,
       kontraLevel: null,
       mozeCount: 0,
-      refeUsed: false,
       refeOccurred: false,
       scores: [0, 0, 0],
       bulas: [this.initialBule, this.initialBule, this.initialBule],
       refeCount: [0, 0, 0],
+      refePending: [0, 0, 0],
       igraPlayer: null,
+      igraCompetitors: null,
+      igraDeclarations: {},
       lastHandResult: null,
     };
   }
@@ -126,9 +128,13 @@ export class Game {
     this.state.kontraPlayer = null;
     this.state.kontraLevel = null;
     this.state.mozeCount = 0;
-    this.state.refeUsed = false;
-    // refeOccurred ostaje true ako je bilo REFE — to je istorijski flag
+    // refeOccurred ostaje true ako je bilo REFE — to je istorijski flag.
+    // refePending/refeCount TAKOĐE ostaju netaknuti — to je budžet po
+    // igraču koji traje preko VIŠE ruka (dodeljen refePending se ne gubi
+    // dok ga taj igrač lično ne potroši kao nosilac neke buduće ruke).
     this.state.igraPlayer = null;
+    this.state.igraCompetitors = null;
+    this.state.igraDeclarations = {};
     for (let i = 0; i < 3; i++) {
       const p = this.state.players[i]!;
       p.hand = result.hands[i]!.slice();
@@ -138,6 +144,7 @@ export class Game {
       p.bidLevel = 0;
       p.kontraLevel = null;
       p.follows = null;
+      p.igraEligible = true;
     }
     this.state.phase = 'BIDDING';
   }
@@ -152,6 +159,12 @@ export class Game {
     const p = this.state.players[player]!;
     if (p.hasPassedBid) return false;
     if (value < 2 || value > 7) return false;
+    // RULES 3.4: ako mu je OVO prvi potez u licitaciji (jos nije ni licitirao
+    // ni rekao dalje), a bira broj (ne Igra) — trajno gubi pravo na "Igra"
+    // do kraja runde. Vidi igraEligible u types.ts. MOGU grana ispod nikad
+    // nije "prvi potez" (zahteva p.bidLevel>0 vec), pa se ovo odnosi samo na
+    // stvarno podizanje licitacije.
+    const isFirstBidTurn = p.bidLevel === 0 && !p.hasPassedBid;
     // "Mogu X" — potvrda da igrac prihvata trenutnu vrednost (RULES 3.3).
     // Igrac koji NIJE UOPSTE licitirao (ne BID, ne MOGU) u ovoj rundi NEMA
     // pravo da kaze "mogu" — mora ili podici licitaciju ili reci "dalje"
@@ -184,18 +197,23 @@ export class Game {
       return true;
     }
     if (value <= this.state.currentBid) return false;
-    // Igrac koji je Mogu-eligible (vec licitirao I trenutno nadmasen) NE SME
-    // sam da podigne licitaciju — mora ili potvrditi (Mogu) ili reci "dalje".
-    // Podizanje je rezervisano za onog ko TRENUTNO NIJE nadmasen (drzi vrh,
-    // ili jos nije uopste licitirao). Potvrdjeno direktno od korisnika kroz
-    // dva odvojena, konkretna primera toka licitacije.
-    if (p.bidLevel > 0 && p.bidLevel < this.state.currentBid) return false;
+    // Igrac koji je Mogu-eligible (vec licitirao I trenutno nadmasen) SME da
+    // podigne licitaciju SAMO ako je Mogu opcija za trenutnu vrednost VEC
+    // zauzeta od strane DRUGOG igraca (alreadyConfirmedByMogu) — dok je Mogu
+    // jos slobodan, mora prvo njega (ili "dalje"), ne sme ga preskociti.
+    // Kad Mogu vise nije dostupan, NE SME ostati zaglavljen samo na "dalje"
+    // (uzivo prijavljen bag: igrac primoran da pasira sa jakom rukom za
+    // podizanje samo zato sto je NEKO DRUGI vec "pokupio" Mogu slot —
+    // potvrdjeno direktno od korisnika, ekran je nudio SAMO "Dalje" bez
+    // opcije podizanja na sledecu vrednost).
+    if (p.bidLevel > 0 && p.bidLevel < this.state.currentBid && !alreadyConfirmedByMogu) return false;
     // RULES 3.2: licitacija ide striktno redom, +1 u odnosu na trenutnu
     // vrednost (pocevsi od 2) — skok (npr. 0 -> 5) NIJE dozvoljen.
     const requiredNext = Math.max(2, this.state.currentBid + 1);
     if (value !== requiredNext) return false;
     this.state.currentBid = value;
     p.bidLevel = value;
+    if (isFirstBidTurn) p.igraEligible = false;
     this.state.bids.push({ player, type: 'BID', value });
     this.advanceBidder();
     return true;
@@ -210,6 +228,9 @@ export class Game {
       this.advanceBidder();
       return true;
     }
+    // RULES 3.4: prvi potez ovog igraca u rundi je "dalje" (ne Igra) —
+    // trajno gubi pravo na "Igra" do kraja runde.
+    if (p.bidLevel === 0) p.igraEligible = false;
     p.hasPassedBid = true;
     this.state.bids.push({ player, type: 'PASS' });
     this.advanceBidder();
@@ -225,6 +246,10 @@ export class Game {
   sayIgra(player: Position): boolean {
     if (this.state.phase !== 'BIDDING') return false;
     if (player !== this.state.currentBidder) return false;
+    // RULES 3.4 (korisnikov zahtev — uzivo prijavljen bag): "Igra" sme SAMO
+    // na igracev prvi potez u rundi. Cim je na svom prvom potezu vec rekao
+    // broj ili "dalje", vise ne moze konkurisati sa Igra kasnije.
+    if (!this.state.players[player]!.igraEligible) return false;
     if (this.state.igraPlayer === null) {
       this.state.igraPlayer = player;
     }
@@ -233,12 +258,58 @@ export class Game {
     return true;
   }
 
-  declareIgra(game: GameT): boolean {
+  declareIgra(player: Position, game: GameT): boolean {
     if (this.state.phase !== 'DECLARING') return false;
-    if (this.state.winner === null) return false;
-    if (this.state.igraPlayer !== this.state.winner) return false;
     if (!isIgra(game)) return false;
     if (getGameValue(game) < this.state.currentBid) return false;
+
+    if (this.state.igraCompetitors !== null) {
+      // RULES 3.4.1 tiebreak — VISE igraca reklo Igra, svaki mora proglasiti
+      // SVOJU igru pre nego sto se odredi pobednik.
+      if (player !== this.state.currentBidder) return false;
+      if (!this.state.igraCompetitors.includes(player)) return false;
+      if (this.state.igraDeclarations[player] !== undefined) return false;
+      this.state.igraDeclarations[player] = game;
+
+      const remaining = this.state.igraCompetitors.filter(
+        p => this.state.igraDeclarations[p] === undefined,
+      );
+      if (remaining.length > 0) {
+        this.state.currentBidder = remaining[0]!;
+        return true;
+      }
+      // Svi su proglasili — odredi pobednika: najjaca igra pobedjuje, kod
+      // izjednacenja pobedjuje PRVI koji je rekao Igra (redosled u
+      // igraCompetitors je vec redosled prijave).
+      let winner = this.state.igraCompetitors[0]!;
+      let bestValue = getGameValue(this.state.igraDeclarations[winner]!);
+      for (const p of this.state.igraCompetitors.slice(1)) {
+        const v = getGameValue(this.state.igraDeclarations[p]!);
+        if (v > bestValue) {
+          winner = p;
+          bestValue = v;
+        }
+      }
+      const winningGame = this.state.igraDeclarations[winner]!;
+      this.state.winner = winner;
+      this.state.igraPlayer = winner;
+      this.state.winnerGame = winningGame;
+      this.state.declaredGame = winningGame;
+      this.state.trump = getTrumpSuit(winningGame);
+      this.state.igraCompetitors = null;
+      this.state.igraDeclarations = {};
+      if (isBetl(winningGame)) {
+        this.autoFollowBetl();
+      } else {
+        this.startFollowDeclaring();
+      }
+      return true;
+    }
+
+    // Standardan slucaj — samo JEDAN igrac je rekao Igra.
+    if (this.state.winner === null) return false;
+    if (this.state.igraPlayer !== this.state.winner) return false;
+    if (player !== this.state.winner) return false;
     this.state.winnerGame = game;
     this.state.declaredGame = game;
     this.state.trump = getTrumpSuit(game);
@@ -294,9 +365,29 @@ private checkBiddingEnd(): void {
         (this.state.bids.some(b => b.player === p && b.type === 'IGRA')),
       );
       if (allResponded) {
-        this.state.winner = this.state.igraPlayer;
+        // RULES 3.4.1 — ako je VISE igraca reklo Igra, SVAKI mora proglasiti
+        // SVOJU igru pre nego sto se odredi pobednik (najjaca igra pobedjuje,
+        // izjednacenje -> prvi koji je rekao Igra). Uzivo prijavljen bag:
+        // ranije se OVDE odmah proglasavao pobednik = PRVI koji je rekao
+        // Igra, bez ikakvog trazenja/poredjenja od ostalih koji su TAKODJE
+        // rekli Igra — "svi kazu igra... nema govorenja cija je koja, nego
+        // prvi odigrava". Redosled prijave = redosled IGRA zapisa u bids.
+        const competitors: Position[] = [];
+        for (const b of this.state.bids) {
+          if (b.type === 'IGRA' && !competitors.includes(b.player)) {
+            competitors.push(b.player);
+          }
+        }
         this.state.phase = 'DECLARING';
-        this.state.currentBidder = this.state.winner;
+        if (competitors.length > 1) {
+          this.state.igraCompetitors = competitors;
+          this.state.igraDeclarations = {};
+          this.state.currentBidder = competitors[0]!;
+          // winner OSTAJE null dok svi ne proglase i pobednik se ne odredi
+        } else {
+          this.state.winner = this.state.igraPlayer;
+          this.state.currentBidder = this.state.winner;
+        }
       }
       return;
     }
@@ -342,62 +433,93 @@ private checkBiddingEnd(): void {
     this.state.talon = [];
   }
 
+  // RULES 7.1/7.3 (model potvrđen uživo od korisnika): kad refe "okine" —
+  // bilo "svi kažu dalje" bilo "Pik bez kontre" — SVA TRI igrača dobijaju po
+  // JEDNU refu "na raspolaganju" (refePending), ne samo budući nosilac.
+  // Svaki od njih je troši SAM, prvi put kad ON LIČNO postane nosilac neke
+  // ruke (ne mora biti odmah sledeća) — vidi refePending u endHand() /
+  // handleNoOneFollows(). Ne dodeljuje se igraču koji je već na budžetskom
+  // maksimumu (iskorišćeno+na raspolaganju === refePerPlayer).
+  // NAPOMENA: ranije je ovo davalo refu SVA TRI igrača ODMAH kao "iskorišćeno"
+  // (refeCount++), što je bio drugačiji, uživo prijavljen bag (tabela je
+  // pokazivala 1/2 za sve iako je samo jedan od njih stvarno odigrao rundu
+  // pod refeom) — sada se razdvaja "dodeljeno" (refePending) od "potrošeno"
+  // (refeCount), pa se ANI problem ne ponavlja: dodela svima ne menja
+  // "iskorišćeno" dok stvarno NE POTROŠE svoju refu kao nosilac.
+  private awardRefeToAll(): void {
+    const pending: [number, number, number] = [...this.state.refePending] as [number, number, number];
+    for (let i = 0; i < 3; i++) {
+      if (this.state.refeCount[i]! + pending[i]! < this.refePerPlayer) {
+        pending[i]! += 1;
+      }
+    }
+    this.state.refePending = pending;
+  }
+
   private handleRefe(): void {
     this.state.refeOccurred = true;
-    // RULES 7.1/7.3: "svi kazu dalje" samo NAORUZAVA refe-multiplikator za
-    // SLEDECU ruku — refeCount se NE menja ovde. Tek POSLE odigrane ruke
-    // pod refeom, NOSILAC TE ruke otpisuje jedan svoj refe (vidi endHand(),
-    // refeConsumed). Ranije je ovde postojala petlja koja je odmah upisivala
-    // po 1 refu SVA TRI igraca — uzivo prijavljen bag: nakon "dalje x3"pa
-    // Istok odigrao Tref, tabela je pokazivala 1/2 za SVE, iako su samo
-    // Istok (nosilac te ruke) trebalo da potrosi refu. Uklonjeno.
     // Ako neko u šeširu — refe se ne važi, samo game over
     const anyInHat = this.state.bulas.some(b => b < 0);
     if (anyInHat) {
       this.state.phase = 'GAME_OVER';
       return;
     }
+    this.awardRefeToAll();
     // Ruka se poništava — iste bule, novi dealer
     this.newHand(this.state.dealer);
-    // NAORUZAJ refe-multiplikator za OVU (upravo podeljenu) ruku — MORA ici
-    // POSLE newHand(), jer newHand() bezuslovno postavlja refeUsed=false na
-    // pocetku svake ruke. Bez ovoga, refeMultiplier u endHand() (i time ceo
-    // x2 efekat na bule/supe, RULES 7.3) NIKAD nije bio aktiviran — bio je
-    // mrtav kod otkad je uveden (uzivo pronadjeno kroz proveru refe brojaca).
-    this.state.refeUsed = true;
+  }
+
+  // Zajednicka logika za rundu koja se NE ODIGRAVA do kraja jer nosilac nema
+  // stvarnog protivnika (RULES 7.1.1 "Pik bez kontre" I RULES 5.4 "niko ne
+  // prati" — potvrđeno uživo od korisnika da obe situacije prate ISTU
+  // tri-granu strukturu, ne samo Pik-bez-kontre):
+  //   1. Neko je vec u seširu (negativne bule) → IZUZETAK: regularan prolaz
+  //      nosioca upisan bez igranja, bez mnozenja refeom.
+  //   2. Niko u seširu, nosilac ima slobodan refe-budzet → refe se PISE
+  //      (dodela SVA TRI igraca, vidi awardRefeToAll()), ruka se ponistava
+  //      (BEZ promene bula — ne "prolaz -4").
+  //   3. Niko u seširu, nosilac NEMA slobodan budzet → ruka se prosto
+  //      PONAVLJA (redeal), bez promene bula, bez dodele refe.
+  // Uzivo prijavljen bag: handleNoOneFollows() je ranije UVEK upisivala
+  // fiksni "prolaz" (-igra*2, eventualno x2 ako je vec bila naoruzana refeom)
+  // bez ikakve hat/refe grane — korisnik je potvrdio da to vazi SAMO kad je
+  // neko u seširu; inace treba refe (ili ponavljanje ruke), ne automatski pad.
+  private handleUnplayedHand(declarer: Position, declared: GameT): void {
+    const anyInHat = this.state.bulas.some(b => b < 0);
+    if (anyInHat) {
+      const delta = -(getGameValue(declared) * 2);
+      const bulasRaw: [number, number, number] = [...this.state.bulas] as [number, number, number];
+      bulasRaw[declarer] += delta;
+      const capped = this.capHandToMatchEnd(this.state.bulas, bulasRaw, [0, 0, 0]);
+      this.state.bulas = capped.bulas;
+      this.state.phase = capped.matchOver ? 'MATCH_OVER' : 'GAME_OVER';
+      this.state.lastHandResult = {
+        bulas: [...capped.bulas] as [number, number, number],
+        supeDelta: capped.supeDelta,
+        passed: true,
+        winner: declarer,
+        winnerGame: declared,
+        kontraLevel: null,
+        refeConsumed: null,
+        refeActive: false,
+        bulasAfter: [...capped.bulas] as [number, number, number],
+      };
+      return;
+    }
+    if (this.state.refeCount[declarer]! + this.state.refePending[declarer]! < this.refePerPlayer) {
+      this.state.refeOccurred = true;
+      this.awardRefeToAll();
+      this.newHand(this.state.dealer);
+      return;
+    }
+    // Nosilac nema slobodan budžet, niko u seširu — ruka se poništava, bez
+    // promene bula i bez dodele (RULES 7.2).
+    this.newHand(this.state.dealer);
   }
 
   // RULES 7.1.1 — standardni Pik, nijedan pratilac ne da kontru (oba Moze).
   private handlePikWithoutKontra(): void {
-    const declarer = this.state.winner!;
-    const anyInHat = this.state.bulas.some(b => b < 0);
-    if (anyInHat) {
-      // Izuzetak: regularan prolaz nosioca upisan bez igranja, bez mnozenja
-      const delta = -(getGameValue('Pik') * 2);
-      const bulas: [number, number, number] = [...this.state.bulas] as [number, number, number];
-      bulas[declarer] += delta;
-      this.state.bulas = bulas;
-      this.state.phase = 'GAME_OVER';
-      this.state.lastHandResult = {
-        bulas: [...bulas] as [number, number, number],
-        supeDelta: [0, 0, 0],
-        passed: true,
-        winner: declarer,
-        winnerGame: 'Pik',
-        kontraLevel: null,
-        refeConsumed: null,
-        refeActive: false,
-        bulasAfter: [...bulas] as [number, number, number],
-      };
-      return;
-    }
-    if (this.state.refeCount[declarer]! < this.refePerPlayer) {
-      // Nosilac ima slobodnu refu — isti mehanizam kao "svi kazu dalje"
-      this.handleRefe();
-      return;
-    }
-    // Nema slobodne refe, niko u seiru — ruka se ponistava, bez promene bula
-    this.newHand(this.state.dealer);
+    this.handleUnplayedHand(this.state.winner!, 'Pik');
   }
 
   // Odbacivanje 2 karte
@@ -492,26 +614,68 @@ private checkBiddingEnd(): void {
     // Inače: čekamo call
   }
 
-  // RULES 5.4 — oba pratioca "Ne dodjem": partija se ne igra, nosilac
-  // automatski dobija 10 stihova (prolaz), niko drugi ne pise nista.
+  // Ako nosilac ima refu "na raspolaganju" (refePending), OVA (STVARNO
+  // ODIGRANA, do kraja) ruka je pod refeom — troši je (refePending--,
+  // refeCount++), jer RULES 7.3 kaze da se refe otpisuje cim se ruka POD
+  // REFEOM zavrsi. NAPOMENA: koristi se SAMO za rundu koja se stvarno
+  // odigrala (endHand()) — "niko ne prati"/"Pik bez kontre" NISU odigrane
+  // runde, tamo vazi drugacija (fresh) provera, vidi handleUnplayedHand().
+  //
+  // Uzivo prijavljen bag: ako je BILO KO (ne nužno sam nosilac) VEĆ u seširu
+  // (negativne bule) kad ova ruka počne, raspoloziva refa NE SME da se
+  // potroši — ostaje BLOKIRANA (ne izgubljena, i dalje na raspolaganju za
+  // kasnije kad niko vise ne bude u seširu). RULES 7.2 ovo vec kaze za NOVO
+  // pisanje refe ("Refe se NE piše ako bar jedan igrač ima negativne bule")
+  // — korisnik je potvrdio da isto ogranicenje vazi i za POTROSNJU vec
+  // dodeljene, ne samo za novo dodeljivanje.
+  private consumeRefeIfPending(declarer: Position): { multiplier: Multiplier; consumed: Position | null } {
+    const anyInHat = this.state.bulas.some(b => b < 0);
+    if (!anyInHat && this.state.refePending[declarer]! > 0) {
+      this.state.refePending[declarer]!--;
+      this.state.refeCount[declarer]++;
+      return { multiplier: REFE_MULTIPLIER, consumed: declarer };
+    }
+    return { multiplier: 1, consumed: null };
+  }
+
+  // RULES 5.4 — oba pratioca "Ne dodjem": partija se NE IGRA (nema stvarnog
+  // protivnika nosiocu). Potvrdjeno uzivo od korisnika, u DVA odvojena
+  // pitanja koja se ne smeju pomesati:
+  //
+  // A) Da li OVAJ dogadjaj sam po sebi OKIDA novu refe dodelu/redeal?
+  //    SAMO kad je declaredGame TACNO 'Pik' (ne Igra-Pik, ne bilo koja druga
+  //    igra) — prati tri-granu logiku "Pik bez kontre" (7.1.1) preko
+  //    handleUnplayedHand(). Za SVE OSTALE igre — NE, nema novog trigera.
+  // B) Da li se VEC DODELJENA (ranija) raspoloziva refa TROSI kad ovaj
+  //    igrac ovde postane nosilac? DA, uvek, bez obzira na igru — refa je
+  //    licna osobina igraca (RULES 7.3), ne vezana za mehanizam kojim se
+  //    NJEGOVA ruka zavrsava. Uzivo potvrdjeno: "kako bez refe kad je refa
+  //    dodeljena rundu pre?" — prethodna verzija je za ne-Pik igre potpuno
+  //    ignorisala VEC POSTOJECU raspolozivu refu, ne samo novo trigerovanje.
   private handleNoOneFollows(): void {
     const declarer = this.state.winner!;
     const declared = this.state.declaredGame!;
-    const delta = -(getGameValue(declared) * 2);
-    const bulas: [number, number, number] = [...this.state.bulas] as [number, number, number];
-    bulas[declarer] += delta;
-    this.state.bulas = bulas;
-    this.state.phase = 'GAME_OVER';
+    if (declared === 'Pik') {
+      this.handleUnplayedHand(declarer, declared);
+      return;
+    }
+    const { multiplier: refeMultiplier, consumed: refeConsumed } = this.consumeRefeIfPending(declarer);
+    const delta = -(getGameValue(declared) * 2) * refeMultiplier;
+    const bulasRaw: [number, number, number] = [...this.state.bulas] as [number, number, number];
+    bulasRaw[declarer] += delta;
+    const capped = this.capHandToMatchEnd(this.state.bulas, bulasRaw, [0, 0, 0]);
+    this.state.bulas = capped.bulas;
+    this.state.phase = capped.matchOver ? 'MATCH_OVER' : 'GAME_OVER';
     this.state.lastHandResult = {
-      bulas: [...bulas] as [number, number, number],
-      supeDelta: [0, 0, 0],
+      bulas: [...capped.bulas] as [number, number, number],
+      supeDelta: capped.supeDelta,
       passed: true,
       winner: declarer,
       winnerGame: declared,
       kontraLevel: null,
-      refeConsumed: null,
-      refeActive: false,
-      bulasAfter: [...bulas] as [number, number, number],
+      refeConsumed,
+      refeActive: refeConsumed !== null,
+      bulasAfter: [...capped.bulas] as [number, number, number],
     };
   }
 
@@ -796,7 +960,7 @@ private checkBiddingEnd(): void {
       : this.state.kontraLevel === 'SUBKONTRA' ? CONTRA_MULTIPLIERS.SUBKONTRA
       : this.state.kontraLevel === 'MORTKONTRA' ? CONTRA_MULTIPLIERS.MORTKONTRA
       : CONTRA_MULTIPLIERS.NONE;
-    const refeMultiplier: Multiplier = this.state.refeUsed ? REFE_MULTIPLIER : 1;
+    const { multiplier: refeMultiplier, consumed: refeConsumed } = this.consumeRefeIfPending(declarer);
 
     const declarerDelta = calculateBulaChange(declarerTricks, declared, contraMultiplier, refeMultiplier);
     const passed = declarerDelta < 0;
@@ -860,12 +1024,25 @@ private checkBiddingEnd(): void {
         this.state.players[caller]!.tricksWon +
         (callee !== null ? this.state.players[callee]!.tricksWon : 0);
       supeDelta[caller] += calculateSupaForFollower(combinedTricks, declared, contraMultiplier, refeMultiplier);
+    } else if (passed && this.state.kontraPlayer !== null) {
+      // Nosilac prošao, ALI kontra data — kontraš snosi SVU odgovornost
+      // (RULES 6.3), pa dobija supe za SVE štihove koje je ODBRANA (svi
+      // ne-nosioci ZAJEDNO) uhvatila, ne samo svoje lične — isto kao kad
+      // nosilac PADNE (vidi granu ispod, ista formula). Uzivo prijavljen
+      // bag: ovde se ranije koristila SAMO kontraševa lična tricksWon, pa
+      // je npr. "kontraš 0 ličnih + drugi pratilac 2 zajedno = 2 ukupno"
+      // davalo 0 supa umesto supe računate na ta 2 zajednička štiha.
+      const opponentTricks =
+        this.state.players[0]!.tricksWon + this.state.players[1]!.tricksWon +
+        this.state.players[2]!.tricksWon - declarerTricks;
+      const supe = calculateSupaForFollower(opponentTricks, declared, contraMultiplier, refeMultiplier);
+      supeDelta[this.state.kontraPlayer] += supe;
     } else if (passed) {
-      // Nosilac prošao — pratioci zarađuju supe za svoje štihove (RULES 9.4)
+      // Nosilac prošao, BEZ kontre — pratioci zarađuju supe za svoje
+      // štihove, svako nezavisno (RULES 9.4)
       for (const f of activeFollowers) {
         const tricks = this.state.players[f]!.tricksWon;
         const supe = calculateSupaForFollower(tricks, declared, contraMultiplier, refeMultiplier);
-        if (this.state.kontraPlayer !== null && f !== this.state.kontraPlayer) continue;
         supeDelta[f] += supe;
       }
     } else if (this.state.kontraPlayer !== null) {
@@ -905,27 +1082,62 @@ private checkBiddingEnd(): void {
       }
     }
 
-    const refeConsumed = this.state.refeUsed ? declarer : null;
-    if (refeConsumed !== null) {
-      this.state.refeCount[refeConsumed]++;
-    }
-
-    this.state.bulas = bulas;
-    this.state.phase = 'GAME_OVER';
+    // RULES 9.1 — partija (cela sesija, ne samo ova ruka) traje dok zbir
+    // bula sva tri igraca ne postane TACNO 0. Ako bi ova ruka odvela zbir
+    // ISPOD 0 (preterala cilj), sve promene ruke se PROPORCIONALNO smanjuju
+    // da zbir sleti tacno na 0 umesto da ga preskoci. Uzivo prijavljen bag:
+    // "partija ne moze da se zavrsi" — ranije se ovaj cilj uopste nije
+    // proveravao, partija se samo nastavljala unedogled.
+    const capped = this.capHandToMatchEnd(this.state.bulas, bulas, supeDelta);
+    this.state.bulas = capped.bulas;
+    this.state.phase = capped.matchOver ? 'MATCH_OVER' : 'GAME_OVER';
 
     const result: EndOfHandResult = {
       bulas: [...this.state.bulas] as [number, number, number],
-      supeDelta,
+      supeDelta: capped.supeDelta,
       passed,
       winner: declarer,
       winnerGame: declared,
       kontraLevel: this.state.kontraLevel,
       refeConsumed,
-      refeActive: this.state.refeUsed,
+      refeActive: refeConsumed !== null,
       bulasAfter: [...this.state.bulas] as [number, number, number],
     };
     this.state.lastHandResult = result;
     return result;
+  }
+
+  // Vidi endHand() — deljena logika "ne dozvoli da zbir bula preskoci 0".
+  // Kad ruka BEZ capovanja preteruje cilj (zbir bi pao ispod 0), sve
+  // promene (bula i supe, svakom igracu nezavisno) se skaliraju ISTIM
+  // razmerom tako da zbir POSLE ruke bude tacno 0 — ne manje. Kad ruka ne
+  // preteruje, prosledjuje se bez izmene.
+  private capHandToMatchEnd(
+    bulasBefore: [number, number, number],
+    bulasAfterRaw: [number, number, number],
+    supeDeltaRaw: [number, number, number],
+  ): { bulas: [number, number, number]; supeDelta: [number, number, number]; matchOver: boolean } {
+    const sumBefore = bulasBefore[0]! + bulasBefore[1]! + bulasBefore[2]!;
+    if (sumBefore <= 0) {
+      // Partija je vec trebalo da bude gotova pre ove ruke — odbrambeno,
+      // ne diraj brojeve, samo oznaci kraj.
+      return { bulas: bulasAfterRaw, supeDelta: supeDeltaRaw, matchOver: true };
+    }
+    const sumAfterRaw = bulasAfterRaw[0]! + bulasAfterRaw[1]! + bulasAfterRaw[2]!;
+    if (sumAfterRaw >= 0) {
+      return { bulas: bulasAfterRaw, supeDelta: supeDeltaRaw, matchOver: sumAfterRaw === 0 };
+    }
+    // Preterano — cap-uj sve promene ISTIM razmerom da zbir sleti tacno na 0.
+    const rawTotalChange = sumAfterRaw - sumBefore; // negativan
+    const ratio = -sumBefore / rawTotalChange; // (0, 1)
+    const bulas: [number, number, number] = [0, 0, 0];
+    const supeDelta: [number, number, number] = [0, 0, 0];
+    for (let i = 0; i < 3; i++) {
+      const rawDelta = bulasAfterRaw[i]! - bulasBefore[i]!;
+      bulas[i] = bulasBefore[i]! + Math.round(rawDelta * ratio);
+      supeDelta[i] = Math.round(supeDeltaRaw[i]! * ratio);
+    }
+    return { bulas, supeDelta, matchOver: true };
   }
 
   // Stanje za UI
@@ -955,33 +1167,40 @@ private checkBiddingEnd(): void {
       case 'BIDDING': {
         const player = s.currentBidder;
         const bidLevel = s.players[player]!.bidLevel;
-        // MOGU-eligible: vec licitirao I trenutno nadmasen. Takav igrac NE
-        // SME sam da podigne — samo Mogu ili Dalje (potvrdjeno direktno od
-        // korisnika). Podizanje je rezervisano za onog ko trenutno NIJE
-        // nadmasen (drzi vrh, ili jos nije uopste licitirao).
+        // MOGU-eligible: vec licitirao I trenutno nadmasen. Takav igrac
+        // prvo ima pravo na Mogu (potvrda) — ali ne sme sam da podigne DOK
+        // je Mogu jos dostupan (potvrdjeno direktno od korisnika).
         const moguEligible = bidLevel > 0 && s.currentBid > bidLevel;
         // PASS je uvek dozvoljen
         actions.push({ type: 'pass', player, label: 'Dalje' });
         // SAMO JEDAN igrac sme potvrditi (Mogu) datu vrednost — ako je NEKO
         // VEC potvrdio, ova opcija nestaje za sve ostale (potvrdjeno
-        // direktno, vise puta od korisnika). Takav igrac (Mogu-eligible ali
-        // Mogu vec zauzet) ostaje SAMO sa "Dalje" — ne sme ni da podigne
-        // (ta zabrana vec postoji za sve Mogu-eligible igrace).
+        // direktno, vise puta od korisnika).
         const alreadyConfirmedByMogu = s.bids.some(
           b => b.type === 'MOGU' && b.value === s.currentBid,
         );
         if (moguEligible && !alreadyConfirmedByMogu) {
           actions.push({ type: 'mogu', player, value: s.currentBid, label: `Mogu ${s.currentBid}` });
-        } else if (!moguEligible) {
-          // BID X — samo kad NIJE Mogu-eligible
+        }
+        // BID X — dozvoljeno kad igrac NIJE Mogu-eligible (drzi vrh ili jos
+        // nije licitirao), ILI kad JESTE Mogu-eligible ali je Mogu vec
+        // zauzet od DRUGOG igraca. Uzivo prijavljen bag: Mogu-eligible
+        // igrac je ostajao zaglavljen SAMO sa "Dalje" (bez ikakve opcije
+        // podizanja) cim bi mu Mogu slot bio zauzet, iako je imao dovoljno
+        // jaku ruku za legitimno podizanje na sledecu vrednost.
+        if (!moguEligible || alreadyConfirmedByMogu) {
           const nextBid = Math.max(2, s.currentBid + 1);
           if (nextBid <= 7) {
             actions.push({ type: 'bid', player, value: nextBid, label: `${nextBid}` });
           }
         }
-        // IGRA samo za igraca koji nije biddovao u ovoj rundi (RULES 3.4.1
-        // dozvoljava vise igraca da kazu Igra i konkurisu jacinom)
-        if (bidLevel === 0) {
+        // IGRA samo dok je igracEligible (RULES 3.4 — mora biti njegov PRVI
+        // potez u rundi; cim je na svom prvom potezu vec rekao broj ili
+        // "dalje", trajno gubi pravo do kraja runde, vidi igraEligible u
+        // types.ts). Stari uslov (samo bidLevel===0) nije hvatao slucaj kad
+        // je prvi potez bio "dalje" (bidLevel ostaje 0, ali igrac vise ne
+        // sme Igra) — uzivo prijavljen bag.
+        if (s.players[player]!.igraEligible) {
           actions.push({ type: 'igra', player, label: 'Igra' });
         }
         break;
@@ -999,18 +1218,20 @@ private checkBiddingEnd(): void {
       }
 
       case 'DECLARING': {
-        const winner = s.winner!;
+        // RULES 3.4.1 tiebreak — VISE igraca reklo Igra: winner je JOS null,
+        // trenutni deklarant je s.currentBidder (isti obrazac kao bidding).
+        const declarer = s.igraCompetitors !== null ? s.currentBidder : s.winner!;
         const contract = s.currentBid;
         if (s.igraPlayer !== null) {
           for (const g of IGRA_GAMES) {
             if (GAME_VALUES[g] >= contract) {
-              actions.push({ type: 'declare', player: winner, game: g, label: g.replace('Igra-', '') });
+              actions.push({ type: 'declare', player: declarer, game: g, label: g.replace('Igra-', '') });
             }
           }
         } else {
           for (const g of STANDARD_GAMES) {
             if (GAME_VALUES[g] >= contract) {
-              actions.push({ type: 'declare', player: winner, game: g, label: g });
+              actions.push({ type: 'declare', player: declarer, game: g, label: g });
             }
           }
         }

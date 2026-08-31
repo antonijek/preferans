@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Game } from '../src/game.ts';
 import { makeCard } from '../src/cards.ts';
+import { GAME_VALUES } from '../src/constants.ts';
 
 test('e2e: licitacija ide striktno redom — skok na vecu vrednost je odbijen', () => {
   const game = new Game({ seed: 50 });
@@ -70,13 +71,15 @@ test('e2e: Mogu-eligible igrac (vec licitirao, trenutno nadmasen) NE SME sam pod
   assert.equal(moguOk, true, 'P1 sme potvrditi sa Mogu 3');
 });
 
-test('e2e: SAMO JEDAN igrac sme potvrditi (Mogu) datu vrednost — drugi koji je TAKODJE iza NE SME', () => {
+test('e2e: SAMO JEDAN igrac sme potvrditi (Mogu) datu vrednost — drugi koji je TAKODJE iza SME da podigne umesto', () => {
   // Uzivo potvrdjeno EKSPLICITNO i vise puta od korisnika: "ne mogu 2
   // igraca da kazu mogu X, to je totalno neispravno". Scenario tacno kao
   // uzivo prijavljen: P0 bid 2, P1 bid 3, P2 bid 4 — sad su P0 i P1 OBOJICA
-  // iza (bidLevel < 4). Prvi koji potvrdi "zauzme" tu vrednost; drugi ne
-  // sme VISE da je potvrdi (mora samo Dalje, jer ni podizanje ne sme dok
-  // je Mogu-eligible).
+  // iza (bidLevel < 4). Prvi koji potvrdi "zauzme" tu vrednost; drugi VISE
+  // ne sme da je potvrdi — ALI (potvrdjeno uzivo 2026-08-29, drugi konkretan
+  // primer: ekran je nudio SAMO "Dalje" bez opcije podizanja iako je
+  // korisnik imao jaku ruku) SME da podigne na sledecu vrednost umesto da
+  // ostane zaglavljen na Dalje.
   const game = new Game({ seed: 51 });
   game.newHand(2); // bidStartPlayer = 0
   game.bid(0, 2);
@@ -90,14 +93,15 @@ test('e2e: SAMO JEDAN igrac sme potvrditi (Mogu) datu vrednost — drugi koji je
   const p1mogu = game.bid(1, 4);
   assert.equal(p1mogu, false, 'P1 NE SME da potvrdi istu vrednost koju je P0 vec potvrdio');
   assert.equal(game.state.currentBid, 4, 'currentBid ostaje nepromenjen');
-  // getLegalActions() za P1 ne sme nuditi ni mogu ni bid — samo Dalje
+  // getLegalActions() za P1 ne nudi mogu (zauzet), ALI nudi bid (podizanje)
   const actions = game.getLegalActions();
   assert.ok(!actions.some(a => a.type === 'mogu'), 'Mogu vec zauzet — ne nudi se P1');
-  assert.ok(!actions.some(a => a.type === 'bid'), 'P1 i dalje ne sme da podigne (Mogu-eligible)');
-  assert.ok(actions.some(a => a.type === 'pass'), 'P1 ima samo Dalje kao opciju');
-  // P1 moze samo da ode dalje
-  const p1pass = game.pass(1);
-  assert.equal(p1pass, true);
+  assert.ok(actions.some(a => a.type === 'bid' && a.value === 5), 'P1 SME da podigne na 5 kad je Mogu vec zauzet');
+  assert.ok(actions.some(a => a.type === 'pass'), 'Dalje je i dalje ponudjeno');
+  // P1 moze da podigne na 5
+  const p1raise = game.bid(1, 5);
+  assert.equal(p1raise, true, 'P1 sme da podigne na 5 kad Mogu vise nije dostupan');
+  assert.equal(game.state.currentBid, 5);
 });
 
 test('e2e: igrac koji VEC drzi currentBid ne sme reci "mogu" za svoju sopstvenu vrednost', () => {
@@ -120,8 +124,14 @@ test('e2e: igrac koji VEC drzi currentBid ne sme reci "mogu" za svoju sopstvenu 
   );
 });
 
-test('e2e: oba pratioca "Ne dodjem" — nosilac automatski dobija 10 stihova (RULES 5.4)', () => {
+test('e2e: oba pratioca "Ne dodjem" na NE-PIK igri — nosilac automatski dobija 10 stihova, fiksan prolaz, BEZ REFE (RULES 5.4)', () => {
+  // Potvrdjeno uzivo od korisnika (viseput, posle privremene pogresne
+  // generalizacije): refe/sesir-grananje kod "niko ne prati" vazi SAMO kad
+  // je declaredGame TACNO 'Pik' (vidi refe.test.ts za tu granu). Za SVAKU
+  // drugu igru (Karo ovde, ali isto za Herc/Tref/Betl/Sans/Igra-*) uvek vazi
+  // prost bezuslovan prolaz -igra*2, bez ikakvog obzira na sesir ili budzet.
   const game = new Game({ seed: 60 });
+  game.state.bulas = [-5, 100, 100]; // P0 u seširu — NE SME uticati na Karo ishod
   game.newHand(0);
   game.bid(1, 2);
   game.pass(2);
@@ -139,16 +149,112 @@ test('e2e: oba pratioca "Ne dodjem" — nosilac automatski dobija 10 stihova (RU
   assert.equal(game.state.bulas[2], bulasBefore[2]);
 });
 
-test('e2e: dva igraca kazu Igra — prvi koji je rekao ostaje lider (RULES 3.4.1 tiebreak)', () => {
+test('e2e: oba pratioca "Ne dodjem" na NE-PIK igri, nosilac NEMA raspolozivu refu — prost prolaz, NEMA nove dodele', () => {
+  const game = new Game({ seed: 60 });
+  game.newHand(0);
+  game.bid(1, 2);
+  game.pass(2);
+  game.pass(0);
+  const hand = game.state.players[1]!.hand;
+  game.discard(1, [hand[0]!.id, hand[1]!.id]);
+  game.declareGame(1, 'Karo');
+  const bulasBefore = [...game.state.bulas];
+  game.follow(0, 'NE_DODJEM');
+  game.follow(2, 'NE_DODJEM');
+  // Karo (ne Pik) -> prost prolaz -igra*2, NEMA novog trigerovanja refe.
+  assert.equal(game.state.phase, 'GAME_OVER');
+  assert.equal(game.state.bulas[1], bulasBefore[1]! - GAME_VALUES['Karo'] * 2, 'BEZ mnozenja refeom');
+  assert.equal(game.state.refePending.join(','), '0,0,0', 'Karo ne trigeruje NOVU dodelu refe');
+});
+
+test('e2e: oba pratioca "Ne dodjem" na NE-PIK igri, nosilac VEC ima raspolozivu refu (dodeljenu ranije) — TROSI se ovde, ishod dupliran', () => {
+  // Uzivo potvrdjeno: "kako bez refe kad je refa dodeljana rundu pre?" —
+  // vec dodeljena raspoloziva refa je licna osobina igraca i primenjuje se
+  // na NJEGOVU sledecu (ovako zakljucenu) ruku bez obzira na igru — samo
+  // NOVO trigerovanje/dodela je ogranicena na Pik, ne i potrosnja postojece.
+  const game = new Game({ seed: 60 });
+  game.newHand(0);
+  game.pass(1); // svi dalje -> dodela svima
+  game.pass(2);
+  game.pass(0);
+  assert.equal(game.state.refePending.join(','), '1,1,1');
+  game.bid(1, 2);
+  game.pass(2);
+  game.pass(0);
+  const hand = game.state.players[1]!.hand;
+  game.discard(1, [hand[0]!.id, hand[1]!.id]);
+  game.declareGame(1, 'Karo');
+  const bulasBefore = [...game.state.bulas];
+  game.follow(0, 'NE_DODJEM');
+  game.follow(2, 'NE_DODJEM');
+  assert.equal(game.state.phase, 'GAME_OVER');
+  assert.equal(game.state.bulas[1], bulasBefore[1]! - GAME_VALUES['Karo'] * 2 * 2, 'DUPLIRANO — P1 je vec imao raspolozivu refu');
+  assert.equal(game.state.refePending.join(','), '1,0,1', 'P1 trosi SVOJU vec dodeljenu refu; P0/P2 zadrzavaju svoju');
+  assert.equal(game.state.lastHandResult?.refeConsumed, 1);
+});
+
+test('e2e: dva igraca kazu Igra — SVAKI mora proglasiti SVOJU igru, JACA pobedjuje (RULES 3.4.1)', () => {
+  // Uzivo prijavljen bag: ranije se odmah proglasavao pobednik = PRVI koji
+  // je rekao Igra, bez ikakvog trazenja da ostali koji su TAKODJE rekli
+  // Igra proglase svoju igru i bez ikakvog poredjenja jacine — "svi kazu
+  // igra... nema govorenja cija je koja, nego prvi odigrava".
   const game = new Game({ seed: 70 });
   game.newHand(0);
   game.pass(1);
-  game.sayIgra(2); // prvi — postaje lider
-  game.sayIgra(0); // drugi — ne preuzima lidersvo
-  assert.equal(game.state.igraPlayer, 2);
-  assert.equal(game.state.winner, 2);
-  assert.equal(game.state.winnerGame, null); // igra se imenuje tek posle pobede
+  game.sayIgra(2); // prvi koji kaze Igra
+  game.sayIgra(0); // drugi — TAKODJE mora konkurisati, ne samo "izgubiti"
+  // Winner NIJE jos odredjen — oba moraju prvo proglasiti SVOJU igru.
+  assert.equal(game.state.winner, null, 'winner cheka dok se ne uporede proglasene igre');
   assert.equal(game.state.phase, 'DECLARING');
+  assert.deepEqual(game.state.igraCompetitors, [2, 0], 'redosled prijave: P2 prvi, P0 drugi');
+  assert.equal(game.state.currentBidder, 2, 'prvi na potezu za proglasenje je prvi koji je rekao Igra');
+
+  // getLegalActions() tokom tiebreak-a nudi IGRA opcije za TRENUTNOG (P2), ne za null
+  const actions1 = game.getLegalActions();
+  assert.ok(actions1.every(a => a.type !== 'declare' || a.player === 2));
+
+  // P2 proglasava SLABIJU igru (Igra-Karo=4)
+  assert.equal(game.declareIgra(2, 'Igra-Karo'), true);
+  assert.equal(game.state.winner, null, 'jos se ceka P0 da proglasi');
+  assert.equal(game.state.currentBidder, 0, 'red prelazi na P0');
+
+  // P0 proglasava JACU igru (Igra-Herc=5) — P0 MORA pobediti uprkos tome sto
+  // NIJE bio prvi koji je rekao "Igra" (to pravilo vazi samo za IZJEDNACENJE).
+  assert.equal(game.declareIgra(0, 'Igra-Herc'), true);
+  assert.equal(game.state.winner, 0, 'jaca igra (Igra-Herc) pobedjuje bez obzira ko je prvi rekao Igra');
+  assert.equal(game.state.winnerGame, 'Igra-Herc');
+  assert.equal(game.state.igraPlayer, 0, 'igraPlayer uskladjen sa stvarnim pobednikom');
+  assert.equal(game.state.igraCompetitors, null, 'tiebreak zavrsen');
+  assert.equal(game.state.phase, 'FOLLOW_DECLARING');
+});
+
+test('e2e: tri igraca kazu Igra, IZJEDNACENJE (ista vrednost) — pobedjuje PRVI koji je rekao Igra', () => {
+  const game = new Game({ seed: 70 });
+  game.newHand(2); // bidStartPlayer = 0
+  game.sayIgra(0); // prvi
+  game.sayIgra(1); // drugi
+  game.sayIgra(2); // treci
+  assert.deepEqual(game.state.igraCompetitors, [0, 1, 2]);
+  // Sva trojica proglase ISTU igru (izjednacenje po vrednosti)
+  assert.equal(game.declareIgra(0, 'Igra-Karo'), true);
+  assert.equal(game.declareIgra(1, 'Igra-Karo'), true);
+  assert.equal(game.declareIgra(2, 'Igra-Karo'), true);
+  assert.equal(game.state.winner, 0, 'izjednacenje -> pobedjuje PRVI koji je rekao Igra (P0)');
+  assert.equal(game.state.winnerGame, 'Igra-Karo');
+});
+
+test('e2e: Igra tiebreak — igrac ne sme proglasiti van svog reda niti dva puta', () => {
+  const game = new Game({ seed: 70 });
+  game.newHand(0);
+  game.pass(1);
+  game.sayIgra(2);
+  game.sayIgra(0);
+  assert.equal(game.state.currentBidder, 2);
+  // P0 pokusava da proglasi van reda (na redu je P2)
+  assert.equal(game.declareIgra(0, 'Igra-Karo'), false, 'ne sme van reda');
+  assert.equal(game.declareIgra(2, 'Igra-Karo'), true);
+  // P2 pokusava da proglasi DRUGI PUT (vec je proglasio)
+  assert.equal(game.declareIgra(2, 'Igra-Sans'), false, 'vec je proglasio, ne sme ponovo');
 });
 
 test('e2e: bidding → DISCARDING → DECLARING → FOLLOW_DECLARING', () => {
@@ -193,7 +299,7 @@ test('e2e: Igra tok — bez talona, ide pravo u FOLLOW_DECLARING', () => {
   assert.equal(game.state.winnerGame, null);
   assert.equal(game.state.phase, 'DECLARING');
   // Winner (P2) proglašava Igra-Karo
-  const ok = game.declareIgra('Igra-Karo');
+  const ok = game.declareIgra(2, 'Igra-Karo');
   assert.equal(ok, true);
   assert.equal(game.state.winnerGame, 'Igra-Karo');
   assert.equal(game.state.trump, '♦');
@@ -573,12 +679,12 @@ test('e2e: Svi kažu dalje → REFE se automatski koristi, igra prelazi u DISCAR
   game.pass(1);
   game.pass(2);
   game.pass(0);
-  // RULES 7.1/7.3: refeCount se NE menja odmah — sledeca ruka je samo
-  // NAORUZANA refe-multiplikatorom, a njen nosilac otpisuje refu tek kad se
-  // ta ruka zavrsi.
+  // RULES 7.1/7.3: refeCount (iskorisceno) se NE menja odmah — sva tri
+  // igraca dobijaju po jednu refu NA RASPOLAGANJU, svako je trosi sam kad
+  // licno postane nosilac neke ruke.
   assert.equal(game.state.refeOccurred, true);
   assert.equal(game.state.refeCount.join(','), '0,0,0');
-  assert.equal(game.state.refeUsed, true);
+  assert.equal(game.state.refePending.join(','), '1,1,1');
   // Phase je BIDDING (nema winner-a, nova ruka)
   assert.equal(game.state.phase, 'BIDDING');
 });
@@ -612,6 +718,45 @@ test('e2e: Kontra tok — KONTRA → REKONTRA → SUBKONTRA → MORTKONTRA', () 
   assert.equal(game.state.kontraLevel, 'MORTKONTRA');
   // Prebaci u PLAYING (mortkontra je kraj)
   assert.equal(game.state.phase, 'PLAYING');
+});
+
+test('e2e: Mortkontra, nosilac ipak PROŠAO — kontraš dobija supe na ZAJEDNIČKE štihove cele odbrane, ne samo svoje lične', () => {
+  // Uzivo prijavljen bag: nosilac uspeo uprkos mortkontri (kontraš izgubio
+  // opkladu, bula mu ispravno raste) — ALI supe su se ranije racunale SAMO
+  // na kontraseve licne stihove, ignorisuci stihove DRUGOG pratioca, iako
+  // RULES 6.3 kaze da kontras "snosi svu odgovornost" za CELU odbranu.
+  const game = new Game({ seed: 600 });
+  game.newHand(0); // bidStartPlayer = P1
+  game.bid(1, 2);
+  game.pass(2);
+  game.pass(0);
+  const hand = game.state.players[1]!.hand;
+  game.discard(1, [hand[0]!.id, hand[1]!.id]);
+  game.declareGame(1, 'Tref'); // vrednost 5
+  game.follow(0, 'DODJEM');
+  game.follow(2, 'DODJEM');
+  assert.equal(game.state.phase, 'KONTRA_DECLARING');
+  game.kontra(0, 'KONTRA'); // P0 = kontraš
+  game.kontra(1, 'REKONTRA');
+  game.kontra(0, 'SUBKONTRA');
+  game.kontra(1, 'MORTKONTRA');
+  assert.equal(game.state.phase, 'PLAYING');
+
+  // Nosilac (P1) uzima 8 stihova (>= 6 potrebnih za Tref) -> PROLAZI.
+  // Odbrana ZAJEDNO uzima 2 (P0 kontraš uzeo 0 licno, P2 uzeo 2).
+  game.state.players[1]!.tricksWon = 8;
+  game.state.players[0]!.tricksWon = 0;
+  game.state.players[2]!.tricksWon = 2;
+  const bulasBefore = [...game.state.bulas];
+  const result = game.endHand();
+
+  assert.equal(result.passed, true, 'nosilac prosao (8 >= 6)');
+  assert.equal(result.bulas[1], bulasBefore[1]! - 5 * 2 * 16, 'nosilac se spusta za igra*2*mortkontra');
+  assert.equal(result.bulas[0], bulasBefore[0]! + 5 * 2 * 16, 'kontras (izgubio opkladu) raste za isti iznos');
+  assert.equal(result.bulas[2], bulasBefore[2]!, 'drugi pratilac (ne-kontras) NEMA promenu bule (RULES 6.3)');
+  // Supa: ZAJEDNICKI stihovi odbrane (0+2=2) * Tref(5) * 2 * mortkontra(16)
+  assert.equal(result.supeDelta[0], 2 * 5 * 2 * 16, 'kontras dobija supu na ZAJEDNICKE stihove odbrane (2), ne samo svoje (0)');
+  assert.equal(result.supeDelta[2], 0, 'drugi pratilac ne upisuje supe (RULES 6.3 — sve ide kontrasu)');
 });
 
 test('e2e: Kontra + Moze — samo KONTRA data, nosilac Moze', () => {
@@ -787,7 +932,7 @@ test('e2e: Igra-Karo — igrač ne uzima talon', () => {
   // Winner = P2, phase = DECLARING (jos treba da imenuje igru)
   assert.equal(game.state.winner, 2);
   assert.equal(game.state.phase, 'DECLARING');
-  game.declareIgra('Igra-Karo');
+  game.declareIgra(2, 'Igra-Karo');
   // P2 ima 10 karata (nije uzeo talon)
   assert.equal(game.state.players[2]!.hand.length, 10);
   // Talon netaknut

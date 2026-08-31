@@ -70,7 +70,7 @@ async function main() {
     while (Date.now() - start2 < 40000 && hands < 2) {
       const phase = await page.evaluate(() => window.game?.state?.phase).catch(() => null);
       if (phase !== lastPhase2) { lastPhase2 = phase; if (phase === 'GAME_OVER') hands++; }
-      const nextBtn = page.locator('text=Sledeći krug');
+      const nextBtn = page.locator('#nextRoundBtn');
       if (await nextBtn.count() > 0 && await nextBtn.first().isVisible().catch(() => false)) {
         await nextBtn.first().click().catch(() => {});
       }

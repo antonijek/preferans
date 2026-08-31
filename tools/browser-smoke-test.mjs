@@ -88,7 +88,7 @@ async function main() {
           throw new Error(`Partija je zaglavljena (stanje nepromenjeno ${STUCK_MS}ms) u fazi "${s.phase}" — AI petlja se ne pomera.`);
         }
       }
-      const nextBtn = page.locator('text=Sledeći krug');
+      const nextBtn = page.locator('#nextRoundBtn');
       if (await nextBtn.count() > 0 && await nextBtn.first().isVisible().catch(() => false)) {
         await nextBtn.first().click().catch(() => {});
       }

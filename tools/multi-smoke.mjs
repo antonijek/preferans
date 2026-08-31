@@ -58,7 +58,7 @@ async function run() {
       if (sig !== lastSignature) { lastSignature = sig; stuckSince = Date.now(); }
       else if (Date.now() - stuckSince > STUCK_MS) { failure = `stuck in ${s.phase} (sig unchanged ${STUCK_MS}ms)`; break; }
     }
-    const nextBtn = page.locator('text=Sledeći krug');
+    const nextBtn = page.locator('#nextRoundBtn');
     if (await nextBtn.count() > 0 && await nextBtn.first().isVisible().catch(() => false)) {
       await nextBtn.first().click().catch(() => {});
     }

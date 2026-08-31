@@ -129,12 +129,54 @@ test('getLegalActions: REFE — automatski, ruka se ponistava, refeCount ceka no
   g.pass(1);
   g.pass(2);
   g.pass(0);
-  // RULES 7.1/7.3: ruka se ponistava (BIDDING faza), sledeca ruka je
-  // naoruzana refe-multiplikatorom, ali refeCount se NE menja dok se ta
-  // sledeca ruka stvarno ne odigra i njen nosilac ne otpise refu.
+  // RULES 7.1/7.3: ruka se ponistava (BIDDING faza), sva tri igraca dobijaju
+  // po jednu refu NA RASPOLAGANJU, ali refeCount (iskorisceno) se NE menja
+  // dok neko od njih licno ne postane nosilac i ne otpise svoju.
   assert.equal(g.state.phase, 'BIDDING', 'Ruka se poništava, nova ruka');
   assert.equal(g.state.refeCount.join(','), '0,0,0', 'Niko jos nije potrosio refu');
-  assert.equal(g.state.refeUsed, true, 'sledeca ruka je naoruzana refe-multiplikatorom');
+  assert.equal(g.state.refePending.join(','), '1,1,1', 'sva tri igraca dobijaju refu na raspolaganje');
+});
+
+// RULES 3.4 (korisnikov zahtev, uzivo prijavljen bug 2026-08-31): "Igra"
+// sme SAMO na igracev PRVI potez u rundi. Cim je na svom prvom potezu vec
+// rekao broj ili "dalje", trajno gubi pravo na Igra do kraja te runde.
+
+test('Igra: igrac koji je BID na prvom potezu gubi pravo na Igra kasnije u istoj rundi', () => {
+  const g = new Game({ seed: 1 });
+  g.newHand(2); // dealer=2 -> bidStartPlayer=0, P0 prvi na potezu
+  assert.ok(g.bid(0, 2), 'P0 bid 2 kao prvi potez');
+  assert.equal(g.state.players[0]!.igraEligible, false, 'P0 vise nije Igra-eligible');
+  assert.ok(g.bid(1, 3), 'P1 podize');
+  assert.ok(g.pass(2), 'P2 prolazi');
+  // Sad je P0 opet na potezu (Mogu-eligible, bidLevel 2 < currentBid 3)
+  assert.equal(g.state.currentBidder, 0);
+  assert.equal(g.sayIgra(0), false, 'P0 NE SME Igra — vec je odigrao broj na prvom potezu');
+  const actions = g.getLegalActions();
+  assert.ok(!actions.some(a => a.type === 'igra'), 'getLegalActions ne sme nuditi Igra za P0');
+});
+
+test('Igra: igrac koji je PASS na prvom potezu gubi pravo na Igra', () => {
+  const g = new Game({ seed: 1 });
+  g.newHand(2);
+  assert.ok(g.pass(0), 'P0 dalje kao prvi potez');
+  assert.equal(g.state.players[0]!.igraEligible, false);
+});
+
+test('Igra: igrac koji KAZE Igra na prvom potezu ostaje eligible (bazni slucaj, ne regresija)', () => {
+  const g = new Game({ seed: 1 });
+  g.newHand(2);
+  assert.ok(g.sayIgra(0), 'P0 Igra kao prvi potez uspeva');
+  assert.equal(g.state.players[0]!.igraEligible, true);
+});
+
+test('Igra: pravo se prati PO IGRACU — drugi igrac koji jos nije imao prvi potez i dalje sme Igra', () => {
+  const g = new Game({ seed: 1 });
+  g.newHand(2);
+  assert.ok(g.bid(0, 2), 'P0 bid 2 (gubi Igra pravo)');
+  // P1 jos nije imao svoj prvi potez — i dalje mu je Igra dostupna
+  assert.equal(g.state.players[1]!.igraEligible, true);
+  const actions = g.getLegalActions();
+  assert.ok(actions.some(a => a.type === 'igra'), 'P1 (currentBidder) i dalje treba da vidi Igra opciju');
 });
 
 test('getLegalActions: GAME_OVER — prazna lista', () => {

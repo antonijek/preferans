@@ -21,7 +21,7 @@ Ove odluke su zaključane tokom diskusije i smatraju se **finalnim** za ovu verz
 | 5 | "Automatski polazi" kod kontre | **B** — kad je data kontra, uvek se igra u troje |
 | 6 | Maksimalan broj refea | **2** (podrazumevano za partiju od 100 bula, konfigurabilno) |
 | 7 | Refe × kontra | **A** — množe se zajedno |
-| 8 | Niko ne prati — nosilac dobija 10 štihova | Nosilac se spušta za `igra × 2`, ostali ne pišu ništa |
+| 8 | Niko ne prati | Novo okidanje refe SAMO na Piku (ista logika kao #4). Na SVAKOJ igri: već dodeljena raspoloživa refa se troši i duplira ishod; ako nema dodeljene, prost `igra × 2` |
 | 9 | Betl pad — supe | **A** — fiksno 60 (Betl) / 70 (Igra-Betl) po pratiocu |
 | 10 | Poglavlje 16 (DOGOVORI) | Opcioni predlozi — ne podrazumevaju se |
 
@@ -143,9 +143,25 @@ P2: "4"
 ... ili P1: "dalje", P2: "mogu 4"
 ```
 
+**Podizanje dok je "Mogu" još dostupan** (potvrđeno uživo od korisnika,
+2026-08-29): igrač koji je nadmašen (već licitirao, trenutna vrednost je
+veća od njegove) **ne sme** sam da podigne licitaciju dok je "Mogu" opcija za
+tu vrednost još slobodna — mora prvo ili potvrditi (Mogu) ili reći "dalje".
+**Ali** — ako je "Mogu" za tu vrednost **već zauzeo neko drugi**, taj igrač
+**sme** da podigne na sledeću vrednost (nije zaglavljen samo na "dalje").
+Primer: P1 "2", P2 "3", P3 "4", P1 "mogu 4" — sad je P3 nadmašen na 4, ali
+Mogu-4 je već zauzet (P1), pa P3 **sme** da kaže "5" umesto da bude primoran
+na "dalje".
+
 ## 3.4 Specijalna opcija: "Igra"
 
-- Igrač može u bilo kom trenutku reći **"Igra"**.
+- Igrač može reći **"Igra"** SAMO na svoj **prvi potez** u toj rundi
+  licitacije. Čim je na svom prvom potezu već rekao broj ili "dalje" (bilo
+  šta osim "Igra"), **trajno gubi pravo** na "Igra" do kraja te runde — ne
+  može je "naknadno" izvući na sledećem potezu.
+  (Uzivo prijavljen bag, 2026-08-31: opcija "Igra" je ranije ostajala
+  ponuđena tokom CELE licitacije, bez obzira na igračev prvi potez —
+  popravljeno, engine sad prati `igraEligible` po igraču.)
 - "Igra" znači: "Imam dovoljno dobre karte da igram **bez talona**."
 - Igrač proglašava igru **istog trenutka** (nema dalje licitacije).
 - Dozvoljene igre kod "Igra": Igra-Pik, Igra-Karo, Igra-Herc, Igra-Tref (tj. igra 2-5).
@@ -157,6 +173,13 @@ Ako više igrača kaže "Igra":
 - Svaki igrač proglašava koja mu je igra.
 - Igrač sa **najjačom igrom** dobija.
 - Ako dva igrača imaju **istu jačinu igre**: **prvi koji je rekao "Igra"** dobija.
+
+Uzivo prijavljen bag (2026-08-29/30): engine je ranije ovo pravilo potpuno
+preskakao — pobednik je bio PRVI koji je rekao "Igra", bez ikakvog trazenja
+da ostali TAKODJE proglase svoju igru i bez ikakvog poredjenja jacine
+("nema govorenja cija je koja, nego prvi odigrava"). Popravljeno — svi koji
+su rekli Igra sad moraju, redom prijave, proglasiti SVOJU igru pre nego sto
+se pobednik odredi poredjenjem.
 
 ## 3.5 Igra-Betl i Igra-Sans
 
@@ -238,15 +261,36 @@ Igra mora biti **≥ vrednosti na kojoj je pobednik stao**.
 - **Prag za prolaz**: pozivalac i pozvani moraju **ZAJEDNO** uhvatiti **najmanje 4 štiha** da bi prošli (dvostruko više nego samostalni pratilac iz 5.2, jer su dvojica) — bez obzira na ishod nosioca. Ako zajedno uhvate manje od 4, pozivalac **raste za ceo iznos** koliko se nosilac spustio/podigao (isto pravilo kao 5.2, primenjeno na zajednički zbir). Ako uhvate 4 ili više — nema promene bule za pozivaoca, samo supe (RULES 9.4, na zajednički zbir).
 - **Poređenje sa nezavisnim pratiocima (5.2)**: ako oba pratioca dođu SVAKI ZASEBNO (bez poziva), svakom treba SVOJIH 2 štiha (ne zajednički zbir). Poziv menja ovo u ZAJEDNIČKI prag od 4.
 
-## 5.4 Niko ne prati — nosilac automatski dobija
+## 5.4 Niko ne prati
 
-Ako oba pratioca kažu "Ne dodjem":
-- Partija se **ne igra**.
-- Nosilac automatski dobija **10 uzetih štihova** (prolaz).
-- Bodovanje:
-  - **Nosilac se spušta** za `igra × 2` (prolaz, negativne bule).
-  - **Pratioci ne pišu ništa** — ne dobijaju supe jer se štihovi nisu igrali.
-- Ovo važi i za Igra-Betl/Sans, i za Betl/Sans.
+Ako oba pratioca kažu "Ne dodjem": **partija se ne igra** (nema stvarnog
+protivnika nosiocu). Ispravljeno uživo od korisnika (2026-08-29, u tri koraka
+— videti istoriju ispravki ispod ako zbunjuje): treba razdvojiti DVA odvojena
+pitanja — (A) da li OVAJ događaj sam po sebi OKIDA novu refe dodelu/redeal, i
+(B) da li se VEĆ DODELJENA (ranija) raspoloživa refa TROŠI ovde.
+
+**(A) Novo okidanje — SAMO ako je declaredGame TAČNO "Pik"** (ne "Igra-Pik",
+ne bilo koja druga igra) — prati **istu tri-granu logiku kao 7.1.1 "Pik bez
+kontre"**:
+1. Neko je već u šeširu → IZUZETAK: nosilac automatski dobija 10 uzetih
+   štihova, spušta se za `igra × 2` (fiksan prolaz, BEZ množenja refeom).
+2. Niko u šeširu, nosilac ima slobodan refe-budžet → refe se **piše**
+   (dodela sva tri igrača "na raspolaganje", vidi 7.1) — bez promene bula,
+   ruka se ponovo deli.
+3. Niko u šeširu, nosilac nema slobodan budžet → ruka se prosto ponavlja
+   (redeal), bez promene bula, bez dodele refe.
+
+Za SVAKU DRUGU igru (Karo, Herc, Tref, Betl, Sans, i sve Igra-* varijante
+uključujući Igra-Pik) — **nema novog okidanja**: nema šešir-provere, nema
+nove dodele/redeal-a. Uvek se ide direktno na (B).
+
+**(B) Potrošnja postojeće refe — VAŽI ZA SVAKU IGRU, ne samo Pik**: ako
+nosilac VEĆ ima refu na raspolaganju (dodeljenu ranijim "svi dalje" ili
+Pik-događajem), ona se **troši ovde** i **duplira ishod** (`igra × 2 × 2`),
+bez obzira koja je igra u pitanju — refa je lična osobina igrača (RULES 7.3),
+ne vezana za mehanizam kojim se njegova ruka završava. Ako nosilac nema
+raspoloživu refu, prost bezuslovan prolaz `igra × 2`, bez množenja.
+
 - Ako je data kontra pre nego što su pratioci rekli "Ne dodjem" — vidi 6.8 (kontra uvek znači igru u troje, tako da ovo pravilo ne važi kad je kontra data).
 
 ---
@@ -316,28 +360,54 @@ Refe se upisuje (i računa se kao "odigrana partija" sa specifičnim pravilima) 
 1. **Svi igrači kažu "dalje"** u toku licitacije.
 2. **Nosilac igra standardni Pik** i **nijedan pratilac ne da kontru** (tj. oba kažu "Moze").
 
+**KOME se piše** (potvrđeno uživo od korisnika, 2026-08-29 — ranije nije bilo
+eksplicitno u ovom dokumentu): kad se refe okine (bilo slučaj 1, bilo slučaj
+2), **SVA TRI igrača** dobijaju po **jednu refu "na raspolaganju"** — ne samo
+budući nosilac. Ovo je odvojeno od "iskorišćeno" (vidi 7.2/7.3): dodela ne
+menja ničiji iskorišćeno-brojač, samo mu dodaje jednu na raspolaganju za
+kasnije. Svaki igrač **troši svoju** raspoloživu refu **sam**, automatski,
+**prvi sledeći put kad ON LIČNO postane nosilac** neke ruke (ne mora biti baš
+sledeća ruka za onog ko je ne potroši prvi — raspoloživa refa čeka, ne
+ističe). Dodela se preskače za igrača koji je već na budžetskom maksimumu
+(iskorišćeno + na raspolaganju === maksimalan broj refea).
+
 ## 7.1.1 Pik bez kontre — specijalno pravilo
 
 Kada nosilac igra standardni Pik i nijedan pratilac ne da kontru (tj. oba kažu "Moze"):
 
-- Ako **nosilac ima neiskorišćenih refe-a** → **piše se refe** (vidi 7.3).
-- Ako **nosilac nema više refe-a** → **ništa se ne piše**.
-- **IZUZETAK**: ako je **bar jedan igrač već u šeširu** (ima negativne bule) → piše se **regularan prolaz nosioca** (bez refe množenja).
+- Ako **nosilac ima neiskorišćenih (iskorišćeno+na raspolaganju < maksimum) refe-a** → **piše se refe** (dodela svih troje kao u 7.1, vidi 7.3).
+- Ako **nosilac nema više slobodnog budžeta** → **ništa se ne piše**.
+- **IZUZETAK**: ako je **bar jedan igrač već u šeširu** (ima negativne bule) → piše se **regularan prolaz nosioca** (bez refe množenja, bez dodele).
+
+Napomena: uslov za OKIDANJE ovog slučaja (da li se refe uopšte piše) ostaje
+vezan za nosiočev lični budžet — ali kad se okine, dodela (kome ide raspoloživa
+refa) ide svoj trojici, isto kao slučaj 1.
 
 ## 7.2 Kad se refe NE piše
 
 Refe se **NE piše** ako je ispunjen bilo koji od sledećih uslova:
 
-- Igrač je već iskoristio **maksimalan broj refea**.
+- (Za slučaj 7.1.1) Nosilac je već na budžetskom maksimumu (iskorišćeno + na raspolaganju === maksimalan broj refea).
 - **Bar jedan igrač ima negativne bule** (ispod kape) — vidi 7.1.1 za izuzetak na piku.
 
-**Podrazumevani maksimalan broj refea po igraču**: **2 refea** za partiju od 100 bula (konfigurabilno pre partije).
+**Podrazumevani maksimalan broj refea po igraču**: **2 refea** za partiju od 100 bula (konfigurabilno pre partije). Ovo je ukupan budžet (iskorišćeno + na raspolaganju), ne samo iskorišćeno.
 
 ## 7.3 Efekat refe
 
 - **Svi bodovi** (bule i supe) se **množe sa 2** tokom partije pod refeom.
 - Refe množilac se **množi sa multiplikatorom kontre** — npr. kontra (×2) + refe (×2) = ×4 ukupno.
-- Posle odigrane partije pod refeom, nosilac partije **odpisuje** jedan svoj refe kao odigran.
+- Ruka je "pod refeom" kad njen nosilac (ko god to bude) ima refu **na
+  raspolaganju** u trenutku kad se ta ruka završi — bez obzira da li se
+  stvarno odigralo do kraja, "niko ne prati" (RULES 5.4), ili neki drugi
+  automatski prolaz.
+- Posle takve ruke, nosilac **otpisuje** (troši) jednu svoju raspoloživu
+  refu — ona prelazi iz "na raspolaganju" u "iskorišćeno".
+- **IZUZETAK (potvrđeno uživo od korisnika, 2026-08-30)**: ako je **bar
+  jedan igrač već u šeširu** (negativne bule) kad ruka počne, raspoloživa
+  refa se **NE TROŠI** — ostaje **blokirana** (i dalje na raspolaganju, ne
+  gubi se) dok god je iko u šeširu. Isto ograničenje kao 7.2 za NOVO pisanje
+  refe važi i za potrošnju već dodeljene — šešir "zamrzava" ceo refe
+  mehanizam, ne samo dodeljivanje novih.
 
 ## 7.4 Refe tokom kontre
 
@@ -419,8 +489,34 @@ Ako igrač **nema** kartu u vođenoj boji — može odigrati **bilo koju kartu**
 
 ## 9.1 Početno stanje
 
-- Svaki igrač dobija **100 bula** na početku partije (ili po dogovoru).
+- Svaki igrač dobija **100 bula** na početku partije (ili po dogovoru — sad podesivo na setup ekranu).
 - Partija traje dok **zbir bula svih igrača ne postane 0** (tj. neko padne u minus, ali zbir ostane 0).
+
+### 9.1.1 Capovanje ruke koja bi prevazišla cilj (uživo potvrđeno, 2026-08-30)
+
+Bag: partija ranije **nikad nije mogla da se završi** — ništa nije proveravalo
+da li je zbir bula dostigao 0, pa se samo nastavljala unedogled rukom za
+rukom.
+
+Kad bi ruka odvela zbir bula **ispod 0** (npr. preostalo je samo 6 "prostora"
+do cilja, a ruka bi normalno promenila zbir za 10), **cela ruka se
+proporcionalno smanjuje** — nosiočeva bula, promene pratilaca, I supe — tako
+da zbir POSLE ruke sleti **tačno na 0**, ne ispod. Efektivno, umesto pune
+vrednosti igre (npr. 10 za Tref), koristi se smanjena "efektivna" vrednost
+(u primeru 6) dosledno svuda u toj ruci — i za bulu i za supe.
+
+Primer: zbir bula = 6 (npr. igrači na 10, 2, -6). Nosilac igra Tref
+(vrednost 5, osnovica bule = 5×2 = 10) i **prođe**, pratioci su oba dostigli
+svoj prag (bez promene bule, samo supe). Bez capovanja, nosilac bi pao za
+puna 10 — ali zbir ima samo 6 "prostora". Nosilac pada za **tačno 6**
+(ne 10), i pratiočeve supe se računaju sa **istom efektivnom vrednošću 6**
+umesto 10 (npr. pratilac sa 2 štiha: 2×6=12 umesto 2×10=20). Partija se
+posle ove ruke završava (zbir = 0 tačno).
+
+Ovo capovanje se **ne primenjuje** kad bi ruka odvela zbir **iznad** 0 (npr.
+nosilac padne i njegova bula raste, a nijedan pratilac se ne spušta dovoljno
+da to nadoknadi) — u tom slučaju partija se jednostavno nastavlja, cilj (0)
+se i dalje čeka.
 
 ## 9.2 Bule — prolaz ili pad
 
@@ -466,7 +562,7 @@ supa = broj_uzeтih_štihova_ovog_pratioca × igra × 2
 - Supe se **množe** sa multiplikatorom refe-a (×2) ako je partija pod refeom.
 - Ako nosilac padne, njegovi uzeti štihovi **ne računaju se** kao supe za njega — supe su samo za pratioce.
 - **Pozvani igrač** ne upisuje supe (sve ide pratiocu koji ga je pozvao).
-- **Kontraš** upisuje sve supe (čak i one koje bi inače pripale drugom pratiocu).
+- **Kontraš** upisuje sve supe (čak i one koje bi inače pripale drugom pratiocu) — na osnovu **ZAJEDNIČKIH** štihova cele odbrane (kontraš + drugi pratilac), ne samo svojih ličnih. Ovo važi **bez obzira da li nosilac padne ili prođe** — uživo prijavljen bag (2026-08-30): kad nosilac ipak PROĐE uprkos kontri, kod je ranije računao supe SAMO na kontraševe lične štihove umesto na zbir cele odbrane (npr. kontraš 0 ličnih + drugi pratilac 2 zajedno = 2 ukupno, trebalo je supu na 2, ne na 0).
 
 ### 9.4.1 Betl specifične supe
 
@@ -599,13 +695,20 @@ Ova sekcija beleži **sve odluke** donete tokom diskusije o nejasnim pitanjima u
 
 **Izbor**: A — refe i kontra se množe zajedno (npr. kontra × refe = ×4 ukupno).
 
-## Pitanje 8 → posebno pravilo
-**Niko ne prati — nosilac dobija 10 štihova**
+## Pitanje 8 → posebno pravilo (ispravljeno 2026-08-29)
+**Niko ne prati**
 
-**Izbor**:
-- Nosilac se spušta za `igra × 2` (prolaz, negativne bule).
-- Ostali ne pišu ništa (ne dobijaju supe jer se partija nije igrala).
-- Primer: nosilac igra karo (vrednost 3) → nosilac -6 bula, ostali 0.
+**Izbor**: novo OKIDANJE refe (dodela/redeal) samo kad je declaredGame tačno
+"Pik" — ista tri-grana logika kao Pitanje 4 (Pik bez kontre), vidi 5.4:
+- Neko u šeširu → nosilac se spušta za `igra × 2` (fiksan prolaz), ostali ne pišu ništa.
+- Niko u šeširu, nosilac ima budžeta → refe se piše (dodela svima), bez promene bula.
+- Niko u šeširu, nosilac bez budžeta → ruka se prosto ponavlja.
+
+Za SVAKU drugu igru (Karo, Herc, Tref, Betl, Sans, Igra-*): nema novog
+okidanja — ALI ako nosilac VEĆ ima raspoloživu refu (dodeljenu ranije), ona
+se troši ovde i duplira ishod, bez obzira na igru. Primer: nosilac igra karo
+(vrednost 3), niko ne prati, bez raspoložive refe → -6 bula, ostali 0. Sa
+raspoloživom refom → -12 (duplirano), i ta refa se otpisuje kao potrošena.
 
 ## Pitanje 9 → A
 **Betl supe — fiksno ili zavisi od štihova**

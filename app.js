@@ -4,6 +4,7 @@ import { Game } from './engine/dist/game.js';
 import { GAME_VALUES, STANDARD_GAMES, IGRA_GAMES } from './engine/dist/constants.js';
 import {
   evaluateHand,
+  chooseBidAction as aiChooseBidAction,
   chooseDiscard as aiChooseDiscard,
   chooseFollow as aiChooseFollow,
   chooseCallOrAlone as aiChooseCallOrAlone,
@@ -16,24 +17,44 @@ const SUIT_NAMES = { '♠': 'Pik', '♥': 'Herc', '♦': 'Karo', '♣': 'Tref' }
 const SUIT_GLYPH = { '♠': '♠', '♥': '♥', '♦': '♦', '♣': '♣' };
 const RANK_ORDER = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
-const game = new Game({ seed: Date.now() & 0xffff });
-let mode = '1v2';
-
-// Brojac "generacije" ruke — inkrementira se na SVAKI poziv newHand(), bilo
-// da ga zove app.js (Sledeci krug/Restart) ILI engine INTERNO (REFE,
-// "Pik bez kontre" ponistavanje ruke preko handleRefe()/
-// handlePikWithoutKontra()). Ovo hvata slucaj koji app.js inace ne bi video:
+// Kreira NOVU Game instancu sa datim podesavanjima (pocetna bula, broj refea
+// po igracu — korisnikov zahtev: "sto" postavlja ovo, nema vise fiksno
+// 100/2, korisno za brzo testiranje ponasanja u seširu bez odigravanja
+// desetina ruka). Ponovo prikacinje handGeneration monkey-patch na SVAKU
+// novu instancu, i drzi window.game sinhronizovan za F12 debug.
+//
+// handGeneration: brojac koji se inkrementira na SVAKI poziv newHand(), bilo
+// da ga zove app.js (Sledeci krug/Restart) ILI engine INTERNO (REFE, "Pik
+// bez kontre" ponistavanje ruke). Hvata slucaj koji app.js inace ne bi video:
 // stari odlozeni AI setTimeout iz PONISTENE runde koji bi inace mogao
 // pogresno da deluje u NOVOJ rundi ako se currentBidder/faza slucajno
-// poklope (uzivo prijavljen bag: "pisalo je da sam rekao 3 u sledecoj
-// rundi, a nisam"). Overrideovanje instance-property newHand hvata i
-// this.newHand(...) pozive iznutra jer JS prvo trazi own property.
+// poklope (uzivo prijavljen bag: "pisalo je da sam rekao 3 u sledecoj rundi,
+// a nisam"). Overrideovanje instance-property newHand hvata i this.newHand(...)
+// pozive iznutra jer JS prvo trazi own property.
+function createGame(config) {
+  const g = new Game(config);
+  const _originalNewHand = g.newHand.bind(g);
+  g.newHand = (...args) => {
+    handGeneration++;
+    return _originalNewHand(...args);
+  };
+  window.game = g;
+  return g;
+}
+
 let handGeneration = 0;
-const _originalNewHand = game.newHand.bind(game);
-game.newHand = (...args) => {
-  handGeneration++;
-  return _originalNewHand(...args);
-};
+let game = createGame({ seed: Date.now() & 0xffff });
+let mode = '1v2';
+
+// Da li je DATI igrac trenutno pod ljudskom kontrolom (klikovi u UI-ju),
+// nasuprot AI-ju. '3human' je testni mod (korisnikov zahtev) — čovek igra
+// SVA TRI mesta za sto, da moze rucno da postavi tacne scenarije bez
+// zavisnosti od AI ponasanja.
+function isHuman(player) {
+  if (mode === '3ai') return false;
+  if (mode === '3human') return true;
+  return player === 0; // '1v2'
+}
 
 // === ISTORIJA RUKA / SUPE DUG-MATRICA (klijentski, za tabelu) ===
 // debtMatrix[i][j] = koliko igrac i (nosilac) duguje igracu j (pratiocu) —
@@ -43,6 +64,7 @@ let handHistory = [];
 let debtMatrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
 let lastRecordedHandResult = null;
 let lastRefeSum = 0;
+let lastRefePendingSum = 0;
 
 // Kumulativni neto odnos izmedju DVA igraca: pozitivno = "other" duguje
 // "me"-u, negativno = "me" duguje "other"-u (korisnikov format: "20" = meni
@@ -83,12 +105,25 @@ function recordHandIfNew() {
 }
 
 function checkRefeToast() {
-  const sum = game.state.refeCount[0] + game.state.refeCount[1] + game.state.refeCount[2];
-  if (sum > lastRefeSum) {
-    const toast = $('refeToast');
+  const toast = $('refeToast');
+  const showToast = (text) => {
+    toast.textContent = text;
     toast.style.display = 'block';
     clearTimeout(checkRefeToast._t);
     checkRefeToast._t = setTimeout(() => { toast.style.display = 'none'; }, 2200);
+  };
+  // Dodela (⏳ na raspolaganju svima) — bez ovoga korisnik nema NIKAKAV
+  // vizuelni trag da je refa uopste dodeljena dok je neko kasnije stvarno
+  // ne potrosi kao nosilac (uzivo prijavljen bag — "opet nema refe").
+  const pendingSum = game.state.refePending[0] + game.state.refePending[1] + game.state.refePending[2];
+  if (pendingSum > lastRefePendingSum) {
+    showToast('🤝 REFA dodeljena svima! (na raspolaganju)');
+  }
+  lastRefePendingSum = pendingSum;
+  // Potrošnja (🔁 iskorišćeno) — nosilac neke ruke trosi svoju
+  const sum = game.state.refeCount[0] + game.state.refeCount[1] + game.state.refeCount[2];
+  if (sum > lastRefeSum) {
+    showToast(`🔁 ${POS_LABELS[game.state.lastHandResult?.refeConsumed ?? 0]} koristi refu — bule/supe ×2`);
   }
   lastRefeSum = sum;
 }
@@ -110,6 +145,25 @@ const sortHand = cards => cards.slice().sort((a, b) => {
   return rankValue(b.rank) - rankValue(a.rank);
 });
 const isRed = s => s === '♥' || s === '♦';
+// Lepezasto preklapanje karata u ruci — postavlja --rot/--lift CSS varijable
+// po karti (CSS u preferans.html ih koristi za transform), srednja karta
+// ostaje ravna, ivicne se blago rotiraju/spustaju kao prava lepeza.
+function applyHandFan(container) {
+  const cards = Array.from(container.children).filter(el => el.classList.contains('card'));
+  const n = cards.length;
+  if (n <= 1) { cards.forEach(c => { c.style.removeProperty('--rot'); c.style.removeProperty('--lift'); }); return; }
+  const mid = (n - 1) / 2;
+  const maxRotate = Math.min(2 + n * 0.8, 12);
+  cards.forEach((card, i) => {
+    const offset = i - mid;
+    const rot = mid > 0 ? (offset / mid) * (maxRotate / 2) : 0;
+    const lift = Math.abs(offset) * 1.5;
+    card.style.setProperty('--rot', `${rot.toFixed(1)}deg`);
+    card.style.setProperty('--lift', `${lift.toFixed(1)}px`);
+    card.style.zIndex = String(i);
+  });
+}
+
 const cardEl = (c, opts = {}) => {
   const klass = ['card', isRed(c.suit) ? 'red' : 'black'];
   if (opts.size === 'tiny') klass.push('tiny');
@@ -163,6 +217,7 @@ function renderState() {
     const seat = SEAT_OF[pos];
     const el = $(`seat-${seat}`);
     el.classList.toggle('active', activePos === pos);
+    $(`dealer-${seat}`).style.display = s.dealer === pos ? 'flex' : 'none';
   }
 
   // Bule
@@ -176,24 +231,6 @@ function renderState() {
   $('tricks-south').textContent = s.players[0].tricksWon;
   $('tricks-east').textContent = s.players[1].tricksWon;
   $('tricks-west').textContent = s.players[2].tricksWon;
-  $('cards-south').textContent = s.players[0].hand.length;
-  $('cards-east').textContent = s.players[1].hand.length;
-  $('cards-west').textContent = s.players[2].hand.length;
-
-  // Potez info
-  $('turnName').textContent = phaseText(s);
-
-  // Trump
-  const banner = $('trumpBanner');
-  if (s.trump) {
-    banner.style.display = 'block';
-    banner.textContent = `${s.trump} ${SUIT_NAMES[s.trump]}`;
-  } else if (s.declaredGame && (s.declaredGame.includes('Sans') || s.declaredGame.includes('Betl'))) {
-    banner.style.display = 'block';
-    banner.textContent = `Bez aduta (${s.declaredGame})`;
-  } else {
-    banner.style.display = 'none';
-  }
 }
 
 // === STATUS BAR: ugovor + talon + odbrana + poslednji štih (uvek vidljivo
@@ -211,11 +248,6 @@ function renderStatusBar() {
   if (s.declaredGame && s.winner !== null) {
     const kontraLabel = { KONTRA: 'Kontra ×2', REKONTRA: 'Rekontra ×4', SUBKONTRA: 'Subkontra ×8', MORTKONTRA: 'Mortkontra ×16' };
     let txt = `${POS_LABELS[s.winner]} igra <strong>${s.declaredGame}</strong>`;
-    // Vizuelno razlikuj normalnu pobedu (licitacija brojem -> proglasi igru)
-    // od posebnog "Igra" toka (RULES 3.4, bez talona) — korisnikov
-    // ponavljani utisak da se "Igra X" desilo odmah/pogresno je cesto samo
-    // ovo, prikazano bez oznake, pa je delovalo dvosmisleno.
-    if (s.igraPlayer === s.winner) txt += ` <span style="opacity:0.7">(Igra — bez talona)</span>`;
     if (s.kontraLevel) txt += ` <span class="kontra-tag">${kontraLabel[s.kontraLevel]}</span>`;
     contractBanner.innerHTML = txt;
     contractBanner.style.display = 'block';
@@ -240,11 +272,34 @@ function renderStatusBar() {
       const cls = isRed(c.suit) ? 'red' : '';
       return `<span class="mini-card ${cls}">${c.rank}${c.suit}</span>`;
     }).join('');
-    talonBanner.innerHTML = `Talon je bio: ${cardsHtml}`;
+    const txt = `Talon je bio: ${cardsHtml}`;
+    talonBanner.innerHTML = txt;
     talonBanner.style.display = 'flex';
   } else {
     talonBanner.style.display = 'none';
     talonBanner.innerHTML = '';
+  }
+
+  // Talon u sredini stola kao STVARNE karte (ne sitan tekst-bedz) —
+  // korisnikov zahtev, inspirisano rasporedom iz referentnog screenshot-a.
+  // NAPOMENA: uzi prozor vidljivosti nego status-bar tekst baner iznad —
+  // korisnikov zahtev: prave karte NA STOLU smetaju vizuelno tokom igranja
+  // prvog stiha ("2 karte talona koje stoje na stolu smetaju dok se igra
+  // prvi stih") — ostaju SAMO dok nosilac ne proglasi igru (DISCARDING +
+  // DECLARING), nestaju cim krene FOLLOW_DECLARING.
+  const showTalonCenter = s.lastTalon.length > 0 && (
+    s.phase === 'DISCARDING' || s.phase === 'DECLARING'
+  );
+  const talonCenter = $('talonCenter');
+  if (showTalonCenter) {
+    const cardsEl = $('talonCenterCards');
+    cardsEl.innerHTML = '';
+    for (const c of s.lastTalon) {
+      cardsEl.appendChild(cardEl(c, { size: 'small' }));
+    }
+    talonCenter.style.display = 'flex';
+  } else {
+    talonCenter.style.display = 'none';
   }
 
   // Odbrana — ko je došao/zvao, ostaje vidljivo tokom cele igre karata
@@ -259,7 +314,7 @@ function renderStatusBar() {
     defenseBanner.innerHTML = '';
   }
 
-  const hasLastTrick = s.tricks.length > 0 && (s.phase === 'PLAYING' || s.phase === 'GAME_OVER');
+  const hasLastTrick = s.tricks.length > 0 && (s.phase === 'PLAYING' || s.phase === 'GAME_OVER' || s.phase === 'MATCH_OVER');
   if (hasLastTrick) {
     const last = s.tricks[s.tricks.length - 1];
     const winnerPos = s.currentTrick.length > 0 ? s.currentTrick[0].player : s.currentPlayer;
@@ -274,9 +329,17 @@ function renderStatusBar() {
     lastTrickBanner.innerHTML = '';
   }
 
-  const allHidden = [contractBanner, talonBanner, defenseBanner, lastTrickBanner]
-    .every(el => el.style.display === 'none');
+  // defenseBanner/lastTrickBanner sad zive u levom bocnom panelu (van
+  // .status-bar), pa vise ne uticu na to da li se GORNJA traka kolabira —
+  // samo contractBanner/talonBanner su i dalje stvarno u njoj.
+  const allHidden = [contractBanner, talonBanner].every(el => el.style.display === 'none');
   statusBar.classList.toggle('empty', allHidden);
+
+  // Levi bocni panel ima sopstvenu pozadinu/padding (.side-panel) — kad su
+  // MU deca oba sakrivena, panel bi se i dalje video kao prazna tanka traka
+  // (samo padding, bez sadrzaja). Sakrij ceo panel u tom slucaju.
+  const leftPanelEmpty = defenseBanner.style.display === 'none' && lastTrickBanner.style.display === 'none';
+  $('leftSidePanel').style.display = leftPanelEmpty ? 'none' : '';
 }
 
 // Rezime praćenja: ko je Dođem/Ne dođem, i da li je neko pozvan ili igra sam.
@@ -298,7 +361,7 @@ function defenseSummaryText(s) {
       const solo = followers.find(p => s.followChoices[p] === 'DODJEM');
       extra = ` — <strong>${POS_LABELS[solo]} igra sam</strong>`;
     } else if (neDodjemCount === followers.length) {
-      extra = ` — <strong>niko ne prati</strong>, ${POS_LABELS[s.winner]} automatski uzima 10 štihova`;
+      extra = ` — <strong>niko ne prati</strong>`;
     }
   }
   if (isBetl) extra += ' <span style="opacity:0.7">(Betl — svi automatski prate)</span>';
@@ -328,31 +391,33 @@ function renderSeatExtras() {
     rightEl.classList.toggle('positive', rightNet > 0);
     rightEl.classList.toggle('negative', rightNet < 0);
 
+    // 🔁×N = potrošene refe (iskorišćeno), ⏳N = refe "na raspolaganju" još
+    // nepotrošene (dodeljene posle "svi dalje"/"Pik bez kontre") — bez ovog
+    // drugog dela korisnik nema nikakav vizuelni trag da je refa uopšte
+    // dodeljena dok je neko stvarno ne potroši (uzivo prijavljen bag).
     const refeCount = s.refeCount[p];
-    $(`refe-${seat}`).textContent = refeCount > 0 ? `🔁×${refeCount}` : '';
+    const refePending = s.refePending[p];
+    const parts = [];
+    if (refeCount > 0) parts.push(`🔁×${refeCount}`);
+    if (refePending > 0) parts.push(`⏳${refePending}`);
+    $(`refe-${seat}`).textContent = parts.join(' ');
   }
-}
-
-function phaseText(s) {
-  if (s.phase === 'BIDDING') return `${POS_LABELS[s.currentBidder]} licitira`;
-  if (s.phase === 'DISCARDING') return `${POS_LABELS[s.winner]} baca`;
-  if (s.phase === 'DECLARING') return `${POS_LABELS[s.winner]} bira igru`;
-  if (s.phase === 'FOLLOW_DECLARING') {
-    const followers = [0, 1, 2].filter(p => p !== s.winner);
-    const undecided = followers.find(p => s.followChoices[p] === null);
-    return undecided !== undefined ? `${POS_LABELS[undecided]} — dođem?` : 'Praćenje';
-  }
-  if (s.phase === 'KONTRA_DECLARING') {
-    const expected = game.expectedKontraPlayerPublic();
-    return expected !== null ? `${POS_LABELS[expected]} — kontra?` : 'Kontra';
-  }
-  if (s.phase === 'PLAYING') return `${POS_LABELS[s.currentPlayer]} na redu`;
-  if (s.phase === 'GAME_OVER') return 'Kraj';
-  if (s.phase === 'REFE') return 'Refe';
-  return '-';
 }
 
 // === TRICK SLOTOVI ===
+
+// Deterministicka blaga rotacija (-7..7 stepeni) izvedena iz ID-a karte —
+// ista karta uvek dobija istu rotaciju, pa se ne menja/trza izmedju rendera.
+function cardRotationDeg(cardId) {
+  let hash = 0;
+  for (let i = 0; i < cardId.length; i++) hash = (hash * 31 + cardId.charCodeAt(i)) | 0;
+  return (Math.abs(hash) % 15) - 7;
+}
+
+// Prati duzinu proslog stiha izmedju renderTrick() poziva — samo NOVO
+// odigrana karta (index >= prethodna duzina) dobija ulaznu animaciju, da se
+// ne reprizira pri svakom re-renderu nepromenjenog stanja stiha.
+let _prevTrickLen = 0;
 
 function renderTrick() {
   const s = game.state;
@@ -365,21 +430,40 @@ function renderTrick() {
 
   // Dodaj karte iz currentTrick
   if (s.currentTrick.length > 0) {
-    const leadSuit = s.currentTrick[0].card.suit;
-    for (const tc of s.currentTrick) {
+    s.currentTrick.forEach((tc, idx) => {
       const seat = SEAT_OF[tc.player];
       const slot = $(`slot-${seat}`);
-      slot.appendChild(cardEl(tc.card, { size: 'small' }));
+      const node = cardEl(tc.card, { size: 'small' });
+      // Blaga, ne-savrsena rotacija (korisnikov zahtev — "kao pravo bacanje
+      // karata, nije svaka pod istim uglom") — deterministicki izvedena iz
+      // ID-a karte (ne Math.random() svaki render) da ostane STABILNA dok se
+      // stih ne promeni, umesto da "trza" na svaki nepovezan re-render.
+      node.style.setProperty('--rot', `${cardRotationDeg(tc.card.id)}deg`);
+      if (idx >= _prevTrickLen) node.classList.add('card-dropped');
+      slot.appendChild(node);
       slot.classList.add('has-card');
-      if (tc.player === s.currentTrick[0].player) slot.classList.add('led');
-    }
+      if (idx === 0) slot.classList.add('led');
+    });
   }
+  _prevTrickLen = s.currentTrick.length;
 
   // Highlight za trenutnog igrača
   if (s.phase === 'PLAYING' && s.currentTrick.length < 3) {
     const seat = SEAT_OF[s.currentPlayer];
     $(`slot-${seat}`).classList.add('current-turn');
   }
+}
+
+// Suptilan watermark u sredini stola sakriva se čim ima BILO KOG stvarnog
+// sadržaja tamo (talon, karte u toku) — korisnikov utisak da je sto "prazan
+// i dosadan" pre nego što krene odigravanje. Trump-banner je uklonjen
+// (korisnikov zahtev — dupliralo je info iz statusne trake i zaklanjalo
+// odigrane karte), pa vise ne ucestvuje u ovoj proveri.
+function updateTableWatermark() {
+  const s = game.state;
+  const hasContent = s.currentTrick.length > 0 ||
+    $('talonCenter').style.display !== 'none';
+  $('tableFelt').classList.toggle('has-center-content', hasContent);
 }
 
 // === BIDDING PANEL ===
@@ -412,15 +496,16 @@ function renderBiddingPanel() {
   ctrl.innerHTML = '';
 
   const player = s.currentBidder;
-  const isHumanTurn = (s.phase === 'BIDDING' && player === 0 && mode === '1v2');
-  const isAITurn = (s.phase === 'BIDDING' && !(player === 0 && mode === '1v2'));
+  const isHumanTurn = (s.phase === 'BIDDING' && isHuman(player));
+  const isAITurn = (s.phase === 'BIDDING' && !isHuman(player));
 
   if (s.phase === 'BIDDING' && isHumanTurn) {
-    // Čovek bira
-    ctrl.appendChild(el('div', 'section-label', 'TVOJ POTEZ'));
+    // Čovek bira. U '3human' modu (testiranje) igra se vise ljudi za istim
+    // ekranom — label pokazuje KO je trenutno na potezu da ne bude zabune.
+    ctrl.appendChild(el('div', 'section-label', mode === '3human' ? `POTEZ: ${POS_LABELS[player]}` : 'TVOJ POTEZ'));
 
     const passBtn = el('button', 'bid-btn danger', 'Dalje');
-    passBtn.onclick = (e) => userBid('pass', e);
+    passBtn.onclick = (e) => userBid('pass', e, player);
     ctrl.appendChild(passBtn);
 
     // Neko je vec rekao "Igra" — numericka licitacija je zamrznuta (RULES 3.4).
@@ -428,38 +513,47 @@ function renderBiddingPanel() {
     const igraFrozen = s.igraPlayer !== null && s.igraPlayer !== player;
 
     if (!igraFrozen) {
-      // "Mogu" samo ako je covek VEC licitirao (bid ili mogu) u ovoj rundi I
+      // "Mogu" samo ako je igrac VEC licitirao (bid ili mogu) u ovoj rundi I
       // trenutno je nadmasen (bidLevel < currentBid). Takav igrac je
-      // "Mogu-eligible" i NE SME sam da podigne licitaciju — samo Mogu ili
-      // Dalje (potvrdjeno direktno od korisnika kroz konkretne primere).
-      // Podizanje je rezervisano za onog ko trenutno NIJE nadmasen (drzi vrh,
-      // ili jos nije uopste licitirao).
-      const moguEligible = s.currentBid >= 2 && s.players[0].bidLevel > 0 && s.currentBid > s.players[0].bidLevel;
+      // "Mogu-eligible" i NE SME sam da podigne licitaciju DOK je Mogu
+      // dostupan — samo Mogu ili Dalje (potvrdjeno direktno od korisnika).
+      // Podizanje je dozvoljeno onom ko trenutno NIJE nadmasen (drzi vrh,
+      // ili jos nije uopste licitirao), ILI kad je Mogu vec zauzet od
+      // drugog (vidi alreadyConfirmedByMogu ispod).
+      const moguEligible = s.currentBid >= 2 && s.players[player].bidLevel > 0 && s.currentBid > s.players[player].bidLevel;
       // SAMO JEDAN igrac sme potvrditi (Mogu) datu vrednost — ako je NEKO
       // VEC potvrdio preko Mogu, ta opcija nestaje i za ostale (potvrdjeno
       // direktno, vise puta od korisnika: "ne mogu 2 igraca da kazu mogu
-      // X"). Takav igrac ostaje SAMO sa "Dalje" (ne sme ni da podigne —
-      // ta zabrana vec vazi za sve Mogu-eligible igrace).
+      // X"). Takav igrac SME da podigne umesto (potvrdjeno uzivo, drugi
+      // konkretan primer — ne sme ostati zaglavljen samo na Dalje).
       const alreadyConfirmedByMogu = s.bids.some(b => b.type === 'MOGU' && b.value === s.currentBid);
       if (moguEligible && !alreadyConfirmedByMogu) {
         const moguBtn = el('button', 'bid-btn primary', `Mogu ${s.currentBid}`);
-        moguBtn.onclick = (e) => userBid('mogu', e);
+        moguBtn.onclick = (e) => userBid('mogu', e, player);
         ctrl.appendChild(moguBtn);
-      } else if (!moguEligible) {
+      } else if (!moguEligible || alreadyConfirmedByMogu) {
         // Samo jedan sledeci bid (currentBid+1), ne opseg 2-7
         const nextBid = Math.max(2, s.currentBid + 1);
         if (nextBid <= 7) {
-          const btn = el('button', 'bid-btn', String(nextBid));
-          btn.onclick = (e) => userBid(String(nextBid), e);
+          // Zeleno kao i "Mogu" (korisnikov zahtev — podizanje licitacije je
+          // pozitivna/napredujuca akcija, treba da izgleda dosledno sa Mogu).
+          const btn = el('button', 'bid-btn primary', String(nextBid));
+          btn.onclick = (e) => userBid(String(nextBid), e, player);
           ctrl.appendChild(btn);
         }
       }
     }
 
-    ctrl.appendChild(el('div', 'section-label', 'IGRA'));
-    const igraBtn = el('button', 'bid-btn igra', 'Igra (bez talona)');
-    igraBtn.onclick = (e) => userSayIgra(e);
-    ctrl.appendChild(igraBtn);
+    // RULES 3.4 (korisnikov zahtev — uzivo prijavljen bug): "Igra" sme SAMO
+    // na igracev PRVI potez u rundi. Cim je na svom prvom potezu vec rekao
+    // broj ili "dalje", dugme vise ne sme da se nudi do kraja runde.
+    if (s.players[player].igraEligible) {
+      // Samo "Igra" (korisnikov zahtev — podnaslov "bez talona" nepotreban u
+      // samom dugmetu, objasnjenje ostaje u kontrakt-baneru/statusnoj traci).
+      const igraBtn = el('button', 'bid-btn igra', 'Igra');
+      igraBtn.onclick = (e) => userSayIgra(e, player);
+      ctrl.appendChild(igraBtn);
+    }
   } else if (isAITurn) {
     ctrl.appendChild(el('div', 'section-label', `AI (${SEAT_PLAYER_NAME[player]}) razmišlja...`));
     const gen = handGeneration;
@@ -479,7 +573,7 @@ function renderDiscarding() {
   ctrl.innerHTML = '';
 
   const winner = s.winner;
-  const isAI = (mode === '1v2' && winner !== 0) || (mode === '3ai');
+  const isAI = !isHuman(winner);
 
   if (isAI) {
     ctrl.appendChild(el('div', 'section-label', `${POS_LABELS[winner]} baci 2 karte...`));
@@ -517,6 +611,7 @@ function renderDiscarding() {
     };
     handArea.appendChild(card);
   }
+  applyHandFan(handArea);
   const confirm = el('button', 'bid-btn primary', `Baci (${discardSelected.size}/2)`);
   confirm.disabled = discardSelected.size !== 2;
   confirm.style.opacity = discardSelected.size === 2 ? '1' : '0.5';
@@ -532,15 +627,50 @@ function renderDiscarding() {
 
 // === DECLARING PANEL ===
 
-// Ova faza se javlja i za regularnu pobedu (bira standardnu igru) i za IGRA
-// tok (winner koji je rekao samo "Igra" tek sada imenuje konkretnu igru).
+// Ova faza se javlja za regularnu pobedu (bira standardnu igru), za IGRA
+// tok (winner koji je rekao samo "Igra" tek sada imenuje konkretnu igru), I
+// za RULES 3.4.1 tiebreak (VISE igraca reklo Igra — svaki mora proglasiti
+// SVOJU igru pre nego sto se pobednik odredi poredjenjem jacine). U tom
+// tiebreak slucaju je s.winner JOS null — ko je trenutno na potezu da
+// proglasi pokazuje s.currentBidder (isti obrazac kao bidding/kontra).
 function renderDeclaring() {
   const s = game.state;
   const ctrl = $('bidControls');
   ctrl.innerHTML = '';
 
+  if (s.igraCompetitors !== null) {
+    const player = s.currentBidder;
+    const log = $('bidLog');
+    log.innerHTML = `<span class="bid-entry p${player}"><strong>${POS_LABELS[player]}</strong> proglašava svoju Igru (${s.igraCompetitors.length} igrača rekla Igra — poredi se jačina)</span>`;
+
+    if (!isHuman(player)) {
+      const gen = handGeneration;
+      ctrl.appendChild(el('div', 'section-label', `${POS_LABELS[player]} proglašava igru (Igra)...`));
+      setTimeout(() => {
+        if (gen !== handGeneration || game.state.phase !== 'DECLARING' || game.state.igraCompetitors === null || game.state.currentBidder !== player) return;
+        const g = aiChooseIgraGame(player);
+        game.declareIgra(player, g);
+        render();
+      }, 600);
+      return;
+    }
+
+    ctrl.appendChild(el('div', 'section-label', mode === '3human' ? `POTEZ: ${POS_LABELS[player]} — IGRA` : 'IGRA'));
+    const games = IGRA_GAMES.filter(g => GAME_VALUES[g] >= s.currentBid);
+    for (const g of games) {
+      const btn = el('button', 'bid-btn', g.replace('Igra-', ''));
+      btn.onclick = (e) => {
+        logTrustedAction(`userDeclareIgraTiebreak game=${g} player=${player}`, e);
+        game.declareIgra(player, g);
+        render();
+      };
+      ctrl.appendChild(btn);
+    }
+    return;
+  }
+
   const winner = s.winner;
-  const isAI = (mode === '1v2' && winner !== 0) || (mode === '3ai');
+  const isAI = !isHuman(winner);
   const isIgra = s.igraPlayer === winner;
 
   if (isAI) {
@@ -550,7 +680,7 @@ function renderDeclaring() {
       setTimeout(() => {
         if (gen !== handGeneration || game.state.phase !== 'DECLARING' || game.state.winner !== winner) return;
         const g = aiChooseIgraGame(winner);
-        game.declareIgra(g);
+        game.declareIgra(winner, g);
         render();
       }, 600);
     } else {
@@ -565,12 +695,12 @@ function renderDeclaring() {
     return;
   }
 
-  const log = $('bidLog');
-  log.innerHTML = isIgra
-    ? `<span class="bid-entry p${winner}"><strong>${POS_LABELS[winner]}</strong> proglašava igru (Igra)</span>`
-    : `<span class="bid-entry p${winner}"><strong>${POS_LABELS[winner]}</strong> bira igru</span>`;
-
-  ctrl.appendChild(el('div', 'section-label', isIgra ? 'IGRA (bez talona)' : 'Dostupne igre'));
+  // Korisnikov zahtev (posle prve verzije ove izmene): ovde NE sme da ostane
+  // stara istorija licitacije pored dugmadi za izbor igre — samo dostupne
+  // opcije, cisto. Log se prazni (ne prepisuje sa "X bira igru" — to je opet
+  // ponavljanje istog sto section-label ispod vec kaze).
+  $('bidLog').innerHTML = '';
+  ctrl.appendChild(el('div', 'section-label', isIgra ? 'IGRA' : 'Dostupne igre'));
 
   const games = isIgra
     ? IGRA_GAMES.filter(g => GAME_VALUES[g] >= s.currentBid)
@@ -581,7 +711,7 @@ function renderDeclaring() {
     const btn = el('button', 'bid-btn', displayName);
     btn.onclick = (e) => {
       logTrustedAction(`userDeclare game=${g} isIgra=${isIgra}`, e);
-      if (isIgra) game.declareIgra(g);
+      if (isIgra) game.declareIgra(winner, g);
       else game.declareGame(winner, g);
       render();
     };
@@ -608,18 +738,20 @@ function renderFollowing() {
   }
 
   if (undecided !== undefined) {
-    // Standardni tok — 'undecided' treba da kaze Dodjem/Ne dodjem
-    entries.push(`<span class="bid-entry p${undecided}"><strong>${POS_LABELS[undecided]}</strong> — Dodjem ili Ne dodjem?</span>`);
+    // Standardni tok — 'undecided' treba da kaze Dodjem/Ne dodjem. Pitanje
+    // "X — Dodjem ili Ne dodjem?" OVDE (u logu) je uklonjeno (korisnikov
+    // zahtev — ponavljanje) jer tacno isto vec pise ispod ("POTEZ: X") pored
+    // samih Dodjem/Ne dodjem dugmadi.
     log.innerHTML = entries.join('');
 
-    const isHumanTurn = undecided === 0 && mode === '1v2';
+    const isHumanTurn = isHuman(undecided);
     if (isHumanTurn) {
-      ctrl.appendChild(el('div', 'section-label', 'TVOJ POTEZ'));
+      ctrl.appendChild(el('div', 'section-label', mode === '3human' ? `POTEZ: ${POS_LABELS[undecided]}` : 'TVOJ POTEZ'));
       const dodjem = el('button', 'bid-btn primary', 'Dodjem');
-      dodjem.onclick = (e) => { logTrustedAction('userFollow DODJEM', e); game.follow(0, 'DODJEM'); render(); };
+      dodjem.onclick = (e) => { logTrustedAction('userFollow DODJEM', e); game.follow(undecided, 'DODJEM'); render(); };
       ctrl.appendChild(dodjem);
-      const ne = el('button', 'bid-btn', 'Ne dodjem');
-      ne.onclick = (e) => { logTrustedAction('userFollow NE_DODJEM', e); game.follow(0, 'NE_DODJEM'); render(); };
+      const ne = el('button', 'bid-btn danger', 'Ne dodjem');
+      ne.onclick = (e) => { logTrustedAction('userFollow NE_DODJEM', e); game.follow(undecided, 'NE_DODJEM'); render(); };
       ctrl.appendChild(ne);
     } else {
       ctrl.appendChild(el('div', 'section-label', `${POS_LABELS[undecided]} razmišlja...`));
@@ -645,12 +777,13 @@ function renderFollowing() {
   const callerCandidate = followers.find(p => s.followChoices[p] === 'DODJEM');
   if (neDodjem === undefined || callerCandidate === undefined) { log.innerHTML = entries.join(''); return; }
 
-  entries.push(`<span class="bid-entry p${callerCandidate}"><strong>${POS_LABELS[callerCandidate]}</strong> — zove ${POS_LABELS[neDodjem]} ili igra sam?</span>`);
+  // "X — zove Y ili igra sam?" uklonjeno (korisnikov zahtev — ponavljanje,
+  // isto vec pise ispod pored dugmadi/labele).
   log.innerHTML = entries.join('');
 
-  const isHumanCaller = callerCandidate === 0 && mode === '1v2';
+  const isHumanCaller = isHuman(callerCandidate);
   if (isHumanCaller) {
-    ctrl.appendChild(el('div', 'section-label', 'TVOJ POTEZ'));
+    ctrl.appendChild(el('div', 'section-label', mode === '3human' ? `POTEZ: ${POS_LABELS[callerCandidate]}` : 'TVOJ POTEZ'));
     const call = el('button', 'bid-btn', `Pozovi ${POS_LABELS[neDodjem]}`);
     call.onclick = (e) => { logTrustedAction(`userCall callee=${neDodjem}`, e); game.call(callerCandidate, neDodjem); render(); };
     ctrl.appendChild(call);
@@ -688,13 +821,13 @@ function renderKontra() {
   const expected = game.expectedKontraPlayerPublic();
   if (expected === null) return;
 
-  const isHumanTurn = expected === 0 && mode === '1v2';
+  const isHumanTurn = isHuman(expected);
+  // "X — Kontra ili Moze?" ovde je uklonjeno (korisnikov zahtev —
+  // ponavljanje istog sto vec pise ispod, bilo kroz Kontra/Moze dugmad ili
+  // kroz "X razmišlja..." labelu). Nivo kontre (kad postoji) ostaje — to je
+  // stvarna, ne-ponovljena informacija.
   const log = $('bidLog');
-  log.innerHTML = `<span class="bid-entry p${expected}"><strong>${POS_LABELS[expected]}</strong> — Kontra ili Moze?</span>`;
-
-  if (s.kontraLevel) {
-    log.innerHTML += `<span class="bid-entry"><strong>Nivo: ${s.kontraLevel}</strong></span>`;
-  }
+  log.innerHTML = s.kontraLevel ? `<span class="bid-entry"><strong>Nivo: ${s.kontraLevel}</strong></span>` : '';
 
   if (isHumanTurn) {
     const nextLevel = {
@@ -733,31 +866,46 @@ function renderKontra() {
 
 // === TVOJ HAND (PLAYING PHASE) ===
 
+// U '3human' modu nema fiksnog "ti" — ruka koja se prikazuje/klika prati
+// KO je trenutno na potezu (hot-seat), da bi se moglo rucno postaviti bilo
+// koji scenario za sve tri pozicije. U '1v2'/'3ai' modu uvek je pozicija 0.
+function activeHandOwner(s) {
+  if (mode !== '3human') return 0;
+  if (s.phase === 'PLAYING') return s.currentPlayer;
+  if (s.phase === 'BIDDING') return s.currentBidder;
+  return s.winner ?? s.currentBidder;
+}
+
 function renderHand() {
   const s = game.state;
 
-  if (s.phase === 'DISCARDING' && s.winner === 0 && mode === '1v2') {
+  if (s.phase === 'DISCARDING' && isHuman(s.winner)) {
     // Discard UI vec renderovan u renderDiscarding() — ne diraj handArea
     return;
   }
 
+  const handOwner = activeHandOwner(s);
   const handArea = $('handArea');
-  handArea.innerHTML = `<div class="hand-title">Tvoja ruka — ${s.players[0].hand.length} karata</div>`;
+  // "Tvoja ruka" label uklonjen (korisnikov zahtev — nepotreban, oslobadja
+  // prostor za vece karte). U '3human' modu ime i dalje pise jer je tu
+  // stvarno potrebno (vise ljudi deli isti ekran, mora se znati cije su ruke).
+  handArea.innerHTML = mode === '3human' ? `<div class="hand-title">${POS_LABELS[handOwner]}</div>` : '';
 
-  const isMyTurn = (s.phase === 'PLAYING' && s.currentPlayer === 0 && mode === '1v2');
+  const isMyTurn = (s.phase === 'PLAYING' && isHuman(s.currentPlayer));
 
-  for (const c of sortHand(s.players[0].hand)) {
-    const legal = !isMyTurn || isCardLegal(c);
+  for (const c of sortHand(s.players[handOwner].hand)) {
+    const legal = !isMyTurn || isCardLegal(c, handOwner);
     const card = cardEl(c, { playable: isMyTurn && legal, disabled: isMyTurn && !legal });
     if (isMyTurn && legal) {
-      card.onclick = (e) => userPlayCard(c.id, e);
+      card.onclick = (e) => userPlayCard(c.id, e, handOwner);
     }
     handArea.appendChild(card);
   }
+  applyHandFan(handArea);
 }
 
-function isCardLegal(card) {
-  const legal = game.getLegalCards(0);
+function isCardLegal(card, player = 0) {
+  const legal = game.getLegalCards(player);
   return legal.some(c => c.id === card.id);
 }
 
@@ -769,6 +917,7 @@ function render() {
   renderSeatExtras();
   renderTrick();
   renderBiddingPanel();
+  updateTableWatermark();
   recordHandIfNew();
   checkRefeToast();
   if ($('scoreScreen').classList.contains('active')) renderScoreContent();
@@ -784,14 +933,14 @@ function render() {
   renderHand();
 
   if (game.state.phase === 'PLAYING') {
-    const isHumanTurn = game.state.currentPlayer === 0 && mode === '1v2';
+    const isHumanTurn = isHuman(game.state.currentPlayer);
     if (!isHumanTurn) {
       const gen = handGeneration;
       setTimeout(() => { if (gen === handGeneration) aiPlayTurn(); }, 450);
     }
   }
 
-  if (game.state.phase === 'GAME_OVER' || game.state.phase === 'REFE') {
+  if (game.state.phase === 'GAME_OVER' || game.state.phase === 'REFE' || game.state.phase === 'MATCH_OVER') {
     setTimeout(renderResult, 800);
   }
 }
@@ -804,20 +953,24 @@ function aiBidTurn(player) {
   // kontre", vidi handGeneration) dok je ovaj setTimeout cekao, ne radi
   // nista (spreci pogresnu akciju u NOVOJ rundi — uzivo prijavljen bag).
   if (game.state.phase !== 'BIDDING' || game.state.currentBidder !== player) return;
-  const hand = game.state.players[player].hand;
-  const suits = ['♠', '♥', '♦', '♣'];
-  let bestSuit = suits[0], bestCount = 0, bestHigh = 0;
-  for (const s of suits) {
-    const cards = hand.filter(c => c.suit === s);
-    const high = cards.reduce((max, c) => Math.max(max, rankValue(c.rank)), 0);
-    if (cards.length > bestCount || (cards.length === bestCount && high > bestHigh)) {
-      bestCount = cards.length; bestSuit = s; bestHigh = high;
-    }
-  }
+  const s = game.state;
+  const hand = s.players[player].hand;
+
   // Neko je vec rekao "Igra" — numericka licitacija je zamrznuta (RULES 3.4).
-  // Mogu samo konkurisati svojom Igra ili reci "dalje".
-  if (game.state.igraPlayer !== null && game.state.igraPlayer !== player) {
-    if (bestCount >= 6 && bestHigh >= 4) {
+  // Mogu samo konkurisati svojom Igra ili reci "dalje". chooseBidAction() ne
+  // modelira ovaj slucaj (RULES 3.4.1 tiebreak) uopste, pa ostaje posebno
+  // ovde — prag usklađen sa istim IGRA pragom koji chooseBidAction koristi
+  // (evaluateHand().bestSuit: 6+ karata, 2+ visoke, najjaca bar Dama/J>=4)
+  // radi konzistentnosti dve grane koje odlucuju o istoj stvari.
+  if (s.igraPlayer !== null && s.igraPlayer !== player) {
+    const best = evaluateHand(hand).bestSuit;
+    // RULES 3.4: Igra sme SAMO na igracev prvi potez u rundi (igraEligible)
+    // — bez ove provere, AI bi pokusao sayIgra() posle sopstvenog ranijeg
+    // broja/dalje, engine bi ga tiho odbio (vraca false), i partija bi
+    // ostala zaglavljena zauvek na ovom igracu (uzivo prijavljen rizik).
+    const canIgra = s.players[player].igraEligible && best && best.count >= 6 && best.highCards >= 2 &&
+      best.topCard && rankValue(best.topCard.rank) >= 4;
+    if (canIgra) {
       game.sayIgra(player);
     } else {
       game.pass(player);
@@ -826,43 +979,33 @@ function aiBidTurn(player) {
     return;
   }
 
-  // Igra samo ako ima 6+ iste boje I visoke karte — igra se prijavljuje
-  // odmah kao "Igra" (bez imena), konkretnu igru winner bira tek posle
-  // pobede u licitaciji (RULES 3.4, vidi renderDeclaring()).
-  if (bestCount >= 6 && bestHigh >= 4) {
-    game.sayIgra(player);
-    render();
-    return;
-  }
-  if (bestCount < 4) {
-    game.pass(player);
-    render();
-    return;
-  }
-  // Licitacija ide striktno redom (+1), nikad skok na ciljanu vrednost (RULES 3.2)
-  const targetValue = { '♠': 2, '♦': 3, '♥': 4, '♣': 5 }[bestSuit];
-  const currentBid = game.state.currentBid;
-  const myBidLevel = game.state.players[player].bidLevel;
-  // Mogu-eligible: vec sam licitirao I trenutno sam nadmasen. Takav igrac NE
-  // SME sam da podigne — samo Mogu (ako je vrednost i dalje u dometu mog
-  // cilja) ili Dalje. Podizanje je rezervisano za onog ko trenutno NIJE
-  // nadmasen (potvrdjeno direktno od korisnika).
-  const moguEligible = currentBid > 0 && myBidLevel > 0 && myBidLevel < currentBid;
-  // SAMO JEDAN igrac sme potvrditi (Mogu) datu vrednost — ako je NEKO VEC
-  // potvrdio, AI (kao i covek) mora samo Dalje (ne sme ni da podigne dok je
-  // Mogu-eligible). Bez ove provere, game.bid() bi tiho odbio poziv i AI bi
-  // ostao "zaglavljen" bez ikakve akcije ovog poteza.
-  const alreadyConfirmedByMogu = game.state.bids.some(b => b.type === 'MOGU' && b.value === currentBid);
-  if (moguEligible) {
-    if (!alreadyConfirmedByMogu && currentBid <= targetValue) {
-      game.bid(player, currentBid); // Mogu — potvrdi da ostajem u trci
-    } else {
-      game.pass(player); // Mogu vec zauzet, ili opao dalje od moje ruke
-    }
-  } else if (currentBid >= targetValue) {
+  // Sva ostala licitacija (numericka, Mogu, Igra) — poveri vec testiranoj,
+  // bogatijoj heuristici iz engine/src/ai.ts (dužina boje po nivou + as u
+  // vodecoj boji / bilo koji as / 3+ kralja u drugim bojama), umesto stare
+  // grube provere "dovoljno karata u najduzoj boji" bez ikakvog razloga
+  // (uzivo prijavljen bag — "licitira bez ikakvog rezona").
+  const passedPlayers = new Set(s.players.map((p, i) => i).filter(i => s.players[i].hasPassedBid));
+  const action = aiChooseBidAction({
+    hand,
+    currentBid: s.currentBid,
+    bidStartPlayer: s.bidStartPlayer,
+    currentBidder: s.currentBidder,
+    passedPlayers,
+    playerBidLevel: s.players[player].bidLevel,
+    bids: s.bids,
+  });
+  // Isti razlog kao gore — chooseBidAction() ne zna za igraEligible (RULES
+  // 3.4), pa moze predloziti IGRA i posle igracevog prvog poteza. Bez ove
+  // zastite, sayIgra() bi tiho vratio false i AI ostao zaglavljen zauvek.
+  if (action.type === 'IGRA' && !s.players[player].igraEligible) {
     game.pass(player);
   } else {
-    game.bid(player, Math.max(2, currentBid + 1));
+    switch (action.type) {
+      case 'PASS': game.pass(player); break;
+      case 'IGRA': game.sayIgra(player); break;
+      case 'BID': game.bid(player, action.value); break;
+      case 'MOGU': game.bid(player, action.value); break; // Mogu = bid iste vrednosti
+    }
   }
   render();
 }
@@ -922,30 +1065,30 @@ function logTrustedAction(label, e) {
   }
 }
 
-function userBid(action, e) {
-  logTrustedAction(`userBid action=${action}`, e);
-  if (action === 'pass') game.pass(0);
-  else if (action === 'mogu') game.bid(0, game.state.currentBid);
-  else game.bid(0, parseInt(action));
+function userBid(action, e, player = 0) {
+  logTrustedAction(`userBid action=${action} player=${player}`, e);
+  if (action === 'pass') game.pass(player);
+  else if (action === 'mogu') game.bid(player, game.state.currentBid);
+  else game.bid(player, parseInt(action));
   render();
 }
 
-function userSayIgra(e) {
-  logTrustedAction('userSayIgra', e);
-  game.sayIgra(0);
+function userSayIgra(e, player = 0) {
+  logTrustedAction(`userSayIgra player=${player}`, e);
+  game.sayIgra(player);
   render();
 }
 
-function userPlayCard(cardId, e) {
-  logTrustedAction(`userPlayCard cardId=${cardId}`, e);
-  if (!game.playCard(0, cardId)) return;
+function userPlayCard(cardId, e, player = 0) {
+  logTrustedAction(`userPlayCard cardId=${cardId} player=${player}`, e);
+  if (!game.playCard(player, cardId)) return;
   render();
 }
 
 function aiPlayTurn() {
   if (game.state.phase !== 'PLAYING') return;
   const player = game.state.currentPlayer;
-  if (player === 0 && mode === '1v2') return;
+  if (isHuman(player)) return;
   const cardId = aiPlayCard(player);
   if (cardId) {
     game.playCard(player, cardId);
@@ -973,6 +1116,11 @@ function aiPlayCard(player) {
     declaredGame: s.declaredGame,
     winnerTricks: s.players[s.winner].tricksWon,
     avoidTricks,
+    isDeclarer,
+    kontraLevel: s.kontraLevel,
+    trickCount: s.trickCount,
+    myPosition: player,
+    declarer: s.winner,
   });
   return card ? card.id : legal[0].id;
 }
@@ -981,21 +1129,48 @@ function aiPlayCard(player) {
 
 function renderResult() {
   const s = game.state;
-  if (s.phase !== 'GAME_OVER' && s.phase !== 'REFE') return;
+  if (s.phase !== 'GAME_OVER' && s.phase !== 'REFE' && s.phase !== 'MATCH_OVER') return;
   $('resultScreen').classList.add('active');
   // "GAME_OVER" u engine-u znaci kraj RUKE, ne kraj cele partije (ta se
-  // nastavlja dok zbir bula ne padne na 0) — naslov ispravljen da to
-  // odrazava (korisnikov zahtev).
-  const title = s.phase === 'REFE' ? '🤝 Refe' : '🏁 Kraj runde';
+  // nastavlja dok zbir bula ne padne na TACNO 0, vidi RULES 9.1/9.1.1) —
+  // "MATCH_OVER" je NOVA, odvojena faza za stvarni kraj CELE partije.
+  const title = s.phase === 'REFE' ? '🤝 Refe' : (s.phase === 'MATCH_OVER' ? '🏆 Kraj partije!' : '🏁 Kraj runde');
   $('resultTitle').textContent = title;
+  $('resultTitle').classList.toggle('match-over-title', s.phase === 'MATCH_OVER');
+  $('resultBox').classList.toggle('match-over', s.phase === 'MATCH_OVER');
+
+  if (s.phase === 'MATCH_OVER') {
+    // Korisnikov zahtev: kraj PARTIJE ne treba da ponavlja narativ poslednje
+    // ruke (ko je igrao sta, prosao/pao...) — samo naslov + tabela konacnog
+    // plasmana. Plasman NIJE samo najniza bula: supe (ko kome duguje) se
+    // moraju neto uracunati, jer igrac sa niskom bulom ali velikim dugom
+    // prema drugima moze biti efektivno losiji od nekog sa visom bulom kome
+    // se duguje. Efektivni rezultat = bula + (sta duguje) - (sta mu duguju),
+    // nize je bolje (isti smer kao gola bula ranije).
+    const effective = [0, 1, 2].map(p =>
+      s.bulas[p] - (netSupeBetween(p, leftNeighborOf(p)) + netSupeBetween(p, rightNeighborOf(p)))
+    );
+    const ranking = [0, 1, 2].slice().sort((a, b) => effective[a] - effective[b]);
+    const winnerPos = ranking[0];
+    let html = `<div class="score-players-row">`;
+    for (const p of ranking) {
+      html += `<div class="score-player-card ${p === winnerPos ? 'winner' : ''}">
+        <div class="score-player-name">${POS_LABELS[p]}${p === winnerPos ? ' 🏆' : ''}</div>
+        <div class="score-player-row"><span class="score-player-bula">${s.bulas[p]}</span></div>
+      </div>`;
+    }
+    html += `</div>`;
+    html += `<p style="text-align:center;margin-top:14px">🏆 <strong style="color:#ffeb3b">${POS_LABELS[winnerPos]} pobeđuje!</strong></p>`;
+    $('resultMsg').innerHTML = html;
+    return;
+  }
+
   let msg = '';
   if (s.declaredGame && s.lastHandResult) {
     // Koristi engine-ov lastHandResult kao izvor istine — pokriva i slucajeve
     // kad se nije igralo (RULES 5.4 "niko ne prati", RULES 7.1.1 "Pik bez kontre")
     const declarer = POS_LABELS[s.winner];
-    const tricks = s.players[s.winner].tricksWon;
     msg = `<strong>${declarer}</strong> je igrao <strong>${s.declaredGame}</strong>`;
-    if (s.igraPlayer === s.winner) msg += ` <span style="opacity:0.7">(Igra — bez talona)</span>`;
     // Kontra nivo — uzivo prijavljen propust: modal je prikazivao rezultat
     // bez ikakvog pomena da je kontra data, iako je bitno menjala racun.
     const kontraLabel = { KONTRA: 'Kontra ×2', REKONTRA: 'Rekontra ×4', SUBKONTRA: 'Subkontra ×8', MORTKONTRA: 'Mortkontra ×16' };
@@ -1004,7 +1179,7 @@ function renderResult() {
     }
     msg += `<br>`;
     msg += s.lastHandResult.passed ? '✓ <strong style="color:#a5d6a7">PROŠAO</strong>' : '✗ <strong style="color:#ff8a80">PAO</strong>';
-    msg += ` (${tricks} štihova)<br>`;
+    msg += `<br>`;
     // Ko je dosao/zvao (isti rezime kao u statusnoj traci tokom igre) —
     // korisnikov zahtev: modal ne sme da preskoci ovaj podatak.
     const defenseTxt = defenseSummaryText(s);
@@ -1032,37 +1207,44 @@ function renderScoreContent() {
   const content = $('scoreContent');
   let html = '';
 
-  // Trenutne bule u tradicionalnom formatu papirnog "lista za bulu": za
-  // svakog igraca, sredina = njegove bule, leva/desna kolona = kumulativan
-  // racun supe sa levim/desnim susedom (pozitivno = sused njemu duguje).
+  // Trenutne bule — JEDNA velika "fokalna" kartica (kao tradicionalni papirni
+  // list za bulu), ne 3 male kartice (korisnikov zahtev — "ne svidja mi se
+  // to"). Iznad leve/desne supe pise IME suseda na koga se ta supa odnosi;
+  // u sredini fokalni igrac (ime + bula); refe kao rec "Refe:" + tackice.
+  // Strelica ispod prebacuje fokus na sledeceg igraca (kruzno).
   html += `<div class="score-section-title">Trenutne bule</div>`;
-  for (let p = 0; p < 3; p++) {
-    const leftNet = netSupeBetween(p, leftNeighborOf(p));
-    const rightNet = netSupeBetween(p, rightNeighborOf(p));
+  {
+    const p = scoreFocalPlayer;
+    const left = leftNeighborOf(p);
+    const right = rightNeighborOf(p);
+    const leftNet = netSupeBetween(p, left);
+    const rightNet = netSupeBetween(p, right);
     const fmt = n => n > 0 ? `+${n}` : `${n}`;
-    html += `<div class="debt-row score-triple">
-      <span class="score-triple-side ${leftNet > 0 ? 'positive' : leftNet < 0 ? 'negative' : ''}">${fmt(leftNet)}</span>
-      <span>${POS_LABELS[p]}</span>
-      <span class="amount">${s.bulas[p]}</span>
-      <span class="score-triple-side ${rightNet > 0 ? 'positive' : rightNet < 0 ? 'negative' : ''}">${fmt(rightNet)}</span>
+    const totalRefeSlots = game.refePerPlayer ?? 2;
+    let dots = '';
+    for (let i = 0; i < totalRefeSlots; i++) {
+      const cls = i < s.refeCount[p] ? 'used' : i < s.refeCount[p] + s.refePending[p] ? 'pending' : '';
+      dots += `<span class="refe-dot ${cls}"></span>`;
+    }
+    html += `<div class="score-focal-card">
+      <div class="score-focal-neighbors">
+        <span>${POS_LABELS[left]}</span>
+        <span>${POS_LABELS[right]}</span>
+      </div>
+      <div class="score-focal-row">
+        <span class="score-triple-side ${leftNet > 0 ? 'positive' : leftNet < 0 ? 'negative' : ''}">${fmt(leftNet)}</span>
+        <span class="score-focal-center">
+          <span class="score-focal-name">${POS_LABELS[p]}</span>
+          <span class="score-focal-bula">${s.bulas[p]}</span>
+        </span>
+        <span class="score-triple-side ${rightNet > 0 ? 'positive' : rightNet < 0 ? 'negative' : ''}">${fmt(rightNet)}</span>
+      </div>
+      <div class="score-focal-refe">Refe: ${dots}</div>
+    </div>
+    <div class="score-focal-nav">
+      <button class="score-nav-btn" onclick="cycleScoreFocal()">${POS_LABELS[(p + 1) % 3]} ▶</button>
     </div>`;
   }
-
-  html += `<div class="score-section-title">Refe (iskorišćeno / dozvoljeno)</div>`;
-  for (let p = 0; p < 3; p++) {
-    html += `<div class="debt-row"><span>${POS_LABELS[p]}</span><span>${s.refeCount[p]} / ${game.refePerPlayer ?? 2}</span></div>`;
-  }
-
-  html += `<div class="score-section-title">Supe — ko kome duguje (ukupno u partiji)</div>`;
-  let anyDebt = false;
-  for (let i = 0; i < 3; i++) {
-    for (let j = 0; j < 3; j++) {
-      if (i === j || debtMatrix[i][j] <= 0) continue;
-      anyDebt = true;
-      html += `<div class="debt-row"><span>${POS_LABELS[i]} → ${POS_LABELS[j]}</span><span class="amount">${debtMatrix[i][j]}</span></div>`;
-    }
-  }
-  if (!anyDebt) html += `<div class="score-empty">Još nema supa u ovoj partiji.</div>`;
 
   html += `<div class="score-section-title">Istorija ruku</div>`;
   if (handHistory.length === 0) {
@@ -1089,11 +1271,22 @@ function renderScoreContent() {
   content.innerHTML = html;
 }
 
+// Koji igrac je trenutno prikazan u "Trenutne bule" fokalnoj kartici —
+// resetuje se na Jug (0) pri svakom otvaranju tabele.
+let scoreFocalPlayer = 0;
+
+function cycleScoreFocal() {
+  scoreFocalPlayer = (scoreFocalPlayer + 1) % 3;
+  renderScoreContent();
+}
+window.cycleScoreFocal = cycleScoreFocal;
+
 function toggleScore() {
   const screen = $('scoreScreen');
   if (screen.classList.contains('active')) {
     screen.classList.remove('active');
   } else {
+    scoreFocalPlayer = 0;
     renderScoreContent();
     screen.classList.add('active');
   }
@@ -1104,6 +1297,25 @@ function toggleScore() {
 function startGame() {
   $('setupScreen').classList.remove('active');
   $('resultScreen').classList.remove('active');
+
+  // Korisnikov zahtev: "sto" (onaj ko pokrece partiju) bira pocetnu bulu i
+  // broj refea po igracu — nije vise fiksno 100/2. Korisno za brzo testiranje
+  // ponasanja u seširu (negativne bule) bez desetina odigranih ruka.
+  const bulaInput = parseInt($('setupStartBula').value, 10);
+  const refeInput = parseInt($('setupRefeCount').value, 10);
+  const initialBule = Number.isFinite(bulaInput) && bulaInput > 0 ? bulaInput : 100;
+  const refePerPlayer = Number.isFinite(refeInput) && refeInput >= 0 ? refeInput : 2;
+  game = createGame({ seed: Date.now() & 0xffff, initialBule, refePerPlayer });
+
+  // Nova partija — resetuj svu sesijsku istoriju od (eventualne) prethodne
+  // partije na istoj stranici (Zavrsi -> nova partija sa drugim podesavanjima).
+  // Bez ovoga bi supe-dug-matrica/istorija ruka procurile u novu partiju.
+  handHistory = [];
+  debtMatrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  lastRecordedHandResult = null;
+  lastRefeSum = 0;
+  lastRefePendingSum = 0;
+
   discardSelected = new Set();
   game.newHand(0);
   renderSeats();
@@ -1127,20 +1339,38 @@ function nextRound() {
   render();
 }
 
+// Jedino dugme na result-ekranu (korisnikov zahtev — bilo je 2, "Sledeci
+// krug" i "Zavrsi", sad samo "Igraj"). Ponasanje zavisi od faze: obicna
+// ruka -> sledeca ruka; MATCH_OVER -> nema "sledece ruke", vraca na setup
+// (isto sto je ranije radilo "Zavrsi").
+function resultAction() {
+  if (game.state.phase === 'MATCH_OVER') {
+    $('setupScreen').classList.add('active');
+    $('resultScreen').classList.remove('active');
+  } else {
+    nextRound();
+  }
+}
+
 function setGameMode(m) {
   mode = m;
   $('mode3ai').classList.toggle('active', m === '3ai');
   $('mode1v2').classList.toggle('active', m === '1v2');
+  // "Vi na sve 3" dugme je uklonjeno sa vidljivog setup ekrana (korisnikov
+  // zahtev), ali mod ostaje dostupan preko konzole (setGameMode('3human'))
+  // za testiranje — element vise ne postoji pa se ovo mora zastititi.
+  $('mode3human')?.classList.toggle('active', m === '3human');
 }
 
 // Global exposure
 window.startGame = startGame;
 window.nextRound = nextRound;
+window.resultAction = resultAction;
 window.setGameMode = setGameMode;
 window.userBid = userBid;
 window.userSayIgra = userSayIgra;
 window.toggleScore = toggleScore;
-window.game = game;
+window.render = render; // korisno za dijagnostiku/testiranje preko konzole
 window.restart = () => {
   discardSelected = new Set();
   game.newHand(0);

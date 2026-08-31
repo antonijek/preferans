@@ -3,7 +3,7 @@
 
 import { RANK_VALUE, SUITS, GAME_VALUES } from './constants.js';
 import { isCardLegal } from './trick.js';
-import type { Card, Game, Suit, Position } from './types.js';
+import type { Card, Game, Suit, Position, ContraLevel } from './types.js';
 
 // Bodovi karata (high card points) — za procenu snage ruke
 const CARD_POINTS: Record<string, number> = {
@@ -108,24 +108,21 @@ export function chooseBidAction(ctx: BidContext): BidAction {
 
   if (ctx.playerBidLevel > 0) {
     // Mogu-eligible: vec licitirao I trenutno nadmasen (currentBid >
-    // playerBidLevel). Takav igrac NE SME sam da podigne — samo MOGU ili
-    // PASS. Podizanje je rezervisano za onog ko trenutno NIJE nadmasen
-    // (drzi vrh currentBid === playerBidLevel). Potvrdjeno direktno od
-    // korisnika kroz konkretne primere toka licitacije.
+    // playerBidLevel). Prvi izbor je MOGU (potvrda), ali SAMO JEDAN igrac
+    // sme potvrditi datu vrednost — ako je BILO KO VEC potvrdio, ta opcija
+    // nestaje za sve ostale (potvrdjeno direktno, vise puta od korisnika).
     const moguEligible = ctx.currentBid > ctx.playerBidLevel;
-    if (moguEligible) {
-      // SAMO JEDAN igrac sme potvrditi (Mogu) datu vrednost — ako je BILO
-      // KO VEC potvrdio (ne samo ovaj igrac), ta opcija nestaje za sve
-      // ostale (potvrdjeno direktno, vise puta od korisnika).
-      const alreadyConfirmedByAnyone = ctx.bids.some(
-        b => b.type === 'MOGU' && b.value === ctx.currentBid,
-      );
-      if (ctx.currentBid >= 2 && !alreadyConfirmedByAnyone) {
-        return { type: 'MOGU', value: ctx.currentBid };
-      }
-      return { type: 'PASS' };
+    const alreadyConfirmedByAnyone = ctx.bids.some(
+      b => b.type === 'MOGU' && b.value === ctx.currentBid,
+    );
+    if (moguEligible && ctx.currentBid >= 2 && !alreadyConfirmedByAnyone) {
+      return { type: 'MOGU', value: ctx.currentBid };
     }
-    // Trenutno drzim vrh (playerBidLevel === currentBid) — smem podici
+    // Ili trenutno drzim vrh (playerBidLevel === currentBid), ili sam
+    // Mogu-eligible ali je Mogu vec zauzet od DRUGOG igraca — u oba slucaja
+    // smem da PODIGNEM. Uzivo prijavljen bag: igrac Mogu-eligible ostajao
+    // zaglavljen samo na "dalje" kad Mogu vise nije bio dostupan, iako je
+    // imao dovoljno jaku ruku da legitimno podigne na sledecu vrednost.
     const MIN_LENGTH_FOR_BID: Record<number, number> = {
       2: 4, 3: 4, 4: 5, 5: 5, 6: 6, 7: 6,
     };
@@ -337,14 +334,46 @@ export function choosePlayCard(args: {
   // ako si primoran da pobediš (nemaš karticu koja gubi), igraj NAJMANJU
   // moguću pobedničku da minimizuješ štetu.
   avoidTricks?: boolean;
+  // Da li JA (igrač koji bira kartu) jesam nosilac partije. Bez ovoga
+  // funkcija ne zna razliku između deklaranta i pratioca.
+  isDeclarer?: boolean;
+  // Aktivan nivo kontre na celoj ruci (za konvenciju izlaska protiv Sansa).
+  kontraLevel?: ContraLevel | null;
+  // Redni broj štiha u ovoj ruci (0 = prvi štih) — konvencija izlaska važi
+  // SAMO za prvi štih cele ruke, ne za svako vođenje pratioca.
+  trickCount?: number;
+  // Moja pozicija za sto — potrebna da bi se prepoznalo da li je trenutni
+  // "najjači u štihu" moj saigrač (odbrana) ili nosilac.
+  myPosition?: Position;
+  // Pozicija nosioca partije — bez ovoga se ne moze utvrditi ciju kartu
+  // trenutno "gazim" kad pokušavam da pobedim štih.
+  declarer?: Position | null;
 }): Card | null {
-  const { hand, currentTrick, trump, avoidTricks = false } = args;
+  const {
+    hand, currentTrick, trump, avoidTricks = false,
+    isDeclarer = false, kontraLevel = null, trickCount = 0,
+    myPosition, declarer,
+  } = args;
   const legal = hand.filter(c => isCardLegal(c, hand, currentTrick, trump));
   if (legal.length === 0) return null;
 
   // Vodim prvi — igraj najslabiju kartu (dobro i za osvajanje kasnije i za
   // izbegavanje štiha sad)
   if (currentTrick.length === 0) {
+    // Konvencija izlaska pratioca protiv Sansa/Igra-Sansa (potvrđeno uzivo od
+    // korisnika i nezavisno preferansklub.com/strategija.htm): na PRVOM štihu
+    // cele ruke, pratilac (ne nosilac) izlazi iz Pika ako je data kontra,
+    // inace iz Trefa. Igra-Sans namerno ukljucen (ista no-trump porodica kao
+    // Sans) — ne suziti slucajno kasnije na samo 'Sans'.
+    const isSans = args.declaredGame === 'Sans' || args.declaredGame === 'Igra-Sans';
+    if (!isDeclarer && isSans && trickCount === 0) {
+      const conventionSuit: Suit = kontraLevel ? '♠' : '♣';
+      const suitCards = legal.filter(c => c.suit === conventionSuit);
+      if (suitCards.length > 0) {
+        return suitCards.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
+      }
+      // Nema tu boju — propadni na standardnu logiku ispod.
+    }
     const sorted = legal.slice().sort((a, b) => {
       // Van aduta prioritet (čuvaj adute)
       if (trump) {
@@ -371,6 +400,19 @@ export function choosePlayCard(args: {
         return max;
       }, currentTrick[0]!);
     const isTrumpHighest = trump && highestInTrick.card.suit === trump;
+    // Da li trenutno najjaci u stihu drzi MOJ saigrac-odbrambeni (ne nosilac,
+    // ne ja)? Ako da, cilj (obaranje nosioca) je vec ostvaren za ovaj stih —
+    // nema potrebe da ga "pregazim" sopstvenim jos jacim ulogom, to bi samo
+    // trosilo jaku kartu uzalud (potvrdjeno uzivo od korisnika: "nema potrebe
+    // da se nosi jacom kartom stih koji je vec uhvatio drugi pratilac, jer je
+    // cilj igrati protiv odigravaca"). Ne primenjuje se ako podaci o pozicijama
+    // nisu prosledjeni (backward-compat sa starim pozivima/testovima).
+    const teammateIsWinning =
+      !isDeclarer &&
+      declarer != null &&
+      myPosition != null &&
+      highestInTrick.player !== declarer &&
+      highestInTrick.player !== myPosition;
 
     if (avoidTricks) {
       // Betl (nema aduta) — samo pratim boju. Bacaj NAJVEĆU kartu koja i
@@ -389,8 +431,8 @@ export function choosePlayCard(args: {
       if (myTrumps.length > 0) {
         return myTrumps.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
       }
-    } else {
-      // Pobednik je u lead boji — pokušaj pobediti
+    } else if (!teammateIsWinning) {
+      // Pobednik je u lead boji (nosilac, ili nepoznato) — pokušaj pobediti
       const winners = sameSuit.filter(c => RANK_VALUE[c.rank] > RANK_VALUE[highestInTrick.card.rank]);
       if (winners.length > 0) {
         return winners.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;

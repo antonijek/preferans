@@ -65,7 +65,7 @@ function playOneRound(dealer: number) {
         passedPlayers: new Set(),
       });
       if (action.type === 'IGRA') {
-        g.declareIgra(action.game);
+        g.declareIgra(winner, action.game);
       } else {
         const suits = ['♠', '♥', '♦', '♣'];
         let bestSuit = suits[0], bestCount = 0;
