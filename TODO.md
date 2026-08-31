@@ -1,5 +1,58 @@
 # TODO — Preferans projekat
 
+## 🟢 PREDAJA NOVOJ SESIJI (2026-08-31) — PROČITAJ OVO PRVO. Sledeći fokus: BACKEND.
+
+**Stanje**: `cd engine && npm test` → **184/184**. `npm run test:ui:multi -- 20`
+(iz root-a) → **20/20 čisto**. Sve komitovano i pushovano na `origin/main`
+(commit `cf146a5`, posle `df6f87b`). Frontend/engine je stabilan — nema
+poznatih otvorenih bagova. Korisnik je eksplicitno rekao da sledeća sesija
+kreće na **backend** (vidi FAZA 4/5 ispod za već postojeće opcije/odluke koje
+treba doneti: Supabase vs Node+Socket.IO, auth, sobe/matchmaking, real-time
+sync, reconnect).
+
+**Šta je urađeno posle prethodne (2026-08-30) predaje ispod** — dug live
+UI-polish krug + jedan pravi engine bag:
+- **Layout preuređen**: sto skraćen/centriran, klasičan trougao sedenja
+  (Zapad levo / Istok desno / Jug dole), licitacija (bid-log + dugmad) i
+  odbrana/poslednji-štih premešteni u bočne panele pored stola (umesto pune
+  trake iznad/ispod), mobile-first responsive sa `@media (min-width:900px)`
+  za širi 3-kolonski desktop raspored i posebnim kompaktnim modom za nizak
+  (landscape telefon) ekran.
+- **Tabela (📊) preuređena**: "Trenutne bule" je sad JEDNA fokalna kartica
+  (ime suseda iznad njegove supe levo/desno, refe kao tačkice) sa
+  strelicom za kruzno menjanje fokusa, umesto 3 male kartice. Sekcije
+  "Refe" i "ko kome duguje" uklonjene (redundantne).
+- **Uklonjen dupliran tekst svuda gde je ponavljao ono što već piše pored
+  dugmadi**: top-bar "Potez" polje, "X — Dođem ili Ne dođem?"/"X — zove Y
+  ili igra sam?"/"X — Kontra ili Moze?" u bid-logu, veliki žuti trump-banner
+  na stolu (duplirao je status-bar tekst i zaklanjao karte).
+- **Boje dugmadi**: podizanje licitacije i "Mogu" — zeleno; "Ne dođem" —
+  crveno (dosledno sa "Dalje"). Karte na stolu bliže + blaga rotacija
+  ("bacanje"), veće karte u ruci, "Tvoja ruka" natpis uklonjen.
+- **Pravi engine bag (RULES 3.4)**: "Igra" je ranije ostajala ponuđena
+  CELU licitaciju. Ispravno pravilo (potvrđeno od korisnika): igrač sme
+  "Igra" SAMO na svoj PRVI potez u rundi — čim na prvom potezu kaže broj ili
+  "dalje", trajno gubi pravo na Igra do kraja te runde, PO IGRAČU (ne
+  globalno). Novo `Player.igraEligible` polje (`types.ts`), provere u
+  `bid()`/`pass()`/`sayIgra()`/`getLegalActions()` (`game.ts`), plus zaštita
+  u `app.js` da AI ne ostane zaglavljen ako pokuša Igra kad nije eligible.
+  4 nova testa u `legal-actions.test.ts`.
+- **Lekcija za test-alate**: `tools/multi-smoke.mjs`/`browser-smoke-test.mjs`/
+  `visual-check.mjs` su tražili dugme po VIDLJIVOM TEKSTU ("Sledeći krug") —
+  kad je preimenovano u "Igraj", svi su lažno prijavljivali 20/20 pad. Sad
+  traže po `#nextRoundBtn` ID-u. **Ubuduće: uvek koristiti ID selektor u
+  Playwright alatima, nikad `text=`, jer se labele često menjaju.**
+- Vraćeno dugme "Vi na sve 3" na setup ekran (bilo je uklonjeno pa vraćeno
+  na korisnikov zahtev — i dalje potrebno za ručno testiranje).
+
+**Otvoreno/nejasno, nisam menjao**: korisnikov predlog "umesto 3 AI stavi 3
+čoveka" (kontekst: uklanjanje "Vi na sve 3" dugmeta) ostaje nerazjašnjen —
+nisam preimenovao "3 AI" jer taj mod je stvarno AI-protiv-AI (nema ljudi),
+pa bi taj naziv bio pogrešan. Ako korisnik opet pomene, pitati direktno šta
+je tačno mislio.
+
+---
+
 ## 🔴 PREDAJA NOVOJ SESIJI (2026-08-30, noćna sesija) — PROČITAJ OVO PRVO
 
 **Kontekst**: korisnik je otišao na spavanje i eksplicitno dao dozvolu da se
