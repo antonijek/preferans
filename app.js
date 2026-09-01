@@ -1508,9 +1508,25 @@ async function connectOnlineSocket() {
     $('roomScreen').classList.remove('active');
     $('loginError').textContent = 'Greška konekcije: ' + err.message;
   });
+  // Salje se pri (re)konekciji ako korisnik VEC ima aktivnu sobu (M6
+  // reconnect) — bez ovoga bi refresh stranice dok se ceka na jos igraca
+  // ostavio korisnika bez koda sobe (mySeat/kod se inace gube pri
+  // ponovnom ucitavanju stranice, server ih jedini pamti).
+  onlineSocket.on('room:info', (info) => {
+    if (info.seat !== null) mySeat = info.seat;
+    if (info.code) $('roomCodeInput').value = info.code;
+    if (game.state?.phase === 'WAITING' || !game.state) {
+      $('roomStatus').innerHTML = `Kod sobe: <b style="font-size:1.3em">${info.code}</b> — čeka se još igrača...`;
+    }
+  });
   onlineSocket.on('game:state', (state) => {
     game.state = state;
-    if (!document.body.classList.contains('online-in-game')) {
+    // NE prelazi na sto dok partija stvarno ne pocne (phase !== WAITING) —
+    // bez ove provere, i sam refresh stranice dok se ceka 2./3. igrac (server
+    // odmah gurne trenutno, i dalje WAITING, stanje pri reconnect-u) bi
+    // pogresno "preskocio" na prazan sto bez ikakvog puta nazad do koda
+    // sobe (uzivo prijavljen bag).
+    if (state.phase !== 'WAITING' && !document.body.classList.contains('online-in-game')) {
       document.body.classList.add('online-in-game');
       $('loginScreen').classList.remove('active');
       $('roomScreen').classList.remove('active');
@@ -1519,7 +1535,7 @@ async function connectOnlineSocket() {
       document.querySelector('.top-actions [onclick="restart()"]')?.style.setProperty('display', 'none');
       renderSeats();
     }
-    render();
+    if (state.phase !== 'WAITING' || document.body.classList.contains('online-in-game')) render();
   });
   onlineSocket.on('game:action-rejected', (action) => {
     console.warn('[online] akcija odbijena od servera:', action);
@@ -1682,4 +1698,15 @@ window.sendChatOnline = sendChatOnline;
 
 // INIT
 renderSeats();
-$('setupScreen').classList.add('active');
+// Ako vec postoji sacuvan token (ranija online sesija), pokusaj sam da se
+// povezes umesto da coveka vratis na setup ekran — bez ovoga bi SVAKI
+// refresh stranice tokom online igre (ili dok se ceka jos igraca) izgubio
+// sesiju i ostavio korisnika "izgubljenog", jer se ranije konekcija
+// pokretala SAMO rucnim klikom na "Igraj online" (uzivo prijavljen bag).
+if (onlineToken) {
+  $('loginScreen').classList.add('active');
+  $('loginError').textContent = 'Povezivanje...';
+  connectOnlineSocket();
+} else {
+  $('setupScreen').classList.add('active');
+}

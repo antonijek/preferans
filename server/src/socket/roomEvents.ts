@@ -96,6 +96,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
       if (existingLocation.role === 'player') {
         const seat = joinAsPlayer(room, userId, socket);
         if (seat !== null) {
+          socket.emit('room:info', { code: room.code, seat, locked: room.locked });
           socket.emit('game:state', buildClientState(room, { type: 'player', seat }));
           sendChatBacklog(socket, room);
         }
@@ -104,6 +105,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
         if (spectator) {
           spectator.socket = socket;
           socket.join(room.code);
+          socket.emit('room:info', { code: room.code, seat: null, locked: room.locked });
           socket.emit(
             'game:state',
             buildClientState(room, { type: 'spectator', kibicSeats: spectator.kibicSeats })
