@@ -20,15 +20,30 @@ export async function initDb(): Promise<void> {
     const migrationPath = path.join(process.cwd(), 'src', 'migrations', '001_init.sql');
     db.run(fs.readFileSync(migrationPath, 'utf-8'));
   } else {
-    // DB from before the `name` column existed (already-registered accounts
-    // in production) — add it in place instead of wiping/re-creating.
-    // Nullable here (SQLite can't ADD COLUMN NOT NULL without a default on a
-    // non-empty table); application code falls back to email for the rows
-    // that predate this column.
+    // Existing DB predating one or more of these columns/tables (real
+    // production accounts already registered) — add whatever's missing in
+    // place instead of wiping/re-creating.
     const columns = db.exec('PRAGMA table_info(users)');
-    const hasName = columns[0]?.values.some((row) => row[1] === 'name') ?? false;
-    if (!hasName) {
-      db.run('ALTER TABLE users ADD COLUMN name TEXT');
+    const existingCols = new Set((columns[0]?.values ?? []).map((row) => row[1]));
+    // `name` has no sensible default (nullable; app code falls back to
+    // email for rows that predate it) — the others get a real default,
+    // which SQLite's ADD COLUMN allows even on a non-empty table.
+    if (!existingCols.has('name')) db.run('ALTER TABLE users ADD COLUMN name TEXT');
+    if (!existingCols.has('is_admin')) db.run('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0');
+    if (!existingCols.has('credits')) db.run('ALTER TABLE users ADD COLUMN credits INTEGER NOT NULL DEFAULT 0');
+
+    const creditLogTable = db.exec(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='credit_log'"
+    );
+    if (creditLogTable.length === 0) {
+      db.run(`CREATE TABLE credit_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        delta INTEGER NOT NULL,
+        reason TEXT,
+        admin_user_id INTEGER NOT NULL REFERENCES users(id),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`);
     }
   }
 

@@ -1630,6 +1630,30 @@ function backToSetup() {
   $('setupScreen').classList.add('active');
 }
 
+// Bez ovoga nema naina da se udje pod DRUGIM nalogom — onlineToken ostaje
+// sacuvan u localStorage i svaki naredni "Igraj online" (pa i sam refresh
+// stranice, vidi INIT na dnu) auto-reconnect-uje sa STARIM nalogom,
+// preskacuci login formu potpuno (uzivo prijavljena zabuna — "ne mogu da
+// se registrujem, vec sam unutra").
+function logoutOnline() {
+  if (onlineSocket) { onlineSocket.disconnect(); onlineSocket = null; }
+  stopRoomListPolling();
+  onlineToken = null;
+  try { localStorage.removeItem('pref_token'); } catch (e) { /* ok */ }
+  document.body.classList.remove('online-in-game');
+  mode = '1v2';
+  mySeat = null;
+  $('roomScreen').classList.remove('active');
+  $('chatScreen').classList.remove('open');
+  $('chatToggleBtn').style.display = 'none';
+  $('kibicRequestPanel').style.display = 'none';
+  $('loginEmail').value = '';
+  $('loginName').value = '';
+  $('loginPassword').value = '';
+  $('loginError').textContent = '';
+  $('loginScreen').classList.add('active');
+}
+
 // === ONLINE: lista otvorenih soba ===
 
 let roomListInterval = null;
@@ -1792,6 +1816,7 @@ window.goOnline = goOnline;
 window.doLogin = doLogin;
 window.doRegister = doRegister;
 window.backToSetup = backToSetup;
+window.logoutOnline = logoutOnline;
 window.createRoomOnline = createRoomOnline;
 window.joinRoomOnline = joinRoomOnline;
 window.joinAsSpectatorOnline = joinAsSpectatorOnline;

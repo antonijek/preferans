@@ -54,6 +54,29 @@ export function listOpenRooms(): RoomSummary[] {
   return rooms;
 }
 
+export interface RoomDetail {
+  code: string;
+  phase: string;
+  seatNames: [string | null, string | null, string | null];
+  spectatorCount: number;
+  locked: boolean;
+  createdAt: number;
+}
+
+// Admin view — EVERY room regardless of phase/openness, unlike
+// listOpenRooms() (the public lobby, which only shows WAITING rooms with
+// a free seat).
+export function listAllRoomsDetailed(): RoomDetail[] {
+  return Array.from(roomsByCode.values()).map((room) => ({
+    code: room.code,
+    phase: room.game.state.phase,
+    seatNames: room.seatNames,
+    spectatorCount: room.spectators.size,
+    locked: room.locked,
+    createdAt: room.createdAt,
+  }));
+}
+
 export function getUserLocation(userId: number): UserLocation | undefined {
   return userLocation.get(userId);
 }

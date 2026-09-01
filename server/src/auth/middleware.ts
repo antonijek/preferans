@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { get } from '../db.js';
 
 export interface AuthedRequest extends Request {
   userId?: number;
@@ -34,4 +35,16 @@ export function requireAuth(req: AuthedRequest, res: Response, next: NextFunctio
   } catch {
     res.status(401).json({ error: 'Invalid token' });
   }
+}
+
+/** requireAuth, plus the token's user must have is_admin=1 in the DB. */
+export function requireAdmin(req: AuthedRequest, res: Response, next: NextFunction): void {
+  requireAuth(req, res, () => {
+    const user = get<{ is_admin: number }>('SELECT is_admin FROM users WHERE id = ?', [req.userId!]);
+    if (!user?.is_admin) {
+      res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+    next();
+  });
 }

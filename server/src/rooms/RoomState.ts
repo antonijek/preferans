@@ -23,6 +23,7 @@ export interface RoomState {
   code: string;
   game: Game;
   locked: boolean;
+  createdAt: number;
   seatUserIds: [number | null, number | null, number | null];
   seatNames: [string | null, string | null, string | null];
   sockets: [Socket | null, Socket | null, Socket | null];
@@ -40,6 +41,7 @@ export function createRoomState(code: string, options: RoomOptions = {}): RoomSt
     code,
     game: new Game({ seed: Date.now(), ...options }),
     locked: false,
+    createdAt: Date.now(),
     seatUserIds: [null, null, null],
     seatNames: [null, null, null],
     sockets: [null, null, null],

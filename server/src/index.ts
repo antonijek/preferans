@@ -5,6 +5,7 @@ import express from 'express';
 import { Server as SocketIOServer } from 'socket.io';
 import { initDb } from './db.js';
 import { authRouter } from './auth/routes.js';
+import { adminRouter } from './admin/routes.js';
 import { registerSocketHandlers } from './socket/index.js';
 
 // dist/index.js -> server/dist -> server -> project root, where
@@ -29,6 +30,7 @@ async function main(): Promise<void> {
   });
 
   app.use('/api', authRouter);
+  app.use('/api/admin', adminRouter);
 
   const httpServer = http.createServer(app);
   const io = new SocketIOServer(httpServer, { cors: { origin: true } });
