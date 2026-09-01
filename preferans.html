@@ -562,7 +562,88 @@
     border-bottom: 2px solid #4caf50;
   }
   .full-page-header .logo { font-family: 'Cinzel', serif; font-size: 1.3em; font-weight: 700; letter-spacing: 0.5px; }
+  .full-page-header .header-actions { margin-left: auto; display: flex; gap: 8px; }
   .muted-line { color: rgba(255,255,255,0.65); font-size: 0.9em; text-align: center; }
+
+  /* === Pozdravni ekran kao PRAVA stranica, ne kartica-u-praznini ===
+     Korisnikov zahtev posle prve dve (neuspesne) popravke: "cio home page
+     je mali zeleni modal... zelim da bude sadrzajna i lepa". Kartica na
+     sredini ekrana UVEK izgleda kao dijalog, bez obzira na boju pozadine —
+     to je sam OBLIK (usko + centrirano + okruzeno prazninom) koji se cita
+     kao popup. Prava stranica umesto toga: sadrzaj preko cele sirine,
+     hero + sekcije, sopstveni skrol (telo/html imaju overflow:hidden zbog
+     stola za vreme igre — ovaj ekran to zaobilazi sopstvenim overflow-y). */
+  .screen.rich-page {
+    display: none; overflow-y: auto;
+    /* Bez PUNE neprovidnosti ovde, sto ispod (koji i dalje postoji u DOM-u,
+       samo vizuelno "iza") delimicno probija kroz — bazno .screen ima samo
+       85% (rgba(0,0,0,0.85)), racunato za kratkotrajne modale, ne za celu
+       stranicu koja stoji preko. */
+    background: radial-gradient(ellipse at top, #1e3320 0%, #10201a 45%, #060807 100%);
+  }
+  .screen.rich-page.active { display: block; }
+
+  .home-hero {
+    padding: 90px 24px 40px;
+    text-align: center;
+    background: radial-gradient(ellipse at top, rgba(76,175,80,0.18) 0%, transparent 65%);
+  }
+  .home-hero .setup-suits { font-size: 1.6em; margin-bottom: 10px; }
+  .home-greeting {
+    font-family: 'Cinzel', serif; font-weight: 800; font-size: clamp(1.8em, 5vw, 2.6em);
+    background: linear-gradient(180deg, #ffffff 0%, #c8e6c9 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    margin-bottom: 6px;
+  }
+  .home-tagline { color: rgba(255,255,255,0.7); font-size: 1.05em; margin-bottom: 22px; }
+  .home-stats-row { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+  .home-stat-pill {
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 20px; padding: 8px 18px; font-size: 0.95em; font-weight: 600;
+  }
+  .home-cta {
+    max-width: 420px; margin: 0 auto; display: block;
+    min-height: 58px; font-size: 1.1em;
+  }
+
+  .home-section { max-width: 980px; margin: 0 auto; padding: 36px 24px; }
+  .section-title {
+    font-family: 'Cinzel', serif; font-size: 1.3em; font-weight: 700;
+    text-align: center; margin-bottom: 22px; color: #e8f5e9;
+  }
+  .home-features-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px;
+  }
+  .feature-card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px; padding: 20px 16px; text-align: center;
+  }
+  .feature-icon { font-size: 1.8em; margin-bottom: 8px; }
+  .feature-card h3 { font-family: 'Cinzel', serif; font-size: 1.05em; margin-bottom: 6px; }
+  .feature-card p { color: rgba(255,255,255,0.65); font-size: 0.88em; line-height: 1.5; }
+
+  .online-users-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;
+  }
+  .online-user-card {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px; padding: 10px 12px;
+  }
+  .avatar-circle {
+    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(180deg, #5cbf60 0%, #2e7d32 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Cinzel', serif; font-weight: 700; font-size: 0.9em; color: white;
+  }
+  .online-user-card .uname { font-size: 0.9em; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .home-empty { text-align: center; color: rgba(255,255,255,0.55); padding: 12px; }
+
+  .home-footer {
+    display: flex; justify-content: center; padding: 30px 24px 50px;
+  }
   .screen .box {
     background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
     border-radius: 18px;
@@ -1051,22 +1132,62 @@
   </div>
 </div>
 
-<!-- Online: pozdravni ekran (prva stvar posle logina, NE modal za sobu) -->
-<div class="screen full-page" id="homeScreen">
-  <div class="full-page-header"><span class="logo">🃏 Preferans</span></div>
-  <div class="box setup-box">
-    <h2 class="setup-title" id="homeGreeting">Zdravo!</h2>
-    <div class="setup-suits"><span class="red">♥</span><span class="black">♠</span><span class="red">♦</span><span class="black">♣</span></div>
-    <div class="muted-line" id="homeOnlineCount">🟢 učitavanje...</div>
-    <div style="display:flex;flex-direction:column;gap:10px;margin-top:18px">
-      <button class="mode-btn primary" style="min-height:56px" onclick="goToRoomScreen()">🎮 Sobe — napravi ili se pridruži</button>
-      <button class="mode-btn" onclick="window.location.href='/admin.html'" id="homeAdminBtn" style="display:none">🛠️ Admin panel</button>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:24px">
-      <button class="mode-btn" onclick="backToSetup()">← Nazad</button>
-      <button class="mode-btn" onclick="logoutOnline()">Odjavi se</button>
+<!-- Online: pozdravni ekran (prva stvar posle logina) — PRAVA stranica sa
+     skrolom, ne kartica-modal (vidi napomenu uz .screen.rich-page u CSS-u). -->
+<div class="screen rich-page" id="homeScreen">
+  <div class="full-page-header">
+    <span class="logo">🃏 Preferans</span>
+    <div class="header-actions">
+      <button class="icon-btn" onclick="window.location.href='/admin.html'" id="homeAdminBtn" title="Admin panel" style="display:none">🛠️</button>
+      <button class="icon-btn" id="homeLogoutBtn" onclick="logoutOnline()" title="Odjavi se">🚪</button>
     </div>
   </div>
+
+  <section class="home-hero">
+    <div class="setup-suits"><span class="red">♥</span><span class="black">♠</span><span class="red">♦</span><span class="black">♣</span></div>
+    <h1 class="home-greeting" id="homeGreeting">Zdravo!</h1>
+    <p class="home-tagline">Srpski preferans, uživo, sa pravim igračima.</p>
+    <div class="home-stats-row">
+      <div class="home-stat-pill" id="homeOnlineCount">🟢 učitavanje...</div>
+      <div class="home-stat-pill" id="homeRoomCount">🃏 učitavanje...</div>
+    </div>
+    <button class="mode-btn primary home-cta" onclick="goToRoomScreen()">🎮 Sobe — napravi ili se pridruži</button>
+  </section>
+
+  <section class="home-section">
+    <h2 class="section-title">Šta možeš ovde</h2>
+    <div class="home-features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🃏</div>
+        <h3>Prava pravila</h3>
+        <p>Licitacija, refe, kontra, Betl, Sans — sve po srpskim pravilima preferansa, isti engine koji je testiran 184 puta.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">👀</div>
+        <h3>Kibicuj partije</h3>
+        <p>Gledaj tuđe partije uživo. Karte ostaju sakrivene dok ti igrač lično ne dozvoli uvid.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💬</div>
+        <h3>Chat uživo</h3>
+        <p>Čavrljaj sa saigračima dok partija traje, bez napuštanja pogleda na sto.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚙️</div>
+        <h3>Podesive sobe</h3>
+        <p>Biraj početnu bulu (50–300) i broj refea (0–5) kad praviš sobu. Zaključaj sobu da sprečiš nepozvane kibicere.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="home-section">
+    <h2 class="section-title">Trenutno online</h2>
+    <div id="onlineUsersGrid" class="online-users-grid"><div class="home-empty">Učitavanje...</div></div>
+  </section>
+
+  <footer class="home-footer">
+    <button class="mode-btn" onclick="backToSetup()">← Nazad na lokalni mod</button>
+  </footer>
 </div>
 
 <!-- Online: soba -->

@@ -1713,26 +1713,52 @@ function renderOnlineUsers(users) {
   const countEl = $('homeOnlineCount');
   if (countEl) countEl.textContent = `🟢 ${users.length} ${users.length === 1 ? 'igrač' : 'igrača'} online`;
 
-  const container = $('onlineUsersList');
-  if (!container) return;
-  if (users.length === 0) {
-    container.innerHTML = '<div class="room-list-empty">Trenutno nema nikog drugog online.</div>';
-    return;
+  const list = $('onlineUsersList');
+  if (list) {
+    if (users.length === 0) {
+      list.innerHTML = '<div class="room-list-empty">Trenutno nema nikog drugog online.</div>';
+    } else {
+      list.innerHTML = '';
+      for (const u of users) {
+        // u.name je tudji unos (registrovano ime) — textContent, ne innerHTML
+        // (isti razlog kao chat/kibic baneri: XSS).
+        const row = document.createElement('div');
+        row.className = 'room-list-row';
+        const span = document.createElement('span');
+        span.textContent = u.name;
+        row.appendChild(span);
+        list.appendChild(row);
+      }
+    }
   }
-  container.innerHTML = '';
-  for (const u of users) {
-    // u.name je tudji unos (registrovano ime) — textContent, ne innerHTML
-    // (isti razlog kao chat/kibic baneri: XSS).
-    const row = document.createElement('div');
-    row.className = 'room-list-row';
-    const span = document.createElement('span');
-    span.textContent = u.name;
-    row.appendChild(span);
-    container.appendChild(row);
+
+  const grid = $('onlineUsersGrid');
+  if (grid) {
+    if (users.length === 0) {
+      grid.innerHTML = '<div class="home-empty">Trenutno nema nikog drugog online. Pozovi drugare!</div>';
+    } else {
+      grid.innerHTML = '';
+      for (const u of users) {
+        const card = document.createElement('div');
+        card.className = 'online-user-card';
+        const avatar = document.createElement('div');
+        avatar.className = 'avatar-circle';
+        avatar.textContent = (u.name || '?').trim().charAt(0).toUpperCase();
+        const name = document.createElement('div');
+        name.className = 'uname';
+        name.textContent = u.name; // textContent — isti XSS razlog kao gore
+        card.appendChild(avatar);
+        card.appendChild(name);
+        grid.appendChild(card);
+      }
+    }
   }
 }
 
 function renderRoomList(rooms) {
+  const countEl = $('homeRoomCount');
+  if (countEl) countEl.textContent = `🃏 ${rooms.length} ${rooms.length === 1 ? 'otvorena soba' : 'otvorenih soba'}`;
+
   const container = $('openRoomsList');
   if (!container) return;
   if (rooms.length === 0) {

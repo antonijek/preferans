@@ -28,7 +28,7 @@ async function main() {
   check('after reload, auto-reconnected (still on home screen, NOT login)', stillLoggedIn);
 
   console.log('--- click Odjavi se ---');
-  await page.click('text=Odjavi se');
+  await page.click('#homeLogoutBtn');
   await page.waitForTimeout(300);
   const onLoginNow = await page.evaluate(() => document.getElementById('loginScreen').classList.contains('active'));
   check('after logout, back on login screen', onLoginNow);
