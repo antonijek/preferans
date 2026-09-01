@@ -634,7 +634,7 @@
      upotrebljiv oko/iza njega. */
   .chat-panel {
     display: none;
-    position: fixed; right: 8px; bottom: 8px; z-index: 250;
+    position: fixed; left: 8px; bottom: 8px; z-index: 250;
     width: min(320px, calc(100vw - 16px));
     max-height: min(360px, 50vh);
     background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
@@ -643,6 +643,7 @@
     padding: 10px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.5);
     flex-direction: column;
+    overflow: hidden;
   }
   .chat-panel.open { display: flex; }
   .chat-panel-header {
@@ -655,7 +656,12 @@
     border-radius: 8px; color: white; padding: 8px 10px; flex: 1;
   }
 
-  .chat-log { text-align: left; overflow-y: auto; margin-bottom: 10px; font-size: 0.85em; flex: 1; min-height: 40px; }
+  /* min-height:0 je bitan deo popravke (ne kozmetika) — bez njega flex
+     stavka po defaultu odbija da se skupi ispod visine svog sadrzaja, pa
+     .chat-log RASTE preko .chat-panel-ovog max-height-a umesto da sam
+     skroluje (uzivo prijavljen bag: "chat raste kako se pise i prekriva
+     ekran"). */
+  .chat-log { text-align: left; overflow-y: auto; margin-bottom: 10px; font-size: 0.85em; flex: 1; min-height: 0; }
   .chat-log div { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
 
   .room-list-header {
