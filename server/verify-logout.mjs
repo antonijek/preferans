@@ -19,13 +19,13 @@ async function main() {
   await page.fill('#loginEmail', `first-${stamp}@test.com`);
   await page.fill('#loginPassword', 'test1234');
   await page.click('#loginScreen >> text=Registruj se');
-  await page.waitForSelector('#roomScreen.active', { timeout: 5000 });
-  check('first account registered, on room screen', true);
+  await page.waitForSelector('#homeScreen.active', { timeout: 5000 });
+  check('first account registered, on home screen', true);
 
   await page.reload();
   await page.waitForTimeout(1500);
-  const stillLoggedIn = await page.evaluate(() => document.getElementById('roomScreen').classList.contains('active'));
-  check('after reload, auto-reconnected (still on room screen, NOT login)', stillLoggedIn);
+  const stillLoggedIn = await page.evaluate(() => document.getElementById('homeScreen').classList.contains('active'));
+  check('after reload, auto-reconnected (still on home screen, NOT login)', stillLoggedIn);
 
   console.log('--- click Odjavi se ---');
   await page.click('text=Odjavi se');
@@ -40,13 +40,13 @@ async function main() {
   await page.fill('#loginEmail', `second-${stamp}@test.com`);
   await page.fill('#loginPassword', 'test1234');
   await page.click('#loginScreen >> text=Registruj se');
-  await page.waitForSelector('#roomScreen.active', { timeout: 5000 });
+  await page.waitForSelector('#homeScreen.active', { timeout: 5000 });
   check('second account registered successfully after logout', true);
 
   console.log('--- reload again: should stay logged in as the SECOND account, not revert to first ---');
   await page.reload();
   await page.waitForTimeout(1500);
-  const stillSecondAccount = await page.evaluate(() => document.getElementById('roomScreen').classList.contains('active'));
+  const stillSecondAccount = await page.evaluate(() => document.getElementById('homeScreen').classList.contains('active'));
   check('reload after logout+relogin keeps the NEW session (token was properly replaced)', stillSecondAccount);
 
   await browser.close();

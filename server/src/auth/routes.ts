@@ -9,6 +9,7 @@ interface UserRow {
   email: string;
   password_hash: string;
   name: string | null;
+  is_admin: number;
 }
 
 export const authRouter = Router();
@@ -52,9 +53,11 @@ authRouter.post('/login', async (req, res) => {
 });
 
 authRouter.get('/me', requireAuth, (req: AuthedRequest, res) => {
-  const user = get<Pick<UserRow, 'id' | 'email' | 'name'>>(
-    'SELECT id, email, name FROM users WHERE id = ?',
+  const user = get<Pick<UserRow, 'id' | 'email' | 'name' | 'is_admin'>>(
+    'SELECT id, email, name, is_admin FROM users WHERE id = ?',
     [req.userId!]
   );
-  res.json({ user: user ? { ...user, name: user.name || user.email } : null });
+  res.json({
+    user: user ? { ...user, name: user.name || user.email, is_admin: !!user.is_admin } : null,
+  });
 });

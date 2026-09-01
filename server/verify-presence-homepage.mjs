@@ -14,6 +14,8 @@ async function registerAs(page, name, email) {
   await page.fill('#loginEmail', email);
   await page.fill('#loginPassword', 'test1234');
   await page.click('#loginScreen >> text=Registruj se');
+  await page.waitForSelector('#homeScreen.active', { timeout: 5000 });
+  await page.click('text=🎮 Sobe — napravi ili se pridruži');
   await page.waitForSelector('#roomScreen.active', { timeout: 5000 });
 }
 
@@ -41,6 +43,8 @@ async function main() {
   await B.fill('#loginEmail', `pb-${stamp}@test.com`);
   await B.fill('#loginPassword', 'test1234');
   await B.click('#loginScreen >> text=Registruj se');
+  await B.waitForSelector('#homeScreen.active', { timeout: 5000 });
+  await B.click('text=🎮 Sobe — napravi ili se pridruži');
   await B.waitForSelector('#roomScreen.active', { timeout: 5000 });
   await B.waitForFunction(() => document.getElementById('onlineUsersList').textContent.includes('Presence A'), { timeout: 5000 });
   check('B sees "Presence A" in the online-now list', true);

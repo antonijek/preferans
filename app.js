@@ -1556,26 +1556,43 @@ async function connectOnlineSocket() {
   window.game = game; // F12 debug (createGame() radi ovo za lokalni mod, ovde je isti obicaj)
 
   onlineSocket.on('connect', () => {
+    // Pozdravni ekran je PRVA stvar posle logina (korisnikov zahtev — ne
+    // zeli da ga soba/modal doceka odmah), soba dolazi tek na klik. Ako je
+    // ovo zapravo reconnect na VEC postojecu sobu, 'room:info' ispod ce
+    // preusmeriti na roomScreen (tu se vidi kod sobe).
     $('loginScreen').classList.remove('active');
-    $('roomScreen').classList.add('active');
+    $('homeScreen').classList.add('active');
+    $('roomScreen').classList.remove('active');
     $('roomError').textContent = '';
     startRoomListPolling();
+    fetch('/api/me', { headers: { Authorization: 'Bearer ' + onlineToken } })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.user) return;
+        $('homeGreeting').textContent = `Zdravo, ${data.user.name}!`;
+        $('homeAdminBtn').style.display = data.user.is_admin ? '' : 'none';
+      })
+      .catch(() => {});
   });
   onlineSocket.on('connect_error', (err) => {
     onlineSocket = null;
     $('loginScreen').classList.add('active');
+    $('homeScreen').classList.remove('active');
     $('roomScreen').classList.remove('active');
     $('loginError').textContent = 'Greška konekcije: ' + err.message;
   });
   // Salje se pri (re)konekciji ako korisnik VEC ima aktivnu sobu (M6
   // reconnect) — bez ovoga bi refresh stranice dok se ceka na jos igraca
   // ostavio korisnika bez koda sobe (mySeat/kod se inace gube pri
-  // ponovnom ucitavanju stranice, server ih jedini pamti).
+  // ponovnom ucitavanju stranice, server ih jedini pamti). Preusmeri sa
+  // pozdravnog ekrana na sobu, jer tu se kod stvarno vidi.
   onlineSocket.on('room:info', (info) => {
     if (info.seat !== null) mySeat = info.seat;
     if (info.code) $('roomCodeInput').value = info.code;
     if (game.state?.phase === 'WAITING' || !game.state) {
       $('roomStatus').innerHTML = `Kod sobe: <b style="font-size:1.3em">${info.code}</b> — čeka se još igrača...`;
+      $('homeScreen').classList.remove('active');
+      $('roomScreen').classList.add('active');
     }
   });
   onlineSocket.on('game:state', (state) => {
@@ -1588,6 +1605,7 @@ async function connectOnlineSocket() {
     if (state.phase !== 'WAITING' && !document.body.classList.contains('online-in-game')) {
       document.body.classList.add('online-in-game');
       $('loginScreen').classList.remove('active');
+      $('homeScreen').classList.remove('active');
       $('roomScreen').classList.remove('active');
       $('setupScreen').classList.remove('active');
       $('chatToggleBtn').style.display = '';
@@ -1623,11 +1641,22 @@ function backToSetup() {
   mode = '1v2';
   mySeat = null;
   $('loginScreen').classList.remove('active');
+  $('homeScreen').classList.remove('active');
   $('roomScreen').classList.remove('active');
   $('chatScreen').classList.remove('open');
   $('chatToggleBtn').style.display = 'none';
   $('kibicRequestPanel').style.display = 'none';
   $('setupScreen').classList.add('active');
+}
+
+function goToRoomScreen() {
+  $('homeScreen').classList.remove('active');
+  $('roomScreen').classList.add('active');
+}
+
+function goToHomeScreen() {
+  $('roomScreen').classList.remove('active');
+  $('homeScreen').classList.add('active');
 }
 
 // Bez ovoga nema naina da se udje pod DRUGIM nalogom — onlineToken ostaje
@@ -1643,6 +1672,7 @@ function logoutOnline() {
   document.body.classList.remove('online-in-game');
   mode = '1v2';
   mySeat = null;
+  $('homeScreen').classList.remove('active');
   $('roomScreen').classList.remove('active');
   $('chatScreen').classList.remove('open');
   $('chatToggleBtn').style.display = 'none';
@@ -1680,6 +1710,9 @@ function refreshOnlineUsers() {
 }
 
 function renderOnlineUsers(users) {
+  const countEl = $('homeOnlineCount');
+  if (countEl) countEl.textContent = `🟢 ${users.length} ${users.length === 1 ? 'igrač' : 'igrača'} online`;
+
   const container = $('onlineUsersList');
   if (!container) return;
   if (users.length === 0) {
@@ -1842,6 +1875,8 @@ window.goOnline = goOnline;
 window.doLogin = doLogin;
 window.doRegister = doRegister;
 window.backToSetup = backToSetup;
+window.goToRoomScreen = goToRoomScreen;
+window.goToHomeScreen = goToHomeScreen;
 window.logoutOnline = logoutOnline;
 window.createRoomOnline = createRoomOnline;
 window.joinRoomOnline = joinRoomOnline;

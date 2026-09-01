@@ -34,6 +34,8 @@ async function main() {
     await page.fill('#loginEmail', `${letter}-${stamp}@test.com`);
     await page.fill('#loginPassword', 'test1234');
     await page.click('#loginScreen >> text=Registruj se');
+    await page.waitForSelector('#homeScreen.active', { timeout: 5000 });
+    await page.click('text=🎮 Sobe — napravi ili se pridruži');
     await page.waitForSelector('#roomScreen.active', { timeout: 5000 });
   }
 

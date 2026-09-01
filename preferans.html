@@ -547,6 +547,7 @@
     padding-top: 8vh;
   }
   .screen.full-page .box { max-width: 480px; }
+  .muted-line { color: rgba(255,255,255,0.65); font-size: 0.9em; text-align: center; }
   .screen .box {
     background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
     border-radius: 18px;
@@ -1034,6 +1035,22 @@
   </div>
 </div>
 
+<!-- Online: pozdravni ekran (prva stvar posle logina, NE modal za sobu) -->
+<div class="screen full-page" id="homeScreen">
+  <div class="box setup-box">
+    <h2 class="setup-title" id="homeGreeting">Zdravo!</h2>
+    <div class="muted-line" id="homeOnlineCount">🟢 učitavanje...</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:18px">
+      <button class="mode-btn primary" style="min-height:56px" onclick="goToRoomScreen()">🎮 Sobe — napravi ili se pridruži</button>
+      <button class="mode-btn" onclick="window.location.href='/admin.html'" id="homeAdminBtn" style="display:none">🛠️ Admin panel</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:24px">
+      <button class="mode-btn" onclick="backToSetup()">← Nazad</button>
+      <button class="mode-btn" onclick="logoutOnline()">Odjavi se</button>
+    </div>
+  </div>
+</div>
+
 <!-- Online: soba -->
 <div class="screen full-page" id="roomScreen">
   <div class="box setup-box">
@@ -1072,7 +1089,7 @@
     <button class="mode-btn" onclick="toggleLockOnline()">🔒 Zaključaj/otključaj sobu</button>
     <div class="field-error" id="roomError"></div>
     <div style="display:flex;gap:8px;margin-top:16px">
-      <button class="mode-btn" onclick="backToSetup()">← Nazad</button>
+      <button class="mode-btn" onclick="goToHomeScreen()">← Nazad</button>
       <button class="mode-btn" onclick="logoutOnline()">Odjavi se</button>
     </div>
   </div>
