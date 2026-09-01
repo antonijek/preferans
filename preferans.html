@@ -539,14 +539,29 @@
   /* Login/room su "pre igre" koraci, ne popup preko aktivne partije — tamna
      providna pozadina (.screen default) ih je cinila da izgledaju kao modal
      preko necega (korisnikov utisak: "opet mi je home ekran ovaj modal").
-     Ova varijanta zamenjuje dimovanu pozadinu punom, i vertikalno centriranje
-     gornjim poravnanjem — deluje kao sopstvena stranica, ne popup. */
+     Ova varijanta zamenjuje dimovanu pozadinu punom — deluje kao sopstvena
+     stranica, ne popup. NAPOMENA (uzivo prijavljen bag — "sve crno samo
+     mali zeleni"): raniji pokusaj je OVDE i menjao vertikalno poravnanje na
+     gornje ("align-items:flex-start" + padding-top) — to je ostavilo
+     ogromnu praznu crnu povrsinu ispod kutije, van proporcije sa ostatkom
+     sajta (koji ISTU pozadinu koristi ali centrirano, vidi .screen default
+     koji setupScreen vec uspesno koristi). Vertikalno centriranje vraceno. */
   .screen.full-page {
     background: radial-gradient(ellipse at center, #1e3320 0%, #10201a 60%, #0a0b0c 100%);
-    align-items: flex-start;
-    padding-top: 8vh;
   }
   .screen.full-page .box { max-width: 480px; }
+  /* Fiksni brend-red na vrhu (isti obrazac kao .top-bar za vreme igre) —
+     bez ovoga siroka pozadina iznad/ispod kartice deluje kao "prazan sajt"
+     (uzivo prijavljen utisak), pošto centrirana kartica sama zauzima malo
+     povrsine na sirem ekranu. */
+  .full-page-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 210;
+    background: rgba(0,0,0,0.55);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 2px solid #4caf50;
+  }
+  .full-page-header .logo { font-family: 'Cinzel', serif; font-size: 1.3em; font-weight: 700; letter-spacing: 0.5px; }
   .muted-line { color: rgba(255,255,255,0.65); font-size: 0.9em; text-align: center; }
   .screen .box {
     background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
@@ -1012,6 +1027,7 @@
 
 <!-- Online: login -->
 <div class="screen full-page" id="loginScreen">
+  <div class="full-page-header"><span class="logo">🃏 Preferans</span></div>
   <div class="box setup-box">
     <h2 class="setup-title">Online</h2>
     <div class="text-field">
@@ -1037,8 +1053,10 @@
 
 <!-- Online: pozdravni ekran (prva stvar posle logina, NE modal za sobu) -->
 <div class="screen full-page" id="homeScreen">
+  <div class="full-page-header"><span class="logo">🃏 Preferans</span></div>
   <div class="box setup-box">
     <h2 class="setup-title" id="homeGreeting">Zdravo!</h2>
+    <div class="setup-suits"><span class="red">♥</span><span class="black">♠</span><span class="red">♦</span><span class="black">♣</span></div>
     <div class="muted-line" id="homeOnlineCount">🟢 učitavanje...</div>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:18px">
       <button class="mode-btn primary" style="min-height:56px" onclick="goToRoomScreen()">🎮 Sobe — napravi ili se pridruži</button>
@@ -1053,6 +1071,7 @@
 
 <!-- Online: soba -->
 <div class="screen full-page" id="roomScreen">
+  <div class="full-page-header"><span class="logo">🃏 Preferans</span></div>
   <div class="box setup-box">
     <h2 class="setup-title">Soba</h2>
     <div id="roomStatus" style="margin-bottom:12px;min-height:1.4em"></div>
