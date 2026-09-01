@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="sr">
+<head>
+<meta charset="utf-8">
+<title>Preferans Admin</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: radial-gradient(ellipse at center, #1e3320 0%, #10201a 60%, #0a0b0c 100%);
+    color: #eef2ef;
+    padding: 24px;
+  }
+  h1 { font-size: 1.4em; margin-bottom: 4px; }
+  .sub { color: #9fb3a7; font-size: 0.9em; margin-bottom: 24px; }
+  .card {
+    background: linear-gradient(180deg, #1c2b23 0%, #16211c 100%);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 24px;
+    max-width: 1000px;
+  }
+  .card h2 { font-size: 1.1em; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+  .card h2 button { font-size: 0.6em; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  th { color: #9fb3a7; font-weight: 600; font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.04em; }
+  tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75em; background: rgba(212,169,79,0.2); color: #d4a94f; }
+  button {
+    background: linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 100%);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white; border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 0.85em;
+  }
+  button:hover { background: rgba(255,255,255,0.2); }
+  button.danger { border-color: rgba(211,90,90,0.5); color: #ff8a80; }
+  input[type="number"], input[type="text"] {
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
+    color: white; border-radius: 6px; padding: 5px 8px; width: 70px; font-size: 0.85em;
+  }
+  #loginBox { max-width: 360px; }
+  #loginBox input { width: 100%; margin-bottom: 10px; padding: 8px; }
+  .err { color: #ff8a80; font-size: 0.85em; margin-top: 6px; }
+  .muted { color: #9fb3a7; font-size: 0.85em; }
+  .row-actions { display: flex; gap: 6px; align-items: center; }
+</style>
+</head>
+<body>
+
+<div id="loginBox" class="card">
+  <h2>Admin login</h2>
+  <input type="text" id="email" placeholder="email">
+  <input type="password" id="password" placeholder="lozinka">
+  <button onclick="doLogin()">Uloguj se</button>
+  <div class="err" id="loginErr"></div>
+</div>
+
+<div id="adminBox" style="display:none">
+  <h1>🃏 Preferans — Admin</h1>
+  <div class="sub" id="whoami"></div>
+
+  <div class="card">
+    <h2><span>Korisnici</span><button onclick="loadUsers()">🔄 Osveži</button></h2>
+    <table>
+      <thead><tr><th>ID</th><th>Ime</th><th>Email</th><th>Krediti</th><th>Admin</th><th>Registrovan</th><th>Akcije</th></tr></thead>
+      <tbody id="usersBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2><span>Sobe (uživo)</span><button onclick="loadRooms()">🔄 Osveži</button></h2>
+    <table>
+      <thead><tr><th>Kod</th><th>Faza</th><th>Jug</th><th>Istok</th><th>Zapad</th><th>Kibiceri</th><th>Zaključana</th><th>Napravljena</th></tr></thead>
+      <tbody id="roomsBody"></tbody>
+    </table>
+    <div class="muted" id="roomsEmpty" style="display:none;margin-top:8px">Trenutno nema aktivnih soba.</div>
+  </div>
+</div>
+
+<script>
+  let token = null;
+  try { token = localStorage.getItem('pref_token'); } catch (e) {}
+
+  async function api(path, opts = {}) {
+    const res = await fetch(path, {
+      ...opts,
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token, ...(opts.headers || {}) },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    return data;
+  }
+
+  async function doLogin() {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    document.getElementById('loginErr').textContent = '';
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!data.token) throw new Error(data.error || 'Greška');
+      token = data.token;
+      try { localStorage.setItem('pref_token', token); } catch (e) {}
+      await tryEnterAdmin();
+    } catch (e) {
+      document.getElementById('loginErr').textContent = e.message;
+    }
+  }
+
+  async function tryEnterAdmin() {
+    try {
+      const me = await api('/api/me');
+      if (!me.user) throw new Error('Nije prijavljen');
+      // /api/me ne vraca is_admin — probaj admin poziv direktno, 403 znaci nije admin.
+      await loadUsers();
+      await loadRooms();
+      document.getElementById('loginBox').style.display = 'none';
+      document.getElementById('adminBox').style.display = 'block';
+      document.getElementById('whoami').textContent = 'Prijavljen kao: ' + (me.user.name || me.user.email);
+      setInterval(loadRooms, 5000);
+    } catch (e) {
+      document.getElementById('loginErr').textContent = 'Nemaš admin pristup ili nisi prijavljen (' + e.message + ').';
+      document.getElementById('loginBox').style.display = 'block';
+      document.getElementById('adminBox').style.display = 'none';
+    }
+  }
+
+  async function loadUsers() {
+    const { users } = await api('/api/admin/users');
+    const body = document.getElementById('usersBody');
+    body.innerHTML = '';
+    for (const u of users) {
+      const tr = document.createElement('tr');
+
+      const tdId = document.createElement('td'); tdId.textContent = u.id;
+      const tdName = document.createElement('td'); tdName.textContent = u.name || '(bez imena)';
+      const tdEmail = document.createElement('td'); tdEmail.textContent = u.email;
+      const tdCredits = document.createElement('td'); tdCredits.textContent = u.credits;
+      const tdAdmin = document.createElement('td');
+      if (u.is_admin) { const b = document.createElement('span'); b.className = 'badge'; b.textContent = 'admin'; tdAdmin.appendChild(b); }
+      const tdCreated = document.createElement('td'); tdCreated.textContent = u.created_at;
+
+      const tdActions = document.createElement('td');
+      const actions = document.createElement('div'); actions.className = 'row-actions';
+
+      const deltaInput = document.createElement('input');
+      deltaInput.type = 'number'; deltaInput.placeholder = '±';
+      const addBtn = document.createElement('button');
+      addBtn.textContent = 'Primeni kredit';
+      addBtn.onclick = () => adjustCredits(u.id, deltaInput.value);
+      const delBtn = document.createElement('button');
+      delBtn.textContent = 'Obriši';
+      delBtn.className = 'danger';
+      delBtn.onclick = () => deleteUser(u.id, u.email);
+
+      actions.appendChild(deltaInput);
+      actions.appendChild(addBtn);
+      actions.appendChild(delBtn);
+      tdActions.appendChild(actions);
+
+      tr.append(tdId, tdName, tdEmail, tdCredits, tdAdmin, tdCreated, tdActions);
+      body.appendChild(tr);
+    }
+  }
+
+  async function adjustCredits(id, deltaStr) {
+    const delta = parseInt(deltaStr, 10);
+    if (!Number.isInteger(delta) || delta === 0) { alert('Unesi ceo broj razlicit od 0 (npr. 50 ili -20).'); return; }
+    const reason = prompt('Razlog (opciono):') || '';
+    try {
+      await api('/api/admin/users/' + id + '/credits', { method: 'POST', body: JSON.stringify({ delta, reason }) });
+      await loadUsers();
+    } catch (e) { alert('Greška: ' + e.message); }
+  }
+
+  async function deleteUser(id, email) {
+    if (!confirm('Obrisati nalog ' + email + '? Ovo je nepovratno.')) return;
+    try {
+      await api('/api/admin/users/' + id, { method: 'DELETE' });
+      await loadUsers();
+    } catch (e) { alert('Greška: ' + e.message); }
+  }
+
+  async function loadRooms() {
+    const { rooms } = await api('/api/admin/rooms');
+    const body = document.getElementById('roomsBody');
+    body.innerHTML = '';
+    document.getElementById('roomsEmpty').style.display = rooms.length === 0 ? 'block' : 'none';
+    for (const r of rooms) {
+      const tr = document.createElement('tr');
+      const cells = [
+        r.code,
+        r.phase,
+        r.seatNames[0] || '—',
+        r.seatNames[1] || '—',
+        r.seatNames[2] || '—',
+        String(r.spectatorCount),
+        r.locked ? '🔒' : '—',
+        new Date(r.createdAt).toLocaleString('sr-RS'),
+      ];
+      for (const c of cells) {
+        const td = document.createElement('td');
+        td.textContent = c;
+        tr.appendChild(td);
+      }
+      body.appendChild(tr);
+    }
+  }
+
+  if (token) tryEnterAdmin();
+</script>
+</body>
+</html>
