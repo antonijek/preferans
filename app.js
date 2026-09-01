@@ -12,7 +12,27 @@ import {
   choosePlayCard as aiChoosePlayCard,
 } from './engine/dist/ai.js';
 
-const POS_LABELS = ['Jug', 'Istok', 'Zapad'];
+const POS_LABELS_LOCAL = ['Jug', 'Istok', 'Zapad'];
+// POS_LABELS[pos] je korisceno na 30+ mesta kroz ceo fajl (banner ugovora,
+// rezultat ruke, tabela, poslednji stih, chat...) — umesto da se svako od
+// njih posebno menja za online mod (uzivo prijavljen bag: "i dalje posle
+// ruke pise Zapad je igrao Sans", jedno od mesta koje je promaklo pri prvom
+// prolazu), POS_LABELS je sad Proxy koji ZA SVE njih odjednom vraca PRAVO
+// registrovano ime kad je mode==='online', inace nepromenjen raspored kao
+// pre. Uvek vraca vec escape-ovan string (mode==='online' ime je tudji
+// unos — korisnikov email — a desetine mesta ga ubacuju u innerHTML bez
+// sopstvenog escapovanja; sigurnije da PRIVREMENA VREDNOST sama bude
+// bezbedna nego oslanjati se da svako mesto to zapamti).
+const POS_LABELS = new Proxy(POS_LABELS_LOCAL, {
+  get(target, prop) {
+    const idx = typeof prop === 'string' ? Number(prop) : NaN;
+    if (Number.isInteger(idx) && idx >= 0 && idx <= 2) {
+      const raw = mode === 'online' ? (game.state?.players?.[idx]?.name || target[idx]) : target[idx];
+      return escapeHtml(raw);
+    }
+    return target[prop];
+  },
+});
 const SUIT_NAMES = { '♠': 'Pik', '♥': 'Herc', '♦': 'Karo', '♣': 'Tref' };
 const SUIT_GLYPH = { '♠': '♠', '♥': '♥', '♦': '♦', '♣': '♣' };
 const RANK_ORDER = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
@@ -239,7 +259,10 @@ const SEAT_PLAYER_CLASS = ['p0', 'p1', 'p2'];
 // potezu"). U lokalnim modovima (nema pravih ljudi da se pobrka) ostaje
 // nepromenjeno ponasanje.
 function seatDisplayName(pos) {
-  if (mode === 'online') return game.state?.players?.[pos]?.name || POS_LABELS[pos];
+  // POS_LABELS[pos] (Proxy) vec resava pravo-ime-ili-fallback + escape za
+  // online mod — SEAT_PLAYER_NAME ostaje SAMO za lokalni "Vi (Jug)" oblik
+  // koji POS_LABELS namerno nema (koristi se za stalnu oznaku sedista).
+  if (mode === 'online') return POS_LABELS[pos];
   return SEAT_PLAYER_NAME[pos];
 }
 
@@ -542,7 +565,7 @@ function renderBiddingPanel() {
     for (const b of s.bids) {
       const cls = `bid-entry p${b.player}`;
       const seat = SEAT_OF[b.player];
-      const seatLabel = escapeHtml(seatDisplayName(b.player));
+      const seatLabel = seatDisplayName(b.player);
       let txt = '';
       if (b.type === 'PASS') txt = `<strong>dalje</strong>`;
       else if (b.type === 'IGRA') txt = `<strong>Igra</strong>`; // bez imena (RULES 3.4) — konkretna igra se bira tek posle pobede
@@ -618,7 +641,7 @@ function renderBiddingPanel() {
       ctrl.appendChild(igraBtn);
     }
   } else if (isAITurn && mode === 'online') {
-    ctrl.appendChild(el('div', 'section-label', `Čeka se ${escapeHtml(seatDisplayName(player))}...`));
+    ctrl.appendChild(el('div', 'section-label', `Čeka se ${seatDisplayName(player)}...`));
   } else if (isAITurn) {
     ctrl.appendChild(el('div', 'section-label', `AI (${SEAT_PLAYER_NAME[player]}) razmišlja...`));
     const gen = handGeneration;
@@ -641,7 +664,7 @@ function renderDiscarding() {
   const isAI = !isHuman(winner);
 
   if (isAI && mode === 'online') {
-    ctrl.appendChild(el('div', 'section-label', `Čeka se ${escapeHtml(seatDisplayName(winner))} (baca 2 karte)...`));
+    ctrl.appendChild(el('div', 'section-label', `Čeka se ${seatDisplayName(winner)} (baca 2 karte)...`));
     return;
   }
 
@@ -714,7 +737,7 @@ function renderDeclaring() {
     log.innerHTML = `<span class="bid-entry p${player}"><strong>${POS_LABELS[player]}</strong> proglašava svoju Igru (${s.igraCompetitors.length} igrača rekla Igra — poredi se jačina)</span>`;
 
     if (!isHuman(player) && mode === 'online') {
-      ctrl.appendChild(el('div', 'section-label', `Čeka se ${escapeHtml(seatDisplayName(player))} (proglašava Igru)...`));
+      ctrl.appendChild(el('div', 'section-label', `Čeka se ${seatDisplayName(player)} (proglašava Igru)...`));
       return;
     }
 
@@ -749,7 +772,7 @@ function renderDeclaring() {
   const isIgra = s.igraPlayer === winner;
 
   if (isAI && mode === 'online') {
-    ctrl.appendChild(el('div', 'section-label', `Čeka se ${escapeHtml(seatDisplayName(winner))} (bira igru)...`));
+    ctrl.appendChild(el('div', 'section-label', `Čeka se ${seatDisplayName(winner)} (bira igru)...`));
     return;
   }
 
@@ -834,7 +857,7 @@ function renderFollowing() {
       ne.onclick = (e) => { logTrustedAction('userFollow NE_DODJEM', e); game.follow(undecided, 'NE_DODJEM'); render(); };
       ctrl.appendChild(ne);
     } else if (mode === 'online') {
-      ctrl.appendChild(el('div', 'section-label', `Čeka se ${escapeHtml(seatDisplayName(undecided))}...`));
+      ctrl.appendChild(el('div', 'section-label', `Čeka se ${seatDisplayName(undecided)}...`));
     } else {
       ctrl.appendChild(el('div', 'section-label', `${POS_LABELS[undecided]} razmišlja...`));
       // Dodji ako ima bar 2 "sigurna" stiha (adut A/K/D sa duzinom, ili
@@ -873,7 +896,7 @@ function renderFollowing() {
     solo.onclick = (e) => { logTrustedAction('userContinueWithoutCall', e); game.continueWithoutCall(); render(); };
     ctrl.appendChild(solo);
   } else if (mode === 'online') {
-    ctrl.appendChild(el('div', 'section-label', `Čeka se ${escapeHtml(seatDisplayName(callerCandidate))}...`));
+    ctrl.appendChild(el('div', 'section-label', `Čeka se ${seatDisplayName(callerCandidate)}...`));
   } else {
     ctrl.appendChild(el('div', 'section-label', `${POS_LABELS[callerCandidate]} razmišlja (poziv)...`));
     const gen = handGeneration;
@@ -927,7 +950,7 @@ function renderKontra() {
     mozeBtn.onclick = (e) => { logTrustedAction('userMoze', e); game.moze(expected); render(); };
     ctrl.appendChild(mozeBtn);
   } else if (mode === 'online') {
-    ctrl.appendChild(el('div', 'section-label', `Čeka se ${escapeHtml(seatDisplayName(expected))}...`));
+    ctrl.appendChild(el('div', 'section-label', `Čeka se ${seatDisplayName(expected)}...`));
   } else {
     ctrl.appendChild(el('div', 'section-label', `${POS_LABELS[expected]} razmišlja...`));
     // Kontra ako ima 4+ aduta, ili 3+ aduta sa 2+ visoke karte u adutu
@@ -1037,7 +1060,7 @@ function render() {
       const ctrl = $('bidControls');
       ctrl.innerHTML = '';
       ctrl.appendChild(el('div', 'section-label',
-        isHumanTurn ? 'TVOJ POTEZ' : `Na potezu: ${escapeHtml(seatDisplayName(game.state.currentPlayer))}`
+        isHumanTurn ? 'TVOJ POTEZ' : `Na potezu: ${seatDisplayName(game.state.currentPlayer)}`
       ));
     }
     if (!isHumanTurn && mode !== 'online') {
