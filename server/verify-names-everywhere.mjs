@@ -14,8 +14,9 @@ function check(label, condition) {
   if (!condition) failed = true;
 }
 
-async function registerAs(page, email) {
+async function registerAs(page, name, email) {
   await page.click('text=🌐 Igraj online');
+  await page.fill('#loginName', name);
   await page.fill('#loginEmail', email);
   await page.fill('#loginPassword', 'test1234');
   await page.click('#loginScreen >> text=Registruj se');
@@ -57,9 +58,9 @@ async function main() {
   const [A, B, C] = await Promise.all([browser.newContext(), browser.newContext(), browser.newContext()].map(async (c) => (await c).newPage()));
 
   await Promise.all([A, B, C].map((p) => p.goto(URL)));
-  await registerAs(A, `nea-${stamp}@test.com`);
-  await registerAs(B, `neb-${stamp}@test.com`);
-  await registerAs(C, `nec-${stamp}@test.com`);
+  await registerAs(A, 'Nada', `nea-${stamp}@test.com`);
+  await registerAs(B, 'Boban', `neb-${stamp}@test.com`);
+  await registerAs(C, 'Ceda', `nec-${stamp}@test.com`);
 
   await A.click('text=Napravi novu sobu');
   await A.waitForFunction(() => document.getElementById('roomCodeInput').value.length === 5, { timeout: 5000 });
@@ -87,7 +88,7 @@ async function main() {
   console.log('contractBanner text:', contractText);
   check('contract banner reached a declared-game state at some point', sawDeclared);
   check('contract banner does NOT show generic Istok/Zapad', !contractText.includes('Istok') && !contractText.includes('Zapad'));
-  check('contract banner shows a real registered email', /@test\.com/.test(contractText));
+  check('contract banner shows a chosen display name', /Nada|Boban|Ceda/.test(contractText));
 
   console.log('--- result screen (after the hand ends) ---');
   await A.waitForFunction(() => ['GAME_OVER', 'REFE', 'MATCH_OVER'].includes(window.game?.state?.phase), { timeout: 15000 });
@@ -95,7 +96,7 @@ async function main() {
   const resultText = await A.textContent('#resultMsg').catch(() => '');
   console.log('resultMsg text (first 300 chars):', resultText.slice(0, 300));
   check('result screen does NOT show generic Istok/Zapad', !resultText.includes('Istok') && !resultText.includes('Zapad'));
-  check('result screen shows at least one real registered email', /@test\.com/.test(resultText));
+  check('result screen shows at least one chosen display name', /Nada|Boban|Ceda/.test(resultText));
 
   await browser.close();
   console.log(failed ? '\nSOME CHECKS FAILED' : '\nALL CHECKS PASSED');

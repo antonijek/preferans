@@ -7,8 +7,9 @@ function check(label, condition) {
   if (!condition) failed = true;
 }
 
-async function registerAs(page, email, stamp) {
+async function registerAs(page, name, email) {
   await page.click('text=🌐 Igraj online');
+  await page.fill('#loginName', name);
   await page.fill('#loginEmail', email);
   await page.fill('#loginPassword', 'test1234');
   await page.click('#loginScreen >> text=Registruj se');
@@ -28,12 +29,12 @@ async function main() {
 
   await Promise.all([A, B, C].map((p) => p.goto(URL)));
 
-  // C registers with a malicious "email" (registration has no format
-  // validation today) to prove the name-rendering paths are XSS-safe.
-  const xssPayload = `<img src=x onerror="window.__reportXss && window.__reportXss()">-${stamp}@test.com`;
-  await registerAs(A, `namesA-${stamp}@test.com`, stamp);
-  await registerAs(B, `namesB-${stamp}@test.com`, stamp);
-  await registerAs(C, xssPayload, stamp);
+  // C registers with a malicious NAME (the display-name field, now separate
+  // from email) to prove the name-rendering paths are XSS-safe.
+  const xssPayload = `<img src=x onerror="window.__reportXss && window.__reportXss()">`;
+  await registerAs(A, 'Ana', `namesA-${stamp}@test.com`);
+  await registerAs(B, 'Bojan', `namesB-${stamp}@test.com`);
+  await registerAs(C, xssPayload, `namesC-${stamp}@test.com`);
 
   await A.click('text=Napravi novu sobu');
   await A.waitForFunction(() => document.getElementById('roomCodeInput').value.length === 5, { timeout: 5000 });
@@ -52,7 +53,7 @@ async function main() {
   ]);
   console.log('Seat labels seen by A:', namesOnA);
   check('seat labels are NOT the generic Istok/Zapad placeholders', !namesOnA.includes('Istok') && !namesOnA.includes('Zapad'));
-  check('at least one seat shows a real registered email', namesOnA.some((n) => n.includes('@test.com')));
+  check('at least one seat shows a chosen display name (Ana/Bojan)', namesOnA.includes('Ana') || namesOnA.includes('Bojan'));
 
   console.log('--- one bid click, check bid log uses real name ---');
   let acted = false;
@@ -65,11 +66,16 @@ async function main() {
   const bidLogText = await A.textContent('#bidLog');
   check('bid log does not show generic Istok/Zapad either', !bidLogText.includes('Istok') && !bidLogText.includes('Zapad'));
 
-  console.log('--- XSS check: malicious "email" never executes, even after rendering in bid log / seat name ---');
+  console.log('--- XSS check: malicious NAME never executes, even after rendering in seat label / bid log ---');
   await A.waitForTimeout(500);
   check('XSS payload did NOT execute (window.__reportXss never called)', !xssFired);
-  const rawHtmlHasImgTag = await A.evaluate(() => document.getElementById('bidLog').innerHTML.includes('<img'));
-  check('the malicious name is NOT present as a live <img> tag in the DOM (properly escaped)', !rawHtmlHasImgTag);
+  const rawHtmlHasImgTag = await A.evaluate(() =>
+    document.getElementById('bidLog').innerHTML.includes('<img') ||
+    document.getElementById('name-south').innerHTML.includes('<img') ||
+    document.getElementById('name-east').innerHTML.includes('<img') ||
+    document.getElementById('name-west').innerHTML.includes('<img')
+  );
+  check('the malicious name is NOT present as a live <img> tag anywhere in the DOM (properly escaped)', !rawHtmlHasImgTag);
 
   console.log('--- chat stays visible over the table, doesn\'t hide it ---');
   await A.click('#chatToggleBtn');

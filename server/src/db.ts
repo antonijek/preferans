@@ -19,6 +19,17 @@ export async function initDb(): Promise<void> {
   if (usersTable.length === 0) {
     const migrationPath = path.join(process.cwd(), 'src', 'migrations', '001_init.sql');
     db.run(fs.readFileSync(migrationPath, 'utf-8'));
+  } else {
+    // DB from before the `name` column existed (already-registered accounts
+    // in production) — add it in place instead of wiping/re-creating.
+    // Nullable here (SQLite can't ADD COLUMN NOT NULL without a default on a
+    // non-empty table); application code falls back to email for the rows
+    // that predate this column.
+    const columns = db.exec('PRAGMA table_info(users)');
+    const hasName = columns[0]?.values.some((row) => row[1] === 'name') ?? false;
+    if (!hasName) {
+      db.run('ALTER TABLE users ADD COLUMN name TEXT');
+    }
   }
 
   persist();

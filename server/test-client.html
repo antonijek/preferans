@@ -92,7 +92,7 @@
       const password = document.getElementById('password').value;
       const res = await fetch('/api/register', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, name: email.split('@')[0] }),
       });
       const data = await res.json();
       if (data.token) { onLoggedIn(data.token); } else { log('registracija: ' + JSON.stringify(data)); }

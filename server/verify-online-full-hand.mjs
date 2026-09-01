@@ -16,6 +16,7 @@ function check(label, condition) {
 
 async function registerAs(page, letter, stamp) {
   await page.click('text=🌐 Igraj online');
+  await page.fill('#loginName', 'Test Igrac');
   await page.fill('#loginEmail', `${letter}-${stamp}@test.com`);
   await page.fill('#loginPassword', 'test1234');
   await page.click('#loginScreen >> text=Registruj se');

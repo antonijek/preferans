@@ -1499,15 +1499,17 @@ async function doLogin() {
 }
 
 async function onlineAuth(path) {
+  const name = $('loginName').value.trim();
   const email = $('loginEmail').value.trim();
   const password = $('loginPassword').value;
   $('loginError').textContent = '';
   if (!email || !password) { $('loginError').textContent = 'Unesi email i lozinku.'; return; }
+  if (path === '/api/register' && !name) { $('loginError').textContent = 'Unesi ime — to će stajati na tvojoj stolici za stolom.'; return; }
   try {
     const res = await fetch(path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, name }),
     });
     const data = await res.json();
     if (!data.token) { $('loginError').textContent = data.error || 'Greška.'; return; }

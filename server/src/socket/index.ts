@@ -6,6 +6,7 @@ import { registerRoomHandlers } from './roomEvents.js';
 interface UserRow {
   id: number;
   email: string;
+  name: string | null;
 }
 
 export function registerSocketHandlers(io: Server): void {
@@ -26,8 +27,10 @@ export function registerSocketHandlers(io: Server): void {
 
   io.on('connection', (socket: Socket) => {
     const userId: number = socket.data.userId;
-    const user = get<UserRow>('SELECT id, email FROM users WHERE id = ?', [userId]);
-    socket.data.name = user?.email ?? `player-${userId}`;
+    const user = get<UserRow>('SELECT id, email, name FROM users WHERE id = ?', [userId]);
+    // name fallback to email covers accounts registered before this column
+    // existed (production already had real users at the time it was added).
+    socket.data.name = user?.name || user?.email || `player-${userId}`;
     console.log(`Socket ${socket.id} authenticated as user ${userId} (${socket.data.name})`);
     registerRoomHandlers(io, socket);
   });
