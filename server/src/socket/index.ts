@@ -2,6 +2,7 @@ import type { Server, Socket } from 'socket.io';
 import { verifyToken } from '../auth/middleware.js';
 import { get } from '../db.js';
 import { registerRoomHandlers } from './roomEvents.js';
+import { markOnline, markOffline } from '../presence.js';
 
 interface UserRow {
   id: number;
@@ -32,6 +33,8 @@ export function registerSocketHandlers(io: Server): void {
     // existed (production already had real users at the time it was added).
     socket.data.name = user?.name || user?.email || `player-${userId}`;
     console.log(`Socket ${socket.id} authenticated as user ${userId} (${socket.data.name})`);
+    markOnline(socket.id, userId, socket.data.name);
+    socket.on('disconnect', () => markOffline(socket.id));
     registerRoomHandlers(io, socket);
   });
 }

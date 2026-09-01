@@ -1660,8 +1660,9 @@ let roomListInterval = null;
 
 function startRoomListPolling() {
   refreshRoomList();
+  refreshOnlineUsers();
   if (roomListInterval) clearInterval(roomListInterval);
-  roomListInterval = setInterval(refreshRoomList, 4000);
+  roomListInterval = setInterval(() => { refreshRoomList(); refreshOnlineUsers(); }, 4000);
 }
 
 function stopRoomListPolling() {
@@ -1671,6 +1672,31 @@ function stopRoomListPolling() {
 function refreshRoomList() {
   if (!onlineSocket) return;
   onlineSocket.emit('room:list', {}, (res) => renderRoomList(res?.rooms ?? []));
+}
+
+function refreshOnlineUsers() {
+  if (!onlineSocket) return;
+  onlineSocket.emit('presence:list', {}, (res) => renderOnlineUsers(res?.users ?? []));
+}
+
+function renderOnlineUsers(users) {
+  const container = $('onlineUsersList');
+  if (!container) return;
+  if (users.length === 0) {
+    container.innerHTML = '<div class="room-list-empty">Trenutno nema nikog drugog online.</div>';
+    return;
+  }
+  container.innerHTML = '';
+  for (const u of users) {
+    // u.name je tudji unos (registrovano ime) — textContent, ne innerHTML
+    // (isti razlog kao chat/kibic baneri: XSS).
+    const row = document.createElement('div');
+    row.className = 'room-list-row';
+    const span = document.createElement('span');
+    span.textContent = u.name;
+    row.appendChild(span);
+    container.appendChild(row);
+  }
 }
 
 function renderRoomList(rooms) {

@@ -13,6 +13,7 @@ import { redactStateFor } from '../redact.js';
 import type { Viewer } from '../redact.js';
 import { applyAction, withAuthenticatedActor } from './gameEvents.js';
 import type { GameAction } from './gameEvents.js';
+import { listOnlineUsers } from '../presence.js';
 
 type Ack = (response: Record<string, unknown>) => void;
 
@@ -135,6 +136,10 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
 
   socket.on('room:list', (_payload: unknown, ack?: Ack) => {
     ack?.({ rooms: listOpenRooms() });
+  });
+
+  socket.on('presence:list', (_payload: unknown, ack?: Ack) => {
+    ack?.({ users: listOnlineUsers() });
   });
 
   socket.on('room:create', (payload: { initialBule?: number; refePerPlayer?: number }, ack?: Ack) => {
