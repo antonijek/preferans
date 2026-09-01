@@ -4,6 +4,7 @@ import {
   getRoomByCode,
   getUserLocation,
   setUserLocation,
+  listOpenRooms,
 } from '../rooms/RoomManager.js';
 import type { RoomState, ChatMessage } from '../rooms/RoomState.js';
 import { CHAT_LOG_LIMIT } from '../rooms/RoomState.js';
@@ -33,8 +34,18 @@ function buildClientState(room: RoomState, viewer: Viewer) {
     viewer.type === 'player' && room.game.state.phase === 'PLAYING'
       ? room.game.getLegalCards(viewer.seat)
       : [];
+  // The engine's Player.name is always the generic 'Jug'/'Istok'/'Zapad'
+  // (the Game is constructed with no playerNames override) — swap in the
+  // real registered name per seat so the client can show who's actually
+  // playing instead of a fixed position label. Not secret, safe for
+  // players AND spectators alike.
+  const players = redacted.players.map((p, i) => ({
+    ...p,
+    name: room.seatNames[i] ?? p.name,
+  })) as typeof redacted.players;
   return {
     ...redacted,
+    players,
     expectedKontraPlayer: room.game.expectedKontraPlayerPublic(),
     legalCards,
   };
@@ -53,7 +64,7 @@ function broadcastRoomState(room: RoomState): void {
 }
 
 /** Seats `userId` into `room`, reusing their existing seat if they already have one (rejoin). */
-function joinAsPlayer(room: RoomState, userId: number, socket: Socket): Position | null {
+function joinAsPlayer(room: RoomState, userId: number, socket: Socket, name: string): Position | null {
   const existingSeat = room.seatUserIds.findIndex((u) => u === userId);
   let seat: Position;
   if (existingSeat !== -1) {
@@ -64,6 +75,7 @@ function joinAsPlayer(room: RoomState, userId: number, socket: Socket): Position
     seat = openSeat as Position;
     room.seatUserIds[seat] = userId;
   }
+  room.seatNames[seat] = name;
   room.sockets[seat] = socket;
   socket.join(room.code);
   setUserLocation(userId, { code: room.code, role: 'player', seat });
@@ -94,7 +106,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     const room = getRoomByCode(existingLocation.code);
     if (room) {
       if (existingLocation.role === 'player') {
-        const seat = joinAsPlayer(room, userId, socket);
+        const seat = joinAsPlayer(room, userId, socket, name);
         if (seat !== null) {
           socket.emit('room:info', { code: room.code, seat, locked: room.locked });
           socket.emit('game:state', buildClientState(room, { type: 'player', seat }));
@@ -116,9 +128,13 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     }
   }
 
+  socket.on('room:list', (_payload: unknown, ack?: Ack) => {
+    ack?.({ rooms: listOpenRooms() });
+  });
+
   socket.on('room:create', (_payload: unknown, ack?: Ack) => {
     const room = createRoom();
-    const seat = joinAsPlayer(room, userId, socket)!;
+    const seat = joinAsPlayer(room, userId, socket, name)!;
     ack?.({ code: room.code, seat });
     broadcastRoomState(room);
     sendChatBacklog(socket, room);
@@ -130,7 +146,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
       ack?.({ error: 'Room not found' });
       return;
     }
-    const seat = joinAsPlayer(room, userId, socket);
+    const seat = joinAsPlayer(room, userId, socket, name);
     if (seat === null) {
       ack?.({ error: 'Room is full' });
       return;

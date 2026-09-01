@@ -24,6 +24,7 @@ export interface RoomState {
   game: Game;
   locked: boolean;
   seatUserIds: [number | null, number | null, number | null];
+  seatNames: [string | null, string | null, string | null];
   sockets: [Socket | null, Socket | null, Socket | null];
   spectators: Map<number, SpectatorInfo>; // keyed by userId
   chatLog: ChatMessage[];
@@ -35,6 +36,7 @@ export function createRoomState(code: string): RoomState {
     game: new Game({ seed: Date.now() }),
     locked: false,
     seatUserIds: [null, null, null],
+    seatNames: [null, null, null],
     sockets: [null, null, null],
     spectators: new Map(),
     chatLog: [],

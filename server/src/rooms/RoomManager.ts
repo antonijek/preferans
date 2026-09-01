@@ -35,6 +35,25 @@ export function getRoomByCode(code: string): RoomState | undefined {
   return roomsByCode.get(code.toUpperCase());
 }
 
+export interface RoomSummary {
+  code: string;
+  playerCount: number;
+  locked: boolean;
+}
+
+// Only rooms still recruiting players (WAITING phase, an open seat) show up
+// — once a hand is dealt there's no seat left to join as a player anyway.
+export function listOpenRooms(): RoomSummary[] {
+  const rooms: RoomSummary[] = [];
+  for (const room of roomsByCode.values()) {
+    const playerCount = room.seatUserIds.filter((u) => u !== null).length;
+    if (room.game.state.phase === 'WAITING' && playerCount < 3) {
+      rooms.push({ code: room.code, playerCount, locked: room.locked });
+    }
+  }
+  return rooms;
+}
+
 export function getUserLocation(userId: number): UserLocation | undefined {
   return userLocation.get(userId);
 }

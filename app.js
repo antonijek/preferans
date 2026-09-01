@@ -232,13 +232,33 @@ const SEAT_OF = {
 const SEAT_PLAYER_NAME = ['Vi (Jug)', 'Istok', 'Zapad'];
 const SEAT_PLAYER_CLASS = ['p0', 'p1', 'p2'];
 
+// U online modu server salje PRAVO ime registrovanog igraca po sedistu
+// (game.state.players[pos].name) umesto generickog Jug/Istok/Zapad — bez
+// ovoga bi svi videli iste tri fiksne "pozicione" oznake i ne bi znali KOJI
+// od njihovih drugara sedi gde (uzivo prijavljena zabuna: "ne znam ko je na
+// potezu"). U lokalnim modovima (nema pravih ljudi da se pobrka) ostaje
+// nepromenjeno ponasanje.
+function seatDisplayName(pos) {
+  if (mode === 'online') return game.state?.players?.[pos]?.name || POS_LABELS[pos];
+  return SEAT_PLAYER_NAME[pos];
+}
+
+// Online seatDisplayName() vraca korisnikov registrovani email — nepouzdan
+// unos. Svaki string koji se sa njim gradi pa ubacuje u innerHTML (el()
+// helper, bid log) MORA proci kroz ovo, inace je otvoren XSS (neko se
+// registruje sa "<img src=x onerror=...>" kao email).
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 // === RENDER: STO & SEDENJA ===
 
 function renderSeats() {
-  // Postavi statička imena jednom
-  $('name-south').textContent = SEAT_PLAYER_NAME[0];
-  $('name-east').textContent = SEAT_PLAYER_NAME[1];
-  $('name-west').textContent = SEAT_PLAYER_NAME[2];
+  // Postavi (ili osvezi, u online modu se imena saznaju tek posle
+  // pridruzivanja/svakog novog stanja) imena sedista
+  $('name-south').textContent = seatDisplayName(0);
+  $('name-east').textContent = seatDisplayName(1);
+  $('name-west').textContent = seatDisplayName(2);
 
   // Update bule / tricks / cards
   for (let pos = 0; pos < 3; pos++) {
@@ -522,7 +542,7 @@ function renderBiddingPanel() {
     for (const b of s.bids) {
       const cls = `bid-entry p${b.player}`;
       const seat = SEAT_OF[b.player];
-      const seatLabel = SEAT_PLAYER_NAME[b.player];
+      const seatLabel = escapeHtml(seatDisplayName(b.player));
       let txt = '';
       if (b.type === 'PASS') txt = `<strong>dalje</strong>`;
       else if (b.type === 'IGRA') txt = `<strong>Igra</strong>`; // bez imena (RULES 3.4) — konkretna igra se bira tek posle pobede
@@ -598,7 +618,7 @@ function renderBiddingPanel() {
       ctrl.appendChild(igraBtn);
     }
   } else if (isAITurn && mode === 'online') {
-    ctrl.appendChild(el('div', 'section-label', `Čeka se ${POS_LABELS[player]}...`));
+    ctrl.appendChild(el('div', 'section-label', `Čeka se ${escapeHtml(seatDisplayName(player))}...`));
   } else if (isAITurn) {
     ctrl.appendChild(el('div', 'section-label', `AI (${SEAT_PLAYER_NAME[player]}) razmišlja...`));
     const gen = handGeneration;
@@ -621,7 +641,7 @@ function renderDiscarding() {
   const isAI = !isHuman(winner);
 
   if (isAI && mode === 'online') {
-    ctrl.appendChild(el('div', 'section-label', `Čeka se ${POS_LABELS[winner]} (baca 2 karte)...`));
+    ctrl.appendChild(el('div', 'section-label', `Čeka se ${escapeHtml(seatDisplayName(winner))} (baca 2 karte)...`));
     return;
   }
 
@@ -694,7 +714,7 @@ function renderDeclaring() {
     log.innerHTML = `<span class="bid-entry p${player}"><strong>${POS_LABELS[player]}</strong> proglašava svoju Igru (${s.igraCompetitors.length} igrača rekla Igra — poredi se jačina)</span>`;
 
     if (!isHuman(player) && mode === 'online') {
-      ctrl.appendChild(el('div', 'section-label', `Čeka se ${POS_LABELS[player]} (proglašava Igru)...`));
+      ctrl.appendChild(el('div', 'section-label', `Čeka se ${escapeHtml(seatDisplayName(player))} (proglašava Igru)...`));
       return;
     }
 
@@ -729,7 +749,7 @@ function renderDeclaring() {
   const isIgra = s.igraPlayer === winner;
 
   if (isAI && mode === 'online') {
-    ctrl.appendChild(el('div', 'section-label', `Čeka se ${POS_LABELS[winner]} (bira igru)...`));
+    ctrl.appendChild(el('div', 'section-label', `Čeka se ${escapeHtml(seatDisplayName(winner))} (bira igru)...`));
     return;
   }
 
@@ -814,7 +834,7 @@ function renderFollowing() {
       ne.onclick = (e) => { logTrustedAction('userFollow NE_DODJEM', e); game.follow(undecided, 'NE_DODJEM'); render(); };
       ctrl.appendChild(ne);
     } else if (mode === 'online') {
-      ctrl.appendChild(el('div', 'section-label', `Čeka se ${POS_LABELS[undecided]}...`));
+      ctrl.appendChild(el('div', 'section-label', `Čeka se ${escapeHtml(seatDisplayName(undecided))}...`));
     } else {
       ctrl.appendChild(el('div', 'section-label', `${POS_LABELS[undecided]} razmišlja...`));
       // Dodji ako ima bar 2 "sigurna" stiha (adut A/K/D sa duzinom, ili
@@ -853,7 +873,7 @@ function renderFollowing() {
     solo.onclick = (e) => { logTrustedAction('userContinueWithoutCall', e); game.continueWithoutCall(); render(); };
     ctrl.appendChild(solo);
   } else if (mode === 'online') {
-    ctrl.appendChild(el('div', 'section-label', `Čeka se ${POS_LABELS[callerCandidate]}...`));
+    ctrl.appendChild(el('div', 'section-label', `Čeka se ${escapeHtml(seatDisplayName(callerCandidate))}...`));
   } else {
     ctrl.appendChild(el('div', 'section-label', `${POS_LABELS[callerCandidate]} razmišlja (poziv)...`));
     const gen = handGeneration;
@@ -907,7 +927,7 @@ function renderKontra() {
     mozeBtn.onclick = (e) => { logTrustedAction('userMoze', e); game.moze(expected); render(); };
     ctrl.appendChild(mozeBtn);
   } else if (mode === 'online') {
-    ctrl.appendChild(el('div', 'section-label', `Čeka se ${POS_LABELS[expected]}...`));
+    ctrl.appendChild(el('div', 'section-label', `Čeka se ${escapeHtml(seatDisplayName(expected))}...`));
   } else {
     ctrl.appendChild(el('div', 'section-label', `${POS_LABELS[expected]} razmišlja...`));
     // Kontra ako ima 4+ aduta, ili 3+ aduta sa 2+ visoke karte u adutu
@@ -1007,6 +1027,19 @@ function render() {
 
   if (game.state.phase === 'PLAYING') {
     const isHumanTurn = isHuman(game.state.currentPlayer);
+    // Lokalni modovi namerno nemaju tekstualni "na potezu" indikator ovde
+    // (korisnikov raniji zahtev — vec dovoljno pokazuje zuti obrub oko
+    // aktivnog sedista). Online je druga prica: bez POS_LABELS vise nema
+    // ocekivanog "AI razmislja" teksta uopste tokom PLAYING, pa je jedini
+    // signal ostao taj zuti obrub — uzivo prijavljena zabuna ("ne vidim ko
+    // je na potezu"). Dodat eksplicitan tekst SAMO za online.
+    if (mode === 'online') {
+      const ctrl = $('bidControls');
+      ctrl.innerHTML = '';
+      ctrl.appendChild(el('div', 'section-label',
+        isHumanTurn ? 'TVOJ POTEZ' : `Na potezu: ${escapeHtml(seatDisplayName(game.state.currentPlayer))}`
+      ));
+    }
     if (!isHumanTurn && mode !== 'online') {
       const gen = handGeneration;
       setTimeout(() => { if (gen === handGeneration) aiPlayTurn(); }, 450);
@@ -1501,6 +1534,7 @@ async function connectOnlineSocket() {
     $('loginScreen').classList.remove('active');
     $('roomScreen').classList.add('active');
     $('roomError').textContent = '';
+    startRoomListPolling();
   });
   onlineSocket.on('connect_error', (err) => {
     onlineSocket = null;
@@ -1533,6 +1567,7 @@ async function connectOnlineSocket() {
       $('setupScreen').classList.remove('active');
       $('chatToggleBtn').style.display = '';
       document.querySelector('.top-actions [onclick="restart()"]')?.style.setProperty('display', 'none');
+      stopRoomListPolling();
       renderSeats();
     }
     if (state.phase !== 'WAITING' || document.body.classList.contains('online-in-game')) render();
@@ -1558,15 +1593,57 @@ async function connectOnlineSocket() {
 
 function backToSetup() {
   if (onlineSocket) { onlineSocket.disconnect(); onlineSocket = null; }
+  stopRoomListPolling();
   document.body.classList.remove('online-in-game');
   mode = '1v2';
   mySeat = null;
   $('loginScreen').classList.remove('active');
   $('roomScreen').classList.remove('active');
-  $('chatScreen').classList.remove('active');
+  $('chatScreen').classList.remove('open');
   $('chatToggleBtn').style.display = 'none';
   $('kibicRequestPanel').style.display = 'none';
   $('setupScreen').classList.add('active');
+}
+
+// === ONLINE: lista otvorenih soba ===
+
+let roomListInterval = null;
+
+function startRoomListPolling() {
+  refreshRoomList();
+  if (roomListInterval) clearInterval(roomListInterval);
+  roomListInterval = setInterval(refreshRoomList, 4000);
+}
+
+function stopRoomListPolling() {
+  if (roomListInterval) { clearInterval(roomListInterval); roomListInterval = null; }
+}
+
+function refreshRoomList() {
+  if (!onlineSocket) return;
+  onlineSocket.emit('room:list', {}, (res) => renderRoomList(res?.rooms ?? []));
+}
+
+function renderRoomList(rooms) {
+  const container = $('openRoomsList');
+  if (!container) return;
+  if (rooms.length === 0) {
+    container.innerHTML = '<div class="room-list-empty">Trenutno nema otvorenih soba. Napravi novu!</div>';
+    return;
+  }
+  container.innerHTML = '';
+  for (const r of rooms) {
+    // r.code je server-generisan iz fiksnog alfanumerickog skupa (nikad
+    // korisnicki unos) — innerHTML ovde bezbedan, za razliku od chat/kibic
+    // teksta gore koji koristi textContent.
+    const row = el('div', 'room-list-row',
+      `<span><span class="code">${r.code}</span> <span class="players">(${r.playerCount}/3${r.locked ? ' 🔒' : ''})</span></span>`
+    );
+    const btn = el('button', 'mode-btn', 'Pridruži se');
+    btn.onclick = () => { $('roomCodeInput').value = r.code; joinRoomOnline(); };
+    row.appendChild(btn);
+    container.appendChild(row);
+  }
 }
 
 // === ONLINE: sobe ===
@@ -1637,7 +1714,7 @@ function showKibicRequestBanner(spectatorUserId, name) {
 // === ONLINE: chat ===
 
 function toggleChat() {
-  $('chatScreen').classList.toggle('active');
+  $('chatScreen').classList.toggle('open');
 }
 
 function sendChatOnline() {
@@ -1692,6 +1769,7 @@ window.createRoomOnline = createRoomOnline;
 window.joinRoomOnline = joinRoomOnline;
 window.joinAsSpectatorOnline = joinAsSpectatorOnline;
 window.toggleLockOnline = toggleLockOnline;
+window.refreshRoomList = refreshRoomList;
 window.requestKibicOnline = requestKibicOnline;
 window.toggleChat = toggleChat;
 window.sendChatOnline = sendChatOnline;

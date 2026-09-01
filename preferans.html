@@ -628,8 +628,51 @@
   .text-field input:focus { outline: none; border-color: #66bb6a; }
   .field-error { color: #ef5350; min-height: 1.2em; font-size: 0.85em; margin: 6px 0; }
 
-  .chat-log { text-align: left; max-height: 280px; overflow-y: auto; margin-bottom: 10px; font-size: 0.9em; }
+  /* Plutajuci panel (NE .screen — korisnikov zahtev: chat mora da bude
+     dostupan DOK se igra, bez napustanja pogleda na sto ispod). Fiksna
+     pozicija u uglu, mala, sopstveni scroll — sto ostaje vidljiv i
+     upotrebljiv oko/iza njega. */
+  .chat-panel {
+    display: none;
+    position: fixed; right: 8px; bottom: 8px; z-index: 250;
+    width: min(320px, calc(100vw - 16px));
+    max-height: min(360px, 50vh);
+    background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
+    border: 2px solid rgba(255,255,255,0.25);
+    border-radius: 14px;
+    padding: 10px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+    flex-direction: column;
+  }
+  .chat-panel.open { display: flex; }
+  .chat-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    font-weight: 700; margin-bottom: 6px; flex-shrink: 0;
+  }
+  .chat-panel-header .icon-btn { min-width: unset; min-height: unset; padding: 2px 8px; }
+  .chat-panel input[type="text"] {
+    background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 8px; color: white; padding: 8px 10px; flex: 1;
+  }
+
+  .chat-log { text-align: left; overflow-y: auto; margin-bottom: 10px; font-size: 0.85em; flex: 1; min-height: 40px; }
   .chat-log div { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+
+  .room-list-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 14px 0 6px; font-size: 0.85em; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .room-list-header .icon-btn { min-width: unset; padding: 4px 8px; font-size: 0.9em; box-shadow: none; }
+  .room-list { text-align: left; max-height: 180px; overflow-y: auto; margin-bottom: 6px; }
+  .room-list-empty { opacity: 0.6; font-size: 0.9em; padding: 8px 0; text-align: center; }
+  .room-list-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px; padding: 8px 12px; margin-bottom: 6px;
+  }
+  .room-list-row .code { font-weight: bold; letter-spacing: 1px; }
+  .room-list-row .players { opacity: 0.75; font-size: 0.85em; }
+  .room-list-row button { width: auto; margin: 0; padding: 6px 14px; min-height: unset; }
 
   .kibic-request-banner {
     position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
@@ -976,8 +1019,15 @@
     <h2 class="setup-title">Soba</h2>
     <div id="roomStatus" style="margin-bottom:12px;min-height:1.4em"></div>
     <button class="mode-btn primary" onclick="createRoomOnline()">Napravi novu sobu</button>
+
+    <div class="room-list-header">
+      <span>Otvorene sobe</span>
+      <button class="icon-btn" onclick="refreshRoomList()" title="Osveži">🔄</button>
+    </div>
+    <div id="openRoomsList" class="room-list"><div class="room-list-empty">Učitavanje...</div></div>
+
     <div class="text-field">
-      <label for="roomCodeInput">Kod sobe</label>
+      <label for="roomCodeInput">Ili unesi kod sobe ručno</label>
       <input type="text" id="roomCodeInput" placeholder="npr. 9A7AU" style="text-transform:uppercase">
     </div>
     <div style="display:flex;gap:8px">
@@ -1004,15 +1054,15 @@
 <div id="kibicBanners"></div>
 
 <!-- Online: chat -->
-<div class="screen" id="chatScreen" onclick="if (event.target === this) toggleChat()">
-  <div class="box score-box">
-    <h2>💬 Chat</h2>
-    <div id="chatLog" class="chat-log"></div>
-    <div style="display:flex;gap:8px">
-      <input type="text" id="chatInput" placeholder="poruka..." onkeydown="if(event.key==='Enter')sendChatOnline()">
-      <button class="mode-btn" style="width:auto" onclick="sendChatOnline()">Pošalji</button>
-    </div>
-    <button class="mode-btn" onclick="toggleChat()">Zatvori</button>
+<div class="chat-panel" id="chatScreen">
+  <div class="chat-panel-header">
+    <span>💬 Chat</span>
+    <button class="icon-btn" onclick="toggleChat()" title="Sakrij">✕</button>
+  </div>
+  <div id="chatLog" class="chat-log"></div>
+  <div style="display:flex;gap:8px">
+    <input type="text" id="chatInput" placeholder="poruka..." onkeydown="if(event.key==='Enter')sendChatOnline()">
+    <button class="mode-btn" style="width:auto;margin:0" onclick="sendChatOnline()">Pošalji</button>
   </div>
 </div>
 
