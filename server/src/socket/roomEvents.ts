@@ -16,6 +16,11 @@ import type { GameAction } from './gameEvents.js';
 
 type Ack = (response: Record<string, unknown>) => void;
 
+function clamp(value: number, min: number, max: number, fallback: number): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
 function sendChatBacklog(socket: Socket, room: RoomState): void {
   socket.emit('chat:backlog', room.chatLog);
 }
@@ -132,8 +137,13 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     ack?.({ rooms: listOpenRooms() });
   });
 
-  socket.on('room:create', (_payload: unknown, ack?: Ack) => {
-    const room = createRoom();
+  socket.on('room:create', (payload: { initialBule?: number; refePerPlayer?: number }, ack?: Ack) => {
+    // Client-supplied config is just a preference — always clamp server-side
+    // rather than trust it, same principle as withAuthenticatedActor() for
+    // game actions.
+    const initialBule = clamp(Number(payload?.initialBule), 50, 300, 100);
+    const refePerPlayer = clamp(Number(payload?.refePerPlayer), 0, 5, 2);
+    const room = createRoom({ initialBule, refePerPlayer });
     const seat = joinAsPlayer(room, userId, socket, name)!;
     ack?.({ code: room.code, seat });
     broadcastRoomState(room);

@@ -30,10 +30,15 @@ export interface RoomState {
   chatLog: ChatMessage[];
 }
 
-export function createRoomState(code: string): RoomState {
+export interface RoomOptions {
+  initialBule?: number;
+  refePerPlayer?: number;
+}
+
+export function createRoomState(code: string, options: RoomOptions = {}): RoomState {
   return {
     code,
-    game: new Game({ seed: Date.now() }),
+    game: new Game({ seed: Date.now(), ...options }),
     locked: false,
     seatUserIds: [null, null, null],
     seatNames: [null, null, null],

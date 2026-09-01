@@ -1,5 +1,5 @@
 import { createRoomState } from './RoomState.js';
-import type { RoomState } from './RoomState.js';
+import type { RoomState, RoomOptions } from './RoomState.js';
 import type { Position } from '../../../engine/dist/types.js';
 
 export type UserLocation =
@@ -24,9 +24,9 @@ function generateCode(): string {
   return code;
 }
 
-export function createRoom(): RoomState {
+export function createRoom(options?: RoomOptions): RoomState {
   const code = generateCode();
-  const room = createRoomState(code);
+  const room = createRoomState(code, options);
   roomsByCode.set(code, room);
   return room;
 }

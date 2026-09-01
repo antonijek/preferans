@@ -1674,7 +1674,9 @@ function renderRoomList(rooms) {
 // === ONLINE: sobe ===
 
 function createRoomOnline() {
-  onlineSocket.emit('room:create', {}, (res) => {
+  const initialBule = parseInt($('roomStartBula').value, 10);
+  const refePerPlayer = parseInt($('roomRefeCount').value, 10);
+  onlineSocket.emit('room:create', { initialBule, refePerPlayer }, (res) => {
     if (res.error) { $('roomError').textContent = res.error; return; }
     mySeat = res.seat;
     $('roomCodeInput').value = res.code;
