@@ -837,9 +837,11 @@ private checkBiddingEnd(): void {
 
   private getFirstPlayer(): Position {
     const game = this.state.declaredGame!;
-    // Sans specifican: pratilac levo od nosioca
+    // Sans specifican: pratilac levo od nosioca (RULES 8.1.3 — suprotno od
+    // 8.1.1). "Levo" u ovom engine-u je (winner + 1) % 3 — vidi isti "desno"
+    // = (winner + 2) % 3 konvenciju u startFollowDeclaring() i kontra redosledu.
     if (game === 'Sans' || game === 'Igra-Sans') {
-      const leftOfWinner = ((this.state.winner! + 2) % 3) as Position;
+      const leftOfWinner = ((this.state.winner! + 1) % 3) as Position;
       if (this.isPlayerActive(leftOfWinner)) return leftOfWinner;
       return this.nextActivePlayer(leftOfWinner);
     }
@@ -1000,15 +1002,17 @@ private checkBiddingEnd(): void {
     const supeDelta: [number, number, number] = [0, 0, 0];
     if (isBetl(declared)) {
       if (!passed) {
-        // Betl pad: fiksno 60/70 po pratiocu (RULES 9.4.1)
+        // Betl pad: fiksno 60/70 po pratiocu (RULES 9.4.1) — NAMERNO ide
+        // SVAKOM aktivnom pratiocu, ne samo kontrasu. Ovo je izuzetak od
+        // opsteg "kontras upisuje sve" pravila (9.4/6.3), koje vazi za
+        // standardne igre gde se supe racunaju po stvarnim stihovima. Betl
+        // je fiksna vrednost nevezana za stihove, pa oba pratioca vode
+        // sopstveni upis nezavisno od toga ko je dao kontru — potvrdjeno
+        // RULES.md "Pitanje 9 -> A" i nezavisno preferansklub.com ("pri
+        // padu na betl pratioci beleze po 60 supa", bez uslova o kontri).
         const fixed = calculateBetlSupa(declared, contraMultiplier, refeMultiplier);
         for (const f of activeFollowers) {
-          if (this.state.kontraPlayer === f || this.state.caller === null) {
-            supeDelta[f] += fixed;
-          } else if (this.state.caller === f) {
-            // Pozivalac dobija supe (ali pozvanog NE upisuje)
-            supeDelta[f] += fixed;
-          }
+          supeDelta[f] += fixed;
         }
       }
       // Betl prošao (0 stihova nosioca): RULES 9.4.1 — pratioci NE zaradjuju

@@ -888,6 +888,53 @@ test('e2e: Sans — kontra JE dozvoljena (RULES 6.9)', () => {
   assert.equal(ok, true);
 });
 
+test('e2e: Sans — prvi igrač je LEVO od nosioca (RULES 8.1.3, suprotno od 8.1.1)', () => {
+  const game = new Game({ seed: 1100 });
+  game.newHand(0);
+  game.bid(1, 2);
+  game.pass(2);
+  game.pass(0);
+  const hand = game.state.players[1]!.hand;
+  game.discard(1, [hand[0]!.id, hand[1]!.id]);
+  game.declareGame(1, 'Sans');
+  assert.equal(game.state.winner, 1);
+  game.follow(0, 'DODJEM');
+  game.follow(2, 'DODJEM');
+  assert.equal(game.state.phase, 'KONTRA_DECLARING');
+  // Niko ne da kontru — obojica kazu "Moze" da se predje na PLAYING.
+  game.moze(0);
+  game.moze(2);
+  assert.equal(game.state.phase, 'PLAYING');
+  // Levo od nosioca (winner=1) je (1+1)%3 = 2, NE (1+2)%3 = 0 (to je desno).
+  assert.equal(game.state.currentPlayer, 2, 'pratilac levo od nosioca kreće prvi u Sansu');
+});
+
+test('e2e: Betl — kontra: OBA pratioca upisuju fiksne supe, ne samo kontraš (RULES 9.4.1)', () => {
+  const game = new Game({ seed: 1000 });
+  game.newHand(0);
+  game.bid(1, 2);
+  game.pass(2);
+  game.pass(0);
+  const hand = game.state.players[1]!.hand;
+  game.discard(1, [hand[0]!.id, hand[1]!.id]);
+  game.declareGame(1, 'Betl');
+  assert.equal(game.state.phase, 'KONTRA_DECLARING');
+  game.kontra(0, 'KONTRA');
+  game.moze(1); // nosilac ne die rekontru
+  assert.equal(game.state.phase, 'PLAYING');
+
+  // Nosilac (P1) pada — uzeo bar 1 stih.
+  game.state.players[1]!.tricksWon = 2;
+  game.state.players[0]!.tricksWon = 5;
+  game.state.players[2]!.tricksWon = 3;
+  const result = game.endHand();
+
+  assert.equal(result.passed, false, 'nosilac pao');
+  // Fiksnih 60 × kontra(2) = 120, za OBA pratioca — ne samo za P0 (kontraš).
+  assert.equal(result.supeDelta[0], 120, 'kontraš (P0) upisuje 120 supe');
+  assert.equal(result.supeDelta[2], 120, 'drugi pratilac (P2) TAKOĐE upisuje 120 supe u Betlu — RULES 9.4.1 je izuzetak od opšteg "samo kontraš upisuje" pravila (9.4/6.3)');
+});
+
 test('e2e: Kompletna partija sa igrama do kraja', () => {
   const game = new Game({ seed: 1200 });
   game.newHand(0);
