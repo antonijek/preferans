@@ -983,6 +983,24 @@ function activeHandOwner(s) {
   if (mode !== '3human') return 0;
   if (s.phase === 'PLAYING') return s.currentPlayer;
   if (s.phase === 'BIDDING') return s.currentBidder;
+  if (s.phase === 'FOLLOW_DECLARING') {
+    // Ista logika kao renderFollowing() — prikazi ruku onoga ko TRENUTNO
+    // treba da odluci (Dodjem/Ne dodjem, pa Zovi/Igraj sam), ne uvek
+    // nosioca. Bag: ranije se ovde uvek vracao s.winner, pa je pratilac na
+    // potezu video tudju (nosiocevu) ruku umesto svoje.
+    const followers = [0, 1, 2].filter(p => p !== s.winner);
+    const undecided = followers.find(p => s.followChoices[p] === null);
+    if (undecided !== undefined) return undecided;
+    if (s.caller === null) {
+      const callerCandidate = followers.find(p => s.followChoices[p] === 'DODJEM');
+      if (callerCandidate !== undefined) return callerCandidate;
+    }
+    return s.winner;
+  }
+  if (s.phase === 'KONTRA_DECLARING') {
+    const expected = game.expectedKontraPlayerPublic();
+    if (expected !== null) return expected;
+  }
   return s.winner ?? s.currentBidder;
 }
 
