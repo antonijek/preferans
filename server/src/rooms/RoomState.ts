@@ -29,6 +29,8 @@ export interface RoomState {
   sockets: [Socket | null, Socket | null, Socket | null];
   spectators: Map<number, SpectatorInfo>; // keyed by userId
   chatLog: ChatMessage[];
+  abandonedSeat: Position | null;
+  frozenBula: number | null;
 }
 
 export interface RoomOptions {
@@ -47,5 +49,7 @@ export function createRoomState(code: string, options: RoomOptions = {}): RoomSt
     sockets: [null, null, null],
     spectators: new Map(),
     chatLog: [],
+    abandonedSeat: null,
+    frozenBula: null,
   };
 }

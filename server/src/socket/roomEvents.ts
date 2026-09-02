@@ -4,6 +4,7 @@ import {
   getRoomByCode,
   getUserLocation,
   setUserLocation,
+  clearUserLocation,
   listOpenRooms,
 } from '../rooms/RoomManager.js';
 import type { RoomState, ChatMessage } from '../rooms/RoomState.js';
@@ -14,6 +15,7 @@ import type { Viewer } from '../redact.js';
 import { applyAction, withAuthenticatedActor } from './gameEvents.js';
 import type { GameAction } from './gameEvents.js';
 import { listOnlineUsers } from '../presence.js';
+import { computeAiAction } from '../ai/aiSeat.js';
 
 type Ack = (response: Record<string, unknown>) => void;
 
@@ -67,6 +69,28 @@ function broadcastRoomState(room: RoomState): void {
       buildClientState(room, { type: 'spectator', kibicSeats: spectator.kibicSeats })
     );
   });
+  maybeDriveAiTurn(room);
+}
+
+// After a player leaves via game:leave, their seat is driven by the server
+// AI (server/src/ai/aiSeat.ts, a port of app.js's existing AI orchestration)
+// until this hand reaches a terminal phase — see plan "Leave Match With
+// Consequences". getLegalActions() (engine/src/game.ts) is re-read fresh on
+// every tick rather than captured in the closure: single-threaded Node means
+// nothing else mutates room.game between ticks, so a plain re-check is
+// enough to notice the hand ended without a separate staleness guard.
+function maybeDriveAiTurn(room: RoomState): void {
+  if (room.abandonedSeat === null) return;
+  const actions = room.game.getLegalActions();
+  if (actions.length === 0 || actions[0]!.player !== room.abandonedSeat) return;
+  setTimeout(() => {
+    if (room.abandonedSeat === null) return;
+    const freshActions = room.game.getLegalActions();
+    if (freshActions.length === 0 || freshActions[0]!.player !== room.abandonedSeat) return;
+    const action = computeAiAction(room.game, room.abandonedSeat);
+    if (action) applyAction(room.game, action);
+    broadcastRoomState(room);
+  }, 600);
 }
 
 /** Seats `userId` into `room`, reusing their existing seat if they already have one (rejoin). */
@@ -261,6 +285,49 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     }
 
     io.to(room.code).emit('chat:message', message);
+  });
+
+  // Explicit, permanent leave — distinct from `disconnect` below, which
+  // keeps the seat reserved indefinitely for reconnect. Leaving freezes the
+  // player's current bula, hands their seat to the server AI (aiSeat.ts)
+  // for the rest of THIS hand (online rooms only ever play one hand — see
+  // plan "Leave Match With Consequences" — so nothing further needs to be
+  // done once it ends), and frees the user to join/create a different room.
+  socket.on('game:leave', (_payload: unknown, ack?: Ack) => {
+    const room = currentRoom();
+    const loc = getUserLocation(userId);
+    if (!room || loc?.role !== 'player') {
+      ack?.({ error: 'Not seated in an active room' });
+      return;
+    }
+    if (room.game.state.phase === 'WAITING') {
+      ack?.({ error: 'Game has not started' });
+      return;
+    }
+    const seat = loc.seat;
+    const frozenBula = room.game.state.bulas[seat];
+    room.frozenBula = frozenBula;
+    room.abandonedSeat = seat;
+    room.seatNames[seat] = `${room.seatNames[seat] ?? name} (napustio)`;
+    room.sockets[seat] = null;
+    socket.leave(room.code);
+    clearUserLocation(userId);
+    ack?.({ frozenBula });
+
+    const message: ChatMessage = {
+      name: 'Sistem',
+      role: 'spectator',
+      seat: null,
+      text: `${name} je napustio partiju na buli ${frozenBula}. AI preuzima do kraja ove ruke.`,
+      ts: Date.now(),
+    };
+    room.chatLog.push(message);
+    if (room.chatLog.length > CHAT_LOG_LIMIT) {
+      room.chatLog.splice(0, room.chatLog.length - CHAT_LOG_LIMIT);
+    }
+    io.to(room.code).emit('chat:message', message);
+
+    broadcastRoomState(room);
   });
 
   socket.on('disconnect', () => {

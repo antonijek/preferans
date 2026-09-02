@@ -796,6 +796,15 @@
   }
   .kibic-request-banner button { width: auto; margin: 0; padding: 6px 12px; min-height: unset; }
 
+  .leave-confirm-banner {
+    position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+    background: #2b2f36; border: 2px solid #e05555; border-radius: 10px;
+    padding: 12px 16px; z-index: 500; display: flex; flex-direction: column; gap: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4); max-width: 320px; text-align: center;
+  }
+  .leave-confirm-banner .leave-confirm-actions { display: flex; gap: 10px; justify-content: center; }
+  .leave-confirm-banner button { width: auto; margin: 0; padding: 6px 14px; min-height: unset; }
+
   #kibicRequestPanel {
     position: fixed; top: 70px; right: 12px; z-index: 400;
     background: #2b2f36; border: 2px solid rgba(255,255,255,0.2); border-radius: 10px;
@@ -997,6 +1006,7 @@
   </div>
   <div class="top-actions">
     <button class="icon-btn" id="chatToggleBtn" onclick="toggleChat()" style="display:none">💬</button>
+    <button class="icon-btn" id="leaveMatchBtn" onclick="leaveMatch()" style="display:none" title="Napusti partiju">🏳️</button>
     <button class="icon-btn" onclick="toggleScore()">📊</button>
     <button class="icon-btn" onclick="restart()">🔄</button>
   </div>
@@ -1247,6 +1257,7 @@
   </div>
 </div>
 <div id="kibicBanners"></div>
+<div id="leaveConfirmBanners"></div>
 
 <!-- Online: chat -->
 <div class="chat-panel" id="chatScreen">
@@ -1272,6 +1283,7 @@
 
 <!-- Refe toast -->
 <div class="toast" id="refeToast" style="display:none">🤝 REFA! Svi rekli dalje — nova podela</div>
+<div class="toast" id="appToast" style="display:none"></div>
 
 <!-- Score / tabela modal -->
 <div class="screen" id="scoreScreen" onclick="if (event.target === this) toggleScore()">

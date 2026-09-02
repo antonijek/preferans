@@ -9,7 +9,9 @@
       "Bash(npm run test:ui)",
       "Bash(nslookup *)",
       "Bash(curl -s http://localhost:3001/api/health*)",
-      "Bash(curl -s https://pref.antonije.dev/api/health*)"
+      "Bash(curl -s https://pref.antonije.dev/api/health*)",
+      "Bash(netstat *)",
+      "Bash(tasklist *)"
     ]
   }
 }

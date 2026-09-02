@@ -1609,6 +1609,7 @@ async function connectOnlineSocket() {
       $('roomScreen').classList.remove('active');
       $('setupScreen').classList.remove('active');
       $('chatToggleBtn').style.display = '';
+      $('leaveMatchBtn').style.display = '';
       document.querySelector('.top-actions [onclick="restart()"]')?.style.setProperty('display', 'none');
       stopRoomListPolling();
       renderSeats();
@@ -1645,6 +1646,7 @@ function backToSetup() {
   $('roomScreen').classList.remove('active');
   $('chatScreen').classList.remove('open');
   $('chatToggleBtn').style.display = 'none';
+  $('leaveMatchBtn').style.display = 'none';
   $('kibicRequestPanel').style.display = 'none';
   $('setupScreen').classList.add('active');
 }
@@ -1676,6 +1678,7 @@ function logoutOnline() {
   $('roomScreen').classList.remove('active');
   $('chatScreen').classList.remove('open');
   $('chatToggleBtn').style.display = 'none';
+  $('leaveMatchBtn').style.display = 'none';
   $('kibicRequestPanel').style.display = 'none';
   $('loginEmail').value = '';
   $('loginName').value = '';
@@ -1847,6 +1850,64 @@ function showKibicRequestBanner(spectatorUserId, name) {
   $('kibicBanners').appendChild(banner);
 }
 
+// === ONLINE: napusti partiju ===
+
+// Korisnikov zahtev: mora da moze da napusti partiju usred igre i "snosi
+// posledice" — ostaje zamrznut na trenutnoj buli, AI (server/src/ai/aiSeat.ts,
+// ista logika kao AI ovde u app.js) preuzima njegovo mesto do kraja RUKE
+// (online sobe i inace igraju samo jednu ruku, vidi server plan — nista
+// dalje se ne nastavlja posle nje). Isti plain-DOM banner obrazac kao kibic
+// zahtev (showKibicRequestBanner) — bez native confirm()/alert(), app ih
+// nigde ne koristi.
+function leaveMatch() {
+  if (mode !== 'online' || !onlineSocket || mySeat === null) return;
+  const myBula = game.state?.bulas?.[mySeat];
+  const bulaText = typeof myBula === 'number' ? `Ostaješ zamrznut na buli ${myBula}. ` : '';
+
+  const banner = document.createElement('div');
+  banner.className = 'leave-confirm-banner';
+  const span = document.createElement('span');
+  span.textContent = `Sigurno želiš da napustiš partiju? ${bulaText}AI preuzima tvoje mesto do kraja ove ruke.`;
+  banner.appendChild(span);
+  const actions = document.createElement('div');
+  actions.className = 'leave-confirm-actions';
+  const confirmBtn = document.createElement('button');
+  confirmBtn.id = 'leaveConfirmBtn';
+  confirmBtn.className = 'bid-btn danger';
+  confirmBtn.textContent = 'Napusti';
+  confirmBtn.onclick = () => { banner.remove(); doLeaveMatch(); };
+  const cancelBtn = document.createElement('button');
+  cancelBtn.id = 'leaveCancelBtn';
+  cancelBtn.className = 'bid-btn';
+  cancelBtn.textContent = 'Odustani';
+  cancelBtn.onclick = () => banner.remove();
+  actions.appendChild(confirmBtn);
+  actions.appendChild(cancelBtn);
+  banner.appendChild(actions);
+  $('leaveConfirmBanners').appendChild(banner);
+}
+
+function showAppToast(text) {
+  const toast = $('appToast');
+  toast.textContent = text;
+  toast.style.display = 'block';
+  clearTimeout(showAppToast._t);
+  showAppToast._t = setTimeout(() => { toast.style.display = 'none'; }, 3500);
+}
+
+function doLeaveMatch() {
+  onlineSocket.emit('game:leave', {}, (res) => {
+    if (res?.error) { console.warn('[online] game:leave odbijen:', res.error); return; }
+    document.body.classList.remove('online-in-game');
+    $('leaveMatchBtn').style.display = 'none';
+    $('chatToggleBtn').style.display = 'none';
+    $('chatScreen').classList.remove('open');
+    mySeat = null;
+    goToHomeScreen();
+    showAppToast(`Napustio si partiju na buli ${res.frozenBula}.`);
+  });
+}
+
 // === ONLINE: chat ===
 
 function toggleChat() {
@@ -1912,6 +1973,7 @@ window.refreshRoomList = refreshRoomList;
 window.requestKibicOnline = requestKibicOnline;
 window.toggleChat = toggleChat;
 window.sendChatOnline = sendChatOnline;
+window.leaveMatch = leaveMatch;
 
 // INIT
 renderSeats();
