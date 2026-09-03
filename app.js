@@ -12,6 +12,103 @@ import {
   choosePlayCard as aiChoosePlayCard,
 } from './engine/dist/ai.js';
 
+// === ZVUCNI EFEKTI ===
+// Sve procedurulno generisano preko Web Audio API (osciloatori + kratke
+// gain-envelope, plus filtrirani "noise burst" za sustanje karata) — bez
+// spoljnih audio fajlova, radi offline, nema licenciranja. AudioContext se
+// pravi/nastavlja tek na PRVI klik (browser autoplay politika), sto se
+// prirodno desava jer je delegacija klika na dugmad ionako prvi trag
+// korisnicke interakcije.
+const sfx = (() => {
+  let ctx = null;
+  let muted = localStorage.getItem('prefSoundMuted') === '1';
+  function getCtx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+  function tone(freq, duration, { type = 'sine', gain = 0.12, delay = 0 } = {}) {
+    if (muted) return;
+    try {
+      const c = getCtx();
+      const osc = c.createOscillator();
+      const g = c.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, c.currentTime + delay);
+      g.gain.setValueAtTime(0, c.currentTime + delay);
+      g.gain.linearRampToValueAtTime(gain, c.currentTime + delay + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + delay + duration);
+      osc.connect(g).connect(c.destination);
+      osc.start(c.currentTime + delay);
+      osc.stop(c.currentTime + delay + duration + 0.03);
+    } catch { /* AudioContext moze biti blokiran/nedostupan — tisina je bezbedan fallback */ }
+  }
+  function noiseBurst(duration, { gain = 0.09, delay = 0, filterFreq = 2200 } = {}) {
+    if (muted) return;
+    try {
+      const c = getCtx();
+      const size = Math.max(1, Math.floor(c.sampleRate * duration));
+      const buffer = c.createBuffer(1, size, c.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < size; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / size);
+      const src = c.createBufferSource();
+      src.buffer = buffer;
+      const filter = c.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = filterFreq;
+      const g = c.createGain();
+      g.gain.setValueAtTime(gain, c.currentTime + delay);
+      src.connect(filter).connect(g).connect(c.destination);
+      src.start(c.currentTime + delay);
+    } catch { /* isto kao gore */ }
+  }
+  return {
+    click() { tone(680, 0.045, { type: 'square', gain: 0.05 }); },
+    cardPlay() {
+      noiseBurst(0.08, { gain: 0.11, filterFreq: 2600 });
+      tone(280, 0.05, { type: 'triangle', gain: 0.05, delay: 0.01 });
+    },
+    deal() {
+      // Kratka serija "tickova" — simulira deljenje karata jedne po jedne.
+      for (let i = 0; i < 6; i++) {
+        noiseBurst(0.035, { gain: 0.07, filterFreq: 3800, delay: i * 0.05 });
+      }
+    },
+    talon() {
+      tone(440, 0.12, { type: 'sine', gain: 0.08 });
+      tone(660, 0.16, { type: 'sine', gain: 0.06, delay: 0.06 });
+    },
+    win() {
+      [523, 659, 784].forEach((f, i) => tone(f, 0.18, { type: 'sine', gain: 0.07, delay: i * 0.09 }));
+    },
+    toggleMuted() {
+      muted = !muted;
+      localStorage.setItem('prefSoundMuted', muted ? '1' : '0');
+      return muted;
+    },
+    isMuted() { return muted; },
+  };
+})();
+
+// Delegacija na SVAKI klik dugmeta u celom dokumentu — pokriva bidding,
+// discard, follow/kontra, chat, sobe, admin panel i sve buduce dugmad, bez
+// potrebe da se svaki onclick pojedinacno menja (korisnikov zahtev "svako
+// dugme, na sve").
+document.addEventListener('click', (e) => {
+  if (e.target.closest && e.target.closest('button')) sfx.click();
+}, true);
+
+function toggleSound() {
+  const muted = sfx.toggleMuted();
+  const btn = $('soundToggleBtn');
+  if (btn) btn.textContent = muted ? '🔇' : '🔊';
+}
+window.toggleSound = toggleSound;
+{
+  const btn = document.getElementById('soundToggleBtn');
+  if (btn && sfx.isMuted()) btn.textContent = '🔇';
+}
+
 const POS_LABELS_LOCAL = ['Jug', 'Istok', 'Zapad'];
 // POS_LABELS[pos] je korisceno na 30+ mesta kroz ceo fajl (banner ugovora,
 // rezultat ruke, tabela, poslednji stih, chat...) — umesto da se svako od
@@ -189,6 +286,32 @@ function checkRefeToast() {
     showToast(`🔁 ${POS_LABELS[game.state.lastHandResult?.refeConsumed ?? 0]} koristi refu — bule/supe ×2`);
   }
   lastRefeSum = sum;
+}
+
+// Zvuk za deljenje/bacanje/talon prati promene STANJA (faza/currentTrick
+// duzina/talon vidljivost) umesto da se kaci na svaki pojedinacni poziv koji
+// bi mogao da ih izazove (userPlayCard, aiPlayTurn, socket:room-state za
+// online...) — jedno mesto istine, radi identicno u sva tri moda (lokalni,
+// AI, online) jer render() se zove posle SVAKE promene stanja bilo gde.
+// NAPOMENA: state.round se NIKAD ne menja posle initState() (uvek 1) pa nije
+// upotrebljivo kao signal — umesto toga, prelazak U 'BIDDING' iz BILO koje
+// druge faze pouzdano znaci "upravo je podeljena nova ruka" (newHand() je
+// jedino mesto koje postavlja fazu na BIDDING).
+let soundSnapshot = { phase: null, trickLen: 0, talonVisible: false };
+function updateSoundEffects() {
+  const s = game.state;
+  const trickLen = s.currentTrick.length;
+  const talonVisible = !!$('talonCenter') && $('talonCenter').style.display !== 'none';
+
+  if (s.phase === 'BIDDING' && soundSnapshot.phase !== 'BIDDING') {
+    sfx.deal();
+  } else if (trickLen > soundSnapshot.trickLen) {
+    sfx.cardPlay();
+  }
+  if (talonVisible && !soundSnapshot.talonVisible) {
+    sfx.talon();
+  }
+  soundSnapshot = { phase: s.phase, trickLen, talonVisible };
 }
 
 const $ = id => document.getElementById(id);
@@ -1054,6 +1177,7 @@ function render() {
   updateTableWatermark();
   recordHandIfNew();
   checkRefeToast();
+  updateSoundEffects();
   if ($('scoreScreen').classList.contains('active')) renderScoreContent();
 
   if (game.state.phase === 'DISCARDING') renderDiscarding();
