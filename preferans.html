@@ -6,7 +6,16 @@
 <meta name="theme-color" content="#1b5e20">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Preferans</title>
+<title>Preferans online — igraj sa drugarima uživo</title>
+<meta name="description" content="Preferans online — igraj klasičan srpski preferans uživo sa drugarima ili protiv AI-ja. Besplatno, bez instalacije, radi u browseru na telefonu i računaru.">
+<link rel="canonical" href="https://pref.antonije.dev/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Preferans online">
+<meta property="og:title" content="Preferans online — igraj sa drugarima uživo">
+<meta property="og:description" content="Igraj klasičan srpski preferans uživo sa drugarima ili protiv AI-ja, besplatno u browseru.">
+<meta property="og:url" content="https://pref.antonije.dev/">
+<meta name="twitter:card" content="summary">
+<meta name="google-site-verification" content="A16DW9m3rfUU1y6BnYPEvRZW3trHAzxqau8K0kKT1Jw" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
@@ -989,6 +998,16 @@
     .card .suit { font-size: 1.1em; }
     .bid-btn { padding: 5px 10px; min-height: 28px; font-size: 0.85em; }
     .bid-log { padding: 2px 6px; min-height: 18px; font-size: 0.75em; }
+    /* .trick-slot je fiksno 68x92 u baznom CSS-u (podesavano za znatno
+       vecu .table-felt visinu) — na ovako niskom feltu (min-height:130px)
+       to gura Jug-ovu odigranu kartu (#slot-south, bottom:42%) da se
+       preklapa sa Jug-ovim sedistem ispod (#seat-south, bottom:6px) —
+       otkriveno mobilnim retestom, potvrdjeno merenjem getBoundingClientRect
+       (slot.bottom=221px > seat.top=202px). Manja karta + slot pomeren
+       nize (bottom:30% umesto 42%) uklanja preklapanje bez diranja baznog
+       (portrait/desktop) pozicioniranja koje je vec fino podeseno. */
+    .trick-slot { width: 44px; height: 60px; }
+    #slot-south { bottom: 60%; }
   }
 </style>
 </head>
