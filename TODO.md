@@ -1,6 +1,64 @@
 # TODO — Preferans projekat
 
-## 🟢 PREDAJA NOVOJ SESIJI (2026-08-31) — PROČITAJ OVO PRVO. Sledeći fokus: BACKEND.
+## 🟢 PREDAJA NOVOJ SESIJI (2026-09-03) — PROČITAJ OVO PRVO
+
+**Ovaj fajl je bio zastareo od 2026-08-31** — sve ispod ("Sledeći fokus:
+BACKEND", FAZA 4/5 kao TODO) je u međuvremenu ZAVRŠENO preko više sesija
+koje nisu ažurirale ovaj fajl. Stvarno stanje:
+
+**Live multiplayer backend POSTOJI i radi** na `https://pref.antonije.dev`
+(VPS `213.199.32.240`, Node/Express/Socket.IO u `server/`, pm2 proces
+`pref-server`): auth (register/login), sobe (kod za pridruživanje,
+zaključavanje), real-time sinhronizacija stanja, chat, spectators/kibic,
+admin panel (korisnici + žive sobe), "Napusti partiju" (igrač izađe
+usred ruke, server-side AI `server/src/ai/aiSeat.ts` preuzima njegovo
+mesto do kraja ruke), zvučni efekti (deljenje/bacanje/talon/dugmad).
+
+**Deploy pipeline**: commit+push na `origin/main` → SSH na VPS (SSH deploy
+key, ne HTTPS — vidi memoriju) → `git pull` → **ako je menjan `engine/src/`,
+MORA `cd engine && npm run build` PRE `cd server && npm run build`**
+(`engine/dist/` je gitignore-ovan, server ga cita direktno preko relativne
+putanje, tih propust bi ostavio server da radi sa STARIM engine kodom bez
+ikakve greske) → `pm2 restart pref-server` → health-check
+`curl https://pref.antonije.dev/api/health`.
+
+**Testiranje**: `cd engine && npm test` → **188/188**. `npm run
+test:ui:multi -- N` (root) radi u OVOM sandbox-u samo do ~N=35-40 pre nego
+sto Chromium puca (environment limit, ne bag) — za veci broj partija
+pokreni vise paketa od po 35 i saberi rezultate.
+
+**2026-09-02→03 sesija, ukratko** (dug live rad, autonomno noćno
+odobrenje i dalje na snazi ako korisnik ponovi):
+1. "Napusti partiju" — implementirano, uzivo testirano na produkciji, deployovano.
+2. Pun engine audit naspram RULES.md/REFERENTNI_PRIMERI.md (subagent) +
+   sat vremena fuzz-testiranje (subagent, ~600k+ nasumicnih partija) —
+   pronadjeno i popravljeno UKUPNO 3 stvarna buga: (a) Sans/Igra-Sans je
+   krenuo od pogresnog igraca (bio "desno" umesto "levo" od nosioca), (b)
+   `getLegalActions()` je nudio Mogu/BID posle "Igra" iako ih `bid()`
+   tiho odbija, (c) `state.lastHandResult` ostajao zastareo posle
+   ponistene (redeal) ruke na 3 mesta. Istrazeno i NIJE bio bug: Betl+kontra
+   gde OBA pratioca upisuju fiksne supe — to je namerno, RULES.md 9.4.1.
+3. Bag u "Vi na sve 3" test modu — tokom licitacije/Dodjem-NeDodjem/kontre
+   je prikazivao rucicu nosioca umesto igraca na potezu. Popravljeno.
+4. Zvucni efekti dodati (deljenje/bacanje/talon/svako dugme), Web Audio
+   API, bez spoljnih fajlova, sa mute dugmetom.
+
+**Nije jos urađeno / otvoreno za sledeću sesiju** (nema eksplicitnog
+zahteva od korisnika trenutno, treba pitati pri sledećem javljanju):
+- FAZA 3 stavke iz starog roadmapa nikad nisu formalno zatvorene: PWA
+  manifest/service worker (instalacija na telefon), dodatni vizuelni
+  efekti/animacije van onoga sto je vec uradjeno.
+- FAZA 5: ranking/statistika/achievements/dnevne igre — nikad ni započeto.
+- `server/src/ai/aiSeat.ts` (server AI za napustenu partiju) koristi istu
+  heuristiku kao app.js-ov klijentski AI — moglo bi se poboljsati nezavisno
+  od toga, ako se pokaze kao potreba.
+- Mobilni layout je poslednji put eksplicitno testiran/dorađivan tokom
+  UI-polish kruga (vidi predaju ispod od 2026-08-30/31) — nije re-testiran
+  posle backend/leave-match/zvuk promena ove sesije.
+
+---
+
+## 🟡 STARIJA PREDAJA (2026-08-31) — istorijski kontekst, FAZA 4/5 su otad ZAVRŠENE (vidi predaju iznad)
 
 **Stanje**: `cd engine && npm test` → **184/184**. `npm run test:ui:multi -- 20`
 (iz root-a) → **20/20 čisto**. Sve komitovano i pushovano na `origin/main`
