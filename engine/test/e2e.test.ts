@@ -888,6 +888,28 @@ test('e2e: Sans — kontra JE dozvoljena (RULES 6.9)', () => {
   assert.equal(ok, true);
 });
 
+test('e2e: getLegalActions() ne nudi Mogu/BID posle "Igra" (RULES 3.4/3.4.1) — fuzz-otkriven bag', () => {
+  const game = new Game({ seed: 1 });
+  game.newHand(0);
+  const first = game.state.currentBidder;
+  assert.equal(game.sayIgra(first), true);
+  const actions = game.getLegalActions();
+  const types = actions.map(a => a.type);
+  assert.ok(!types.includes('bid'), 'BID ne sme biti ponudjen dok je numericka licitacija zamrznuta (igraPlayer !== null)');
+  assert.ok(!types.includes('mogu'), 'MOGU ne sme biti ponudjen dok je numericka licitacija zamrznuta');
+  assert.ok(types.includes('pass'), 'PASS ostaje uvek dozvoljen');
+});
+
+test('e2e: lastHandResult se resetuje na null kad SVI kazu "dalje" bez ijedne licitacije (RULES 7.1 slucaj 1)', () => {
+  const game = new Game({ seed: 2 });
+  game.newHand(0);
+  game.state.lastHandResult = { bulas: [90, 100, 110], supeDelta: [0, 0, 0], passed: true, winner: 0, winnerGame: 'Karo', kontraLevel: null, refeConsumed: null, refeActive: false, bulasAfter: [90, 100, 110] };
+  game.pass(game.state.currentBidder);
+  game.pass(game.state.currentBidder);
+  game.pass(game.state.currentBidder);
+  assert.equal(game.state.lastHandResult, null, 'refe/redeal posle "svi dalje" ne sme ostaviti stari lastHandResult');
+});
+
 test('e2e: Sans — prvi igrač je LEVO od nosioca (RULES 8.1.3, suprotno od 8.1.1)', () => {
   const game = new Game({ seed: 1100 });
   game.newHand(0);

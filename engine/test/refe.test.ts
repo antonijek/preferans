@@ -231,6 +231,9 @@ test('refe: Pik bez kontre + nosilac ima slobodnu refu → dodela SVA TRI igrač
   game.declareGame(1, 'Pik');
   game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
+  // Simuliraj "stale" lastHandResult od neke ranije, stvarno odigrane ruke —
+  // ponistena ruka NE sme ostaviti ovo netaknuto (fuzz-otkriven bag).
+  game.state.lastHandResult = { bulas: [90, 100, 110], supeDelta: [0, 0, 0], passed: true, winner: 0, winnerGame: 'Karo', kontraLevel: null, refeConsumed: null, refeActive: false, bulasAfter: [90, 100, 110] };
   game.moze(0);
   game.moze(2);
   // Refa se okida (isti mehanizam kao "svi kazu dalje"), nova ruka, bule
@@ -238,6 +241,7 @@ test('refe: Pik bez kontre + nosilac ima slobodnu refu → dodela SVA TRI igrač
   assert.equal(game.state.phase, 'BIDDING');
   assert.equal(game.state.refeCount.join(','), '0,0,0');
   assert.equal(game.state.refePending.join(','), '1,1,1');
+  assert.equal(game.state.lastHandResult, null, 'ponistena ruka ne sme ostaviti stari lastHandResult');
 });
 
 test('refe: Pik bez kontre, nosilac bez slobodnog budžeta, niko u šeširu → ruka se poništava, BEZ dodele (RULES 7.1.1)', () => {
@@ -252,12 +256,14 @@ test('refe: Pik bez kontre, nosilac bez slobodnog budžeta, niko u šeširu → 
   game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
   const bulasBefore = [...game.state.bulas];
+  game.state.lastHandResult = { bulas: [90, 100, 110], supeDelta: [0, 0, 0], passed: true, winner: 0, winnerGame: 'Karo', kontraLevel: null, refeConsumed: null, refeActive: false, bulasAfter: [90, 100, 110] };
   game.moze(0);
   game.moze(2);
   assert.equal(game.state.phase, 'BIDDING'); // nova ruka
   assert.equal(game.state.refeCount.join(','), '0,0,0');
   assert.equal(game.state.refePending.join(','), '0,0,0', 'refePerPlayer=0 -> niko nema budzeta, nema dodele');
   assert.deepEqual(game.state.bulas, bulasBefore);
+  assert.equal(game.state.lastHandResult, null, 'ponistena ruka ne sme ostaviti stari lastHandResult');
 });
 
 test('refe: refeCount per-player konfigurabilan', () => {

@@ -460,6 +460,10 @@ private checkBiddingEnd(): void {
     this.state.refeOccurred = true;
     // Ako neko u šeširu — refe se ne važi, samo game over
     const anyInHat = this.state.bulas.some(b => b < 0);
+    // Nijedna grana ovde stvarno ne boduje rundu (niko nije ni licitirao) —
+    // lastHandResult eksplicitno na null da ne ostane "zaglavljen" na
+    // poslednjem pravom rezultatu (ista klasa problema kao handleUnplayedHand).
+    this.state.lastHandResult = null;
     if (anyInHat) {
       this.state.phase = 'GAME_OVER';
       return;
@@ -509,11 +513,17 @@ private checkBiddingEnd(): void {
     if (this.state.refeCount[declarer]! + this.state.refePending[declarer]! < this.refePerPlayer) {
       this.state.refeOccurred = true;
       this.awardRefeToAll();
+      // Ruka je ponistena, ne bodovana — lastHandResult NE sme ostati stara
+      // vrednost prethodne (stvarno odigrane) ruke. newHand() ovo polje ne
+      // dira, pa bi bez eksplicitnog null-a ostalo "zaglavljeno" na
+      // poslednjem pravom rezultatu (uhvaceno fuzz-testiranjem).
+      this.state.lastHandResult = null;
       this.newHand(this.state.dealer);
       return;
     }
     // Nosilac nema slobodan budžet, niko u seširu — ruka se poništava, bez
     // promene bula i bez dodele (RULES 7.2).
+    this.state.lastHandResult = null;
     this.newHand(this.state.dealer);
   }
 
@@ -1177,13 +1187,21 @@ private checkBiddingEnd(): void {
         const moguEligible = bidLevel > 0 && s.currentBid > bidLevel;
         // PASS je uvek dozvoljen
         actions.push({ type: 'pass', player, label: 'Dalje' });
+        // Kad je neko vec rekao "Igra", numericka licitacija je ZAMRZNUTA
+        // (RULES 3.4/3.4.1, ista provera kao bid()'s `igraPlayer !== null`
+        // guard) — preostali igraci smeju SAMO "dalje" ili konkurisati
+        // svojom Igra, nikad Mogu/BID. Bez ovoga getLegalActions() je nudio
+        // Mogu/BID dugmad koje bi bid() interno cutke odbio (vratio false) —
+        // uhvaceno fuzz-testiranjem (nasumicna legalna akcija je birala
+        // "legalan" bid koji je zapravo bio no-op).
+        const numericBidFrozen = s.igraPlayer !== null;
         // SAMO JEDAN igrac sme potvrditi (Mogu) datu vrednost — ako je NEKO
         // VEC potvrdio, ova opcija nestaje za sve ostale (potvrdjeno
         // direktno, vise puta od korisnika).
         const alreadyConfirmedByMogu = s.bids.some(
           b => b.type === 'MOGU' && b.value === s.currentBid,
         );
-        if (moguEligible && !alreadyConfirmedByMogu) {
+        if (!numericBidFrozen && moguEligible && !alreadyConfirmedByMogu) {
           actions.push({ type: 'mogu', player, value: s.currentBid, label: `Mogu ${s.currentBid}` });
         }
         // BID X — dozvoljeno kad igrac NIJE Mogu-eligible (drzi vrh ili jos
@@ -1192,7 +1210,7 @@ private checkBiddingEnd(): void {
         // igrac je ostajao zaglavljen SAMO sa "Dalje" (bez ikakve opcije
         // podizanja) cim bi mu Mogu slot bio zauzet, iako je imao dovoljno
         // jaku ruku za legitimno podizanje na sledecu vrednost.
-        if (!moguEligible || alreadyConfirmedByMogu) {
+        if (!numericBidFrozen && (!moguEligible || alreadyConfirmedByMogu)) {
           const nextBid = Math.max(2, s.currentBid + 1);
           if (nextBid <= 7) {
             actions.push({ type: 'bid', player, value: nextBid, label: `${nextBid}` });
