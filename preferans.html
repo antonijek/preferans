@@ -6,6 +6,11 @@
 <meta name="theme-color" content="#1b5e20">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Preferans">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <title>Preferans online — igraj sa drugarima uživo</title>
 <meta name="description" content="Preferans online — igraj klasičan srpski preferans uživo sa drugarima ili protiv AI-ja. Besplatno, bez instalacije, radi u browseru na telefonu i računaru.">
 <link rel="canonical" href="https://pref.antonije.dev/">
@@ -517,7 +522,14 @@
     z-index: 50 !important;
   }
   .hand-area .card + .card { margin-left: -16px; }
-  .card.selected { box-shadow: 0 0 0 3px #ffeb3b, 0 0 12px rgba(255,235,59,0.6); }
+  /* Zeleno umesto zuto (korisnikov zahtev, doslednije sa .playable ivicom
+     ispod) + podignute gore preko translateY, iznad baznog --lift-a iz
+     applyHandFan-a da se lepezasta rotacija/preklapanje ne izgubi. */
+  .card.selected { box-shadow: 0 0 0 3px #4caf50, 0 0 12px rgba(76,175,80,0.6); }
+  .hand-area .card.selected {
+    transform: rotate(var(--rot, 0deg)) translateY(calc(var(--lift, 0px) - 16px));
+    z-index: 20;
+  }
   /* opacity je ovde pravio "crtu" preko karte — kod preklopljenih
      (lepezastih) karata u ruci, ivica/senka SUSEDNE nadmocnije (neprozirne)
      karte je providela KROZ providnu zabranjenu kartu na mestu preklapanja.

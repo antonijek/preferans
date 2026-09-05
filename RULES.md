@@ -424,17 +424,17 @@ Pravilo zavisi od tipa igre:
 
 ### 8.1.1 Standardne igre (Pik, Karo, Herc, Tref, Igra-Pik, Igra-Karo, Igra-Herc, Igra-Tref)
 
-- **Prvi igrač je onaj koji je prvi licitirao** u krugu (obično P1).
-- **Ako taj igrač ne igra** (nije pobedio u licitaciji), prvi igra **igrač sa njegove desne strane**.
+- **Prvi igrač je onaj koji je prvi licitirao** u krugu (obično P1), bez obzira da li je on nosilac ili ne.
+- **Ako taj igrač ne učestvuje u ovoj rundi** (npr. nije pobedio u licitaciji I nije ni pozvan kao pozvani NE_DODJEM pratilac), prvi igra **onaj ko je licitirao ODMAH POSLE njega** (isti smer kao redosled licitiranja/bacanja karata — Jug→Istok→Zapad→Jug, potvrđeno uživo od korisnika 2026-09-04; ispravljeno sa ranijeg pogrešnog "desne strane" — to je bila greška u formulaciji dokumenta, kod je oduvek ispravno koristio ovaj smer).
 
 ### 8.1.2 Betl i Igra-Betl
 
-- Isto kao 8.1.1 (prvo licitirao, ako ne igra onda desni od njega).
+- Isto kao 8.1.1 (prvo licitirao, ako ne učestvuje onda sledeći posle njega u redosledu licitiranja).
 
 ### 8.1.3 Sans i Igra-Sans
 
-- **Prvi igrač je uvek pratilac sa leve strane nosioca** (suprotno od pravila 8.1.1).
-- Ovo je specifično pravilo za sans.
+- **Prvi igrač je UVEK pratilac koji sledi neposredno posle nosioca u redosledu bacanja** (Jug→Istok→Zapad→Jug), bez obzira da li oba pratioca prate normalno ili je jedan pozvao drugog — "igra se kroz nosioca", nosilac je u sredini između druga dva poteza u toj rundi, što mu otežava igru.
+- Razlika od 8.1.1/8.1.2 nije u SMERU (isti je) nego u REFERENTNOJ TAČKI: 8.1.1/8.1.2 gledaju ko je bio PRVI da licitira (bidStartPlayer), a 8.1.3 uvek gleda ko sledi posle STVARNOG NOSIOCA (winner), bez obzira ko je prvi licitirao.
 
 ## 8.2 Pravila štiha
 

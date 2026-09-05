@@ -69,9 +69,13 @@ const sfx = (() => {
       tone(280, 0.05, { type: 'triangle', gain: 0.05, delay: 0.01 });
     },
     deal() {
-      // Kratka serija "tickova" — simulira deljenje karata jedne po jedne.
-      for (let i = 0; i < 6; i++) {
-        noiseBurst(0.035, { gain: 0.07, filterFreq: 3800, delay: i * 0.05 });
+      // Naglaseniji zvuk (korisnikov zahtev — prethodna verzija se gubila u
+      // brzim AI potezima, "ne cuje se zvuk deljenja za novu rundu"): dublji
+      // ton na pocetku da najavi "nova ruka" pre same serije tickova, vise
+      // tickova/glasnije/duze da ostane primetno i kad se odigra brzo.
+      tone(180, 0.09, { type: 'sine', gain: 0.1 });
+      for (let i = 0; i < 8; i++) {
+        noiseBurst(0.045, { gain: 0.1, filterFreq: 3800, delay: 0.05 + i * 0.06 });
       }
     },
     talon() {
@@ -130,6 +134,15 @@ const POS_LABELS = new Proxy(POS_LABELS_LOCAL, {
     return target[prop];
   },
 });
+// PWA: registruje service worker (sw.js) za instalaciju + offline rad
+// lokalnih (3ai/1v2/3human) modova. Online mod i dalje zahteva mrezu (sw.js
+// namerno propusta /api/ i /socket.io/ direktno na mrezu, ne kesira ih).
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
 const SUIT_NAMES = { '♠': 'Pik', '♥': 'Herc', '♦': 'Karo', '♣': 'Tref' };
 const SUIT_GLYPH = { '♠': '♠', '♥': '♥', '♦': '♦', '♣': '♣' };
 const RANK_ORDER = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
@@ -294,16 +307,23 @@ function checkRefeToast() {
 // online...) — jedno mesto istine, radi identicno u sva tri moda (lokalni,
 // AI, online) jer render() se zove posle SVAKE promene stanja bilo gde.
 // NAPOMENA: state.round se NIKAD ne menja posle initState() (uvek 1) pa nije
-// upotrebljivo kao signal — umesto toga, prelazak U 'BIDDING' iz BILO koje
-// druge faze pouzdano znaci "upravo je podeljena nova ruka" (newHand() je
-// jedino mesto koje postavlja fazu na BIDDING).
-let soundSnapshot = { phase: null, trickLen: 0, talonVisible: false };
+// upotrebljivo kao signal. Prelazak U 'BIDDING' iz BILO koje druge faze
+// hvata VECINU novih deljenja (newHand() je jedino mesto koje postavlja
+// fazu na BIDDING) — ALI kad SVI kazu "dalje" bez ijedne licitacije (RULES
+// 7.1 slucaj 1, handleRefe()), faza NIKAD ne napusta 'BIDDING' (ostaje
+// BIDDING kroz sva 3 "dalje" I kroz redeal), pa taj prelaz ne hvata nista —
+// korisnikov uzivo prijavljen bag ("ne cuje se zvuk deljenja za novu
+// rundu"). Drugi signal (s.bids se resetuje na [] pri SVAKOM newHand())
+// hvata bas taj slucaj — kombinacija oba pokriva sve puteve ka novoj ruci.
+let soundSnapshot = { phase: null, trickLen: 0, talonVisible: false, bidsLen: 0 };
 function updateSoundEffects() {
   const s = game.state;
   const trickLen = s.currentTrick.length;
   const talonVisible = !!$('talonCenter') && $('talonCenter').style.display !== 'none';
+  const enteredBidding = s.phase === 'BIDDING' && soundSnapshot.phase !== 'BIDDING';
+  const bidsCleared = s.bids.length === 0 && soundSnapshot.bidsLen > 0;
 
-  if (s.phase === 'BIDDING' && soundSnapshot.phase !== 'BIDDING') {
+  if (enteredBidding || bidsCleared) {
     sfx.deal();
   } else if (trickLen > soundSnapshot.trickLen) {
     sfx.cardPlay();
@@ -311,7 +331,7 @@ function updateSoundEffects() {
   if (talonVisible && !soundSnapshot.talonVisible) {
     sfx.talon();
   }
-  soundSnapshot = { phase: s.phase, trickLen, talonVisible };
+  soundSnapshot = { phase: s.phase, trickLen, talonVisible, bidsLen: s.bids.length };
 }
 
 const $ = id => document.getElementById(id);
