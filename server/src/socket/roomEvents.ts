@@ -171,7 +171,12 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     // rather than trust it, same principle as withAuthenticatedActor() for
     // game actions.
     const initialBule = clamp(Number(payload?.initialBule), 50, 300, 100);
-    const refePerPlayer = clamp(Number(payload?.refePerPlayer), 0, 5, 2);
+    // Max refe zavisi od bule (RULES 7.2: "2 refea za 100 bula" je
+    // podrazumevana razmera) — korisnikov zahtev, ne sme se partija od 50
+    // bula podesiti na 5 refea preko klijenta cak i ako HTML input to
+    // dozvoli/ne stigne da klampuje na vreme.
+    const refeMax = Math.max(1, Math.min(5, Math.round(initialBule / 50)));
+    const refePerPlayer = clamp(Number(payload?.refePerPlayer), 0, refeMax, Math.min(2, refeMax));
     const room = createRoom({ initialBule, refePerPlayer });
     const seat = joinAsPlayer(room, userId, socket, name)!;
     ack?.({ code: room.code, seat });

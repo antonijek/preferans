@@ -910,7 +910,7 @@ test('e2e: lastHandResult se resetuje na null kad SVI kazu "dalje" bez ijedne li
   assert.equal(game.state.lastHandResult, null, 'refe/redeal posle "svi dalje" ne sme ostaviti stari lastHandResult');
 });
 
-test('e2e: Sans — prvi igrač je LEVO od nosioca (RULES 8.1.3, suprotno od 8.1.1)', () => {
+test('e2e: Sans — prvi igrač je onaj NEPOSREDNO PRE nosioca u redosledu bacanja (RULES 8.1.3)', () => {
   const game = new Game({ seed: 1100 });
   game.newHand(0);
   game.bid(1, 2);
@@ -927,8 +927,12 @@ test('e2e: Sans — prvi igrač je LEVO od nosioca (RULES 8.1.3, suprotno od 8.1
   game.moze(0);
   game.moze(2);
   assert.equal(game.state.phase, 'PLAYING');
-  // Levo od nosioca (winner=1) je (1+1)%3 = 2, NE (1+2)%3 = 0 (to je desno).
-  assert.equal(game.state.currentPlayer, 2, 'pratilac levo od nosioca kreće prvi u Sansu');
+  // Redosled bacanja: Jug(0)->Istok(1)->Zapad(2)->Jug (potvrdjeno uzivo od
+  // korisnika). Nosilac (winner=1=Istok) — onaj neposredno PRE njega u tom
+  // redosledu je Jug(0), tj. (winner+2)%3 = (1+2)%3 = 0. NE (winner+1)%3=2
+  // (Zapad) — to je bio uzivo prijavljen bag (2026-09-05) posle pogresne
+  // izmene ranije iste sesije.
+  assert.equal(game.state.currentPlayer, 0, 'pratilac neposredno pre nosioca (u redosledu bacanja) kreće prvi u Sansu');
 });
 
 test('e2e: Betl — kontra: OBA pratioca upisuju fiksne supe, ne samo kontraš (RULES 9.4.1)', () => {

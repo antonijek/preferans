@@ -433,8 +433,9 @@ Pravilo zavisi od tipa igre:
 
 ### 8.1.3 Sans i Igra-Sans
 
-- **Prvi igrač je UVEK pratilac koji sledi neposredno posle nosioca u redosledu bacanja** (Jug→Istok→Zapad→Jug), bez obzira da li oba pratioca prate normalno ili je jedan pozvao drugog — "igra se kroz nosioca", nosilac je u sredini između druga dva poteza u toj rundi, što mu otežava igru.
-- Razlika od 8.1.1/8.1.2 nije u SMERU (isti je) nego u REFERENTNOJ TAČKI: 8.1.1/8.1.2 gledaju ko je bio PRVI da licitira (bidStartPlayer), a 8.1.3 uvek gleda ko sledi posle STVARNOG NOSIOCA (winner), bez obzira ko je prvi licitirao.
+- **Prvi igrač je UVEK pratilac koji je NEPOSREDNO PRE nosioca u redosledu bacanja** (Jug→Istok→Zapad→Jug — npr. ako je Zapad nosilac, taj igrač je Istok, jer ide "...Istok→Zapad..."), bez obzira da li oba pratioca prate normalno ili je jedan pozvao drugog — "igra se kroz nosioca", nosilac je U SREDINI između druga dva poteza u toj rundi, što mu otežava igru.
+- Razlika od 8.1.1/8.1.2 nije u SMERU (isti je) nego u REFERENTNOJ TAČKI: 8.1.1/8.1.2 gledaju ko je bio PRVI da licitira (bidStartPlayer) i ko dolazi POSLE njega ako ne učestvuje, a 8.1.3 uvek gleda ko dolazi PRE STVARNOG NOSIOCA (winner), bez obzira ko je prvi licitirao.
+- **Uživo prijavljen bag (2026-09-05)**: ova sekcija je ranije (iste sesije) pogrešno izmenjena da kaže "posle nosioca" — vraćeno na "pre nosioca" pošto je uživo test (Zapad nosilac na Sansu) potvrdio da Istok (koji dolazi PRE Zapada) treba da vodi, ne Jug (koji dolazi POSLE Zapada).
 
 ## 8.2 Pravila štiha
 

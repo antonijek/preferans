@@ -102,6 +102,25 @@ document.addEventListener('click', (e) => {
   if (e.target.closest && e.target.closest('button')) sfx.click();
 }, true);
 
+// Maksimalan broj refea zavisi od pocetne bule (korisnikov zahtev — "ne
+// moze partija od 50 imati 5 refa, to je glupo"). RULES.md 7.2 vec navodi
+// podrazumevanu razmeru "2 refea za partiju od 100 bula" — ovo samo
+// generalizuje tu razmeru (1 refa na svakih ~50 bula), sa apsolutnim
+// maksimumom 5 bez obzira koliko je bula veca.
+function maxRefeForBula(bula) {
+  return Math.max(1, Math.min(5, Math.round(bula / 50)));
+}
+function clampRefeInputToBula(bulaInputId, refeInputId) {
+  const bulaEl = $(bulaInputId);
+  const refeEl = $(refeInputId);
+  if (!bulaEl || !refeEl) return;
+  const bula = parseInt(bulaEl.value, 10) || 0;
+  const max = maxRefeForBula(bula);
+  refeEl.max = String(max);
+  if (parseInt(refeEl.value, 10) > max) refeEl.value = String(max);
+}
+window.clampRefeInputToBula = clampRefeInputToBula;
+
 function toggleSound() {
   const muted = sfx.toggleMuted();
   const btn = $('soundToggleBtn');
@@ -836,6 +855,7 @@ function renderDiscarding() {
     const isSel = discardSelected.has(c.id);
     const card = cardEl(c, { selected: isSel });
     card.onclick = () => {
+      sfx.click();
       if (discardSelected.has(c.id)) discardSelected.delete(c.id);
       else if (discardSelected.size < 2) discardSelected.add(c.id);
       else {
@@ -1595,7 +1615,8 @@ function startGame() {
   const bulaInput = parseInt($('setupStartBula').value, 10);
   const refeInput = parseInt($('setupRefeCount').value, 10);
   const initialBule = Number.isFinite(bulaInput) && bulaInput > 0 ? bulaInput : 100;
-  const refePerPlayer = Number.isFinite(refeInput) && refeInput >= 0 ? refeInput : 2;
+  const refeMax = maxRefeForBula(initialBule);
+  const refePerPlayer = Number.isFinite(refeInput) && refeInput >= 0 ? Math.min(refeInput, refeMax) : Math.min(2, refeMax);
   game = createGame({ seed: Date.now() & 0xffff, initialBule, refePerPlayer });
 
   // Nova partija — resetuj svu sesijsku istoriju od (eventualne) prethodne

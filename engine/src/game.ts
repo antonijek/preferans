@@ -847,13 +847,20 @@ private checkBiddingEnd(): void {
 
   private getFirstPlayer(): Position {
     const game = this.state.declaredGame!;
-    // Sans specifican: pratilac levo od nosioca (RULES 8.1.3 — suprotno od
-    // 8.1.1). "Levo" u ovom engine-u je (winner + 1) % 3 — vidi isti "desno"
-    // = (winner + 2) % 3 konvenciju u startFollowDeclaring() i kontra redosledu.
+    // Sans specifican (RULES 8.1.3): igra pratilac koji je NEPOSREDNO PRE
+    // nosioca u redosledu bacanja karata (Jug->Istok->Zapad->Jug, potvrdjeno
+    // uzivo od korisnika) — "igra se kroz nosioca", nosilac je izmedju druga
+    // dva poteza te runde. "Pre nosioca" u ovom smeru = (winner + 2) % 3
+    // (inverz od nextPlayer()). ISPRAVKA 2026-09-05: ranije ove sesije ovo je
+    // pogresno promenjeno na (winner+1)%3 oslanjajuci se na naziv "levo" iz
+    // OVOG ENGINE-A koriscen za RULES 5.1 (kontra redosled) — ta konvencija
+    // NIJE ista stvar kao "levo od nosioca" u svakodnevnom/RULES.md smislu za
+    // 8.1.3. Uzivo prijavljen bag (Zapad nosilac, pogresan igrac na potezu)
+    // je potvrdio da je ORIGINALNA (winner+2)%3 formula bila tacna.
     if (game === 'Sans' || game === 'Igra-Sans') {
-      const leftOfWinner = ((this.state.winner! + 1) % 3) as Position;
-      if (this.isPlayerActive(leftOfWinner)) return leftOfWinner;
-      return this.nextActivePlayer(leftOfWinner);
+      const beforeWinner = ((this.state.winner! + 2) % 3) as Position;
+      if (this.isPlayerActive(beforeWinner)) return beforeWinner;
+      return this.nextActivePlayer(beforeWinner);
     }
     // Betl i ostale: prvo licitirao
     let candidate: Position;
