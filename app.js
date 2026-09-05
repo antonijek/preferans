@@ -11,6 +11,16 @@ import {
   chooseKontra as aiChooseKontra,
   choosePlayCard as aiChoosePlayCard,
 } from './engine/dist/ai.js';
+import { searchChoosePlayCard } from './engine/dist/aiSearch.js';
+
+// Feature-flag za search-bazirani AI (Monte Carlo determinizacija, vidi
+// plan "toasty-rolling-sparkle") — localStorage prekidac radi trenutnog
+// vracanja na staru heuristiku bez redeploy-a ako se nesto pokvari, dok se
+// faze postepeno uvode. Podrazumevano UKLJUCENO (Faza 1: samo igranje karte).
+function searchAiEnabled() {
+  try { return localStorage.getItem('prefSearchAI') !== '0'; } catch { return true; }
+}
+window.setSearchAiEnabled = (on) => { try { localStorage.setItem('prefSearchAI', on ? '1' : '0'); } catch {} };
 
 // === ZVUCNI EFEKTI ===
 // Sve procedurulno generisano preko Web Audio API (osciloatori + kratke
@@ -1417,6 +1427,15 @@ function aiPlayCard(player) {
   const legal = game.getLegalCards(player);
   if (legal.length === 0) return null;
   if (legal.length === 1) return legal[0].id;
+
+  if (searchAiEnabled()) {
+    // Monte Carlo determinizacija (plan "toasty-rolling-sparkle", Faza 1)
+    // — uzorkuje verovatne tudje ruke i simulira ostatak ruke, umesto
+    // fiksne heuristike. 100 uzoraka po kandidatu — izmereno (bench-search)
+    // da za tipicnih 2-5 legalnih karata ovo staje u ~30-170ms.
+    const card = searchChoosePlayCard(s, player, 100);
+    return card ? card.id : legal[0].id;
+  }
 
   const isDeclarer = player === s.winner;
   const avoidTricks = isDeclarer && isBetlGame(s.declaredGame);

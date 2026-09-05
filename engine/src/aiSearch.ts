@@ -244,3 +244,40 @@ export function scoreCandidate(args: {
   if (counted === 0) return 0;
   return total / counted;
 }
+
+/**
+ * Faza 1: bira koju kartu da odigra `seat` pretragom umesto fiksne
+ * heuristike. Ako postoji samo 1 legalna karta (cest slucaj kasnije u
+ * ruci), vraca je odmah bez ikakve simulacije (nema odluke da se pretrazi).
+ */
+export function searchChoosePlayCard(
+  state: GameState,
+  seat: Position,
+  samples: number,
+  rng: Rng = Math.random,
+): Card {
+  const probe = new Game();
+  probe.state = structuredClone(state);
+  const legal = probe.getLegalCards(seat);
+  if (legal.length === 0) {
+    throw new Error('aiSearch.searchChoosePlayCard: nema legalnih karata za dato sedište');
+  }
+  if (legal.length === 1) return legal[0]!;
+
+  let best = legal[0]!;
+  let bestScore = -Infinity;
+  for (const card of legal) {
+    const score = scoreCandidate({
+      realState: state,
+      perspective: seat,
+      samples,
+      rng,
+      applyCandidate: (g) => g.playCard(seat, card.id),
+    });
+    if (score > bestScore) {
+      bestScore = score;
+      best = card;
+    }
+  }
+  return best;
+}
