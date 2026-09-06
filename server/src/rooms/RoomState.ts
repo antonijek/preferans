@@ -31,6 +31,11 @@ export interface RoomState {
   chatLog: ChatMessage[];
   abandonedSeat: Position | null;
   frozenBula: number | null;
+  // Sprecava dupliranje setTimeout-a za automatski nastavak na sledecu ruku
+  // — broadcastRoomState() se poziva mnogo puta dok je faza GAME_OVER
+  // (svaki put kad neko npr. otvori chat), bez ovoga bi se zakazalo N
+  // paralelnih newHand() poziva.
+  nextHandScheduled: boolean;
 }
 
 export interface RoomOptions {
@@ -51,5 +56,6 @@ export function createRoomState(code: string, options: RoomOptions = {}): RoomSt
     chatLog: [],
     abandonedSeat: null,
     frozenBula: null,
+    nextHandScheduled: false,
   };
 }

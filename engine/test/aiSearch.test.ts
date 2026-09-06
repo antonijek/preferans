@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { Game } from '../src/game.ts';
 import { makeCard } from '../src/cards.ts';
 import { computeVoidSuits, determinize, autoPlayToHandEnd } from '../src/aiSearch.ts';
+import { applyHeuristicTurn } from '../src/aiAutoplay.ts';
 import type { GameState, Position } from '../src/types.ts';
 
 // Deterministicki RNG za testove (isti LCG kao deal.test.ts).
@@ -194,4 +195,30 @@ test('autoPlayToHandEnd: odigrava celu ruku do kraja preko mnogo seed-ova bez gr
   // radi konzistentno na velikom uzorku i da SVAKI slucaj zavrsi u jednom
   // od dva ocekivana ishoda (ni jedan test-run ne baca gresku/visi).
   assert.equal(scored + unscored, 100);
+});
+
+test('determinize: stres — hiljade poziva kroz CELE odigrane ruke (uzivo prijavljen bag 2026-09-05: pohlepno nasumicno uzorkovanje je "zaglavilo" u kasnoj PLAYING fazi posle 25 pokusaja; zamenjeno backtracking-om)', () => {
+  const rng = makeRng(2026);
+  let totalCalls = 0;
+  for (let seed = 1; seed <= 300; seed++) {
+    const game = new Game({ seed });
+    game.newHand(0);
+    let steps = 0;
+    while (steps++ < 80) {
+      const phase = game.state.phase;
+      if (phase === 'GAME_OVER' || phase === 'MATCH_OVER') break;
+      // Na SVAKOM koraku, za SVE TRI perspektive, pozovi determinize —
+      // ovo namerno udara i na kasne, jako ogranicene PLAYING trenutke
+      // (malo preostalih karata + mnogo akumuliranih void-ogranicenja),
+      // tacno onaj scenario koji je prijavljen kao bag.
+      for (const perspective of [0, 1, 2] as Position[]) {
+        determinize(game.state, perspective, rng); // baca ako ne uspe — test bi tada pao
+        totalCalls++;
+      }
+      const result = applyHeuristicTurn(game);
+      if (result === 'no_actor') break;
+    }
+  }
+  assert.ok(totalCalls > 1000, `ocekivano mnogo poziva radi stvarnog stresa, dobijeno ${totalCalls}`);
+  console.log(`  (stres test: ${totalCalls} determinize() poziva, nijedan nije bacio gresku)`);
 });

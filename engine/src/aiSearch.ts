@@ -101,63 +101,57 @@ export function determinize(state: GameState, perspective: Position, rng: Rng): 
     );
   }
 
-  // --- lastTalon "pribadanje" + konstruktivna raspodela — u posebnoj
-  // funkciji jer se ceo pokusaj ponekad mora ponoviti (vidi dole). ---
+  // --- lastTalon "pribadanje" — te 2 karte SMEJU ici SAMO kod nosioca ili
+  // u mrtvu gomilu (nikad kod drugog pratioca), ali i dalje moraju postovati
+  // void-ogranicenja tog nosiocevog sedista. KRITICNO: ovo se NE sme resiti
+  // kao poseban korak PRE glavne raspodele — uzivo prijavljen bag
+  // (2026-09-05) je bio TACNO to: nasumican izbor izmedju nosioca/mrtve
+  // gomile za pribodenu kartu, bez ikakve void-svesti i bez mogucnosti da
+  // se backtracking-om vrati ako se ispostavi pogresnim, moze da "zakuca"
+  // pravu nemogucnost pre nego sto glavna pretraga uopste pocne (npr.
+  // pribodena karta ode u mrtvu gomilu, a ustvari JEDINO ona moze da
+  // popuni nosiocevu jako void-ogranicenu kofu). Zato je pribadanje ovde
+  // samo suzavanje DOZVOLJENIH kofa po karti — sama dodela ide kroz ISTI
+  // backtracking kao sve ostalo, pa se i ono vraca unazad ako zatreba.
   const declarerBucket = buckets.find((b) => b.seat === clone.winner) ?? null;
   const pinTargets = [declarerBucket, deadBucket].filter((b): b is Bucket => b !== null);
-  const shouldPinTalon = !isDeclarer && clone.lastTalon.length > 0 && clone.winner !== null;
+  const shouldPinTalon = !isDeclarer && clone.lastTalon.length > 0 && clone.winner !== null && pinTargets.length > 0;
+  const pinnedIds = shouldPinTalon ? new Set(clone.lastTalon.map((t) => t.id)) : new Set<string>();
 
-  function attemptAssignment(): boolean {
-    for (const b of buckets) b.cards = [];
-    const shuffled = shuffle(pool, rng);
-    const remaining: Card[] = [];
-    if (shouldPinTalon && pinTargets.length > 0) {
-      for (const card of shuffled) {
-        const isPinned = clone.lastTalon.some((t) => t.id === card.id);
-        if (isPinned) {
-          const eligible = pinTargets.filter((b) => b.capacity > b.cards.length);
-          if (eligible.length === 0) return false;
-          const target = eligible[Math.floor(rng() * eligible.length)]!;
-          target.cards.push(card);
-        } else {
-          remaining.push(card);
-        }
-      }
-    } else {
-      remaining.push(...shuffled);
-    }
-
-    // Najpre najogranicenije karte (void za najvise kofa) — pohlepna dodela
-    // bez ovoga moze "zaglaviti" ograniceniju kartu bez slobodne kofe iako
-    // globalno resenje postoji (nasumican redosled popuni slobodne kofe
-    // necim sto je moglo otici igde, ostavljajuci samo void-sukobljenu kofu
-    // za kasniju, ogranicenu kartu). Ovo je heuristika ("most constrained
-    // first"), ne formalni dokaz izvodljivosti — otud i retry ispod.
-    remaining.sort((a, b) => {
-      const constraintsFor = (c: Card) => buckets.filter((bk) => bk.voidSuits.has(c.suit)).length;
-      return constraintsFor(b) - constraintsFor(a);
-    });
-
-    for (const card of remaining) {
-      const eligible = buckets.filter(
-        (b) => b.capacity > b.cards.length && !b.voidSuits.has(card.suit),
-      );
-      if (eligible.length === 0) return false;
-      const target = eligible[Math.floor(rng() * eligible.length)]!;
-      target.cards.push(card);
-    }
-    return true;
+  function allowedBuckets(card: Card): Bucket[] {
+    const base = pinnedIds.has(card.id) ? pinTargets : buckets;
+    return base.filter((b) => b.capacity > b.cards.length && !b.voidSuits.has(card.suit));
   }
 
-  const MAX_ATTEMPTS = 25;
-  let succeeded = false;
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    if (attemptAssignment()) { succeeded = true; break; }
+  // --- Konstruktivna raspodela preko BACKTRACKING-a — GARANTOVANO uspeva
+  // (za razliku od ranije verzije koja je pohlepno nasumicno pokusavala
+  // iznova bez garancije): stvarni (nama nepoznat) raspored je uvek
+  // validan svedok da resenje postoji, pa "probaj, i ako kasnija karta
+  // ostane bez kofe, vrati se i probaj DRUGU kofu za prethodnu" mora naci
+  // ga — UKLJUCUJUCI izbor izmedju nosioca/mrtve gomile za pribodene karte.
+  // Najpre najogranicenije karte (najmanje dozvoljenih kofa) kao heuristika
+  // redosleda — drastično smanjuje koliko se puta backtracking mora vratiti
+  // unazad, iako garancija ispravnosti dolazi iskljucivo od backtracking-a.
+  const remaining = shuffle(pool, rng).sort(
+    (a, b) => allowedBuckets(a).length - allowedBuckets(b).length,
+  );
+
+  function backtrack(idx: number): boolean {
+    if (idx === remaining.length) return true;
+    const card = remaining[idx]!;
+    const eligible = shuffle(allowedBuckets(card), rng);
+    for (const bucket of eligible) {
+      bucket.cards.push(card);
+      if (backtrack(idx + 1)) return true;
+      bucket.cards.pop();
+    }
+    return false;
   }
-  if (!succeeded) {
+
+  if (!backtrack(0)) {
     throw new Error(
-      `aiSearch.determinize: nije uspelo da rasporedi karte posle ${MAX_ATTEMPTS} pokusaja — ` +
-      `void-ograničenja su preterano striktna ili je stanje nekonzistentno (phase=${clone.phase})`
+      `aiSearch.determinize: backtracking nije nasao raspodelu — ` +
+      `stanje je verovatno nekonzistentno (phase=${clone.phase})`
     );
   }
 

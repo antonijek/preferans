@@ -70,6 +70,32 @@ function broadcastRoomState(room: RoomState): void {
     );
   });
   maybeDriveAiTurn(room);
+  maybeAutoAdvanceHand(room);
+}
+
+// Online sobe ranije nisu imale NIKAKAV mehanizam da predju na sledecu ruku
+// posle GAME_OVER (lokalni mod ima "Igraj" dugme koje zove nextRound() na
+// klijentu, ali to nikad nije povezano sa serverom) — partija bi se stvarno
+// zaglavila na ekranu rezultata zauvek. GAME_OVER = kraj RUKE (partija
+// nastavlja dok bule ne padnu na 0, RULES 9.1); MATCH_OVER = kraj CELE
+// partije, tu se namerno NE nastavlja automatski. `abandonedSeat` ostaje
+// netaknut preko poziva newHand() — AI nastavlja da vozi tu poziciju i u
+// sledecim rukama, sto je i namera "Napusti partiju" funkcije.
+const NEXT_HAND_DELAY_MS = 9000;
+
+function maybeAutoAdvanceHand(room: RoomState): void {
+  if (room.game.state.phase !== 'GAME_OVER' || room.nextHandScheduled) return;
+  room.nextHandScheduled = true;
+  setTimeout(() => {
+    room.nextHandScheduled = false;
+    if (room.game.state.phase !== 'GAME_OVER') return; // neko je u medjuvremenu vec nastavio/promenio stanje
+    // Isto sto lokalni mod radi u nextRound() (app.js) — round++ i diler
+    // rotira na sledeceg igraca, ne ostaje isti (newHand()'s podrazumevani
+    // parametar bez argumenta ponovo koristi ISTOG dilera).
+    room.game.state.round++;
+    room.game.newHand(((room.game.state.dealer + 1) % 3) as Position);
+    broadcastRoomState(room);
+  }, NEXT_HAND_DELAY_MS);
 }
 
 // After a player leaves via game:leave, their seat is driven by the server

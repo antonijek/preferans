@@ -1218,7 +1218,13 @@ function isCardLegal(card, player = 0) {
 
 // === MAIN RENDER ===
 
+const TERMINAL_PHASES = ['GAME_OVER', 'REFE', 'MATCH_OVER'];
 function render() {
+  // Online sobe sad automatski dele sledecu ruku posle GAME_OVER (server-
+  // side, roomEvents.ts) — bez ovoga bi ekran rezultata ostao trajno
+  // prikazan i posle sto je nova ruka vec pocela, jer ga jedino lokalni-mod
+  // dugmici (nextRound/restart/resultAction) ikad uklanjaju.
+  if (!TERMINAL_PHASES.includes(game.state.phase)) $('resultScreen').classList.remove('active');
   renderState();
   renderStatusBar();
   renderSeatExtras();
@@ -1459,7 +1465,7 @@ function aiPlayCard(player) {
 
 function renderResult() {
   const s = game.state;
-  if (s.phase !== 'GAME_OVER' && s.phase !== 'REFE' && s.phase !== 'MATCH_OVER') return;
+  if (!TERMINAL_PHASES.includes(s.phase)) return;
   $('resultScreen').classList.add('active');
   // "GAME_OVER" u engine-u znaci kraj RUKE, ne kraj cele partije (ta se
   // nastavlja dok zbir bula ne padne na TACNO 0, vidi RULES 9.1/9.1.1) —
