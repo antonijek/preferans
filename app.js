@@ -1923,13 +1923,26 @@ async function connectOnlineSocket() {
   let hasConnectedOnce = false;
   onlineSocket.on('connect', () => {
     hasConnectedOnce = true;
-    // Pozdravni ekran je PRVA stvar posle logina (korisnikov zahtev — ne
-    // zeli da ga soba/modal doceka odmah), soba dolazi tek na klik. Ako je
-    // ovo zapravo reconnect na VEC postojecu sobu, 'room:info' ispod ce
-    // preusmeriti na roomScreen (tu se vidi kod sobe).
-    $('loginScreen').classList.remove('active');
-    $('homeScreen').classList.add('active');
-    $('roomScreen').classList.remove('active');
+    // Uzivo prijavljen bag (mobilni korisnik): telefon ode u pozadinu, veza
+    // se prekine (mobilni browser suspenduje pozadinske tabove), pa se posle
+    // vracanja OVAJ handler okine na reconnect — i ranije je UVEK prisilno
+    // prikazivao pocetni ekran, cak i kad je korisnik vec bio USRED partije
+    // za stolom. Rezultat: vracanje na telefon posle malo vremena je bacalo
+    // covjeka nazad na listu soba umesto da ga tiho vrati za sto. Sad se ovaj
+    // "pocetni ekran" reset radi SAMO ako STVARNO nismo vec za stolom —
+    // 'online-in-game' klasa (postavlja je game:state handler ispod cim
+    // faza prestane da bude WAITING) je pouzdan signal da smo vec u partiji.
+    const alreadyInGame = document.body.classList.contains('online-in-game');
+    if (!alreadyInGame) {
+      // Pozdravni ekran je PRVA stvar posle logina (korisnikov zahtev — ne
+      // zeli da ga soba/modal doceka odmah), soba dolazi tek na klik. Ako je
+      // ovo zapravo reconnect na VEC postojecu sobu (ali JOS u cekanju,
+      // faza WAITING), 'room:info' ispod ce preusmeriti na roomScreen (tu se
+      // vidi kod sobe).
+      $('loginScreen').classList.remove('active');
+      $('homeScreen').classList.add('active');
+      $('roomScreen').classList.remove('active');
+    }
     $('roomError').textContent = '';
     startRoomListPolling();
     fetch('/api/me', { headers: { Authorization: 'Bearer ' + onlineToken } })
