@@ -2044,7 +2044,7 @@ async function connectOnlineSocket() {
   });
   onlineSocket.on('chat:backlog', (msgs) => {
     $('chatLog').innerHTML = '';
-    msgs.forEach(appendChatMessageOnline);
+    msgs.forEach((m) => appendChatMessageOnline(m, false));
   });
   onlineSocket.on('chat:message', appendChatMessageOnline);
 }
@@ -2352,7 +2352,7 @@ function sendChatOnline() {
   input.value = '';
 }
 
-function appendChatMessageOnline(m) {
+function appendChatMessageOnline(m, isLive = true) {
   // textContent (ne innerHTML) — m.text/m.name su tudji unos (chat poruka,
   // email drugog igraca), nikad ih ne tretirati kao HTML.
   const log = $('chatLog');
@@ -2361,12 +2361,14 @@ function appendChatMessageOnline(m) {
   div.textContent = `${who}: ${m.text}`;
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;
-  // Korisnikov zahtev: poruke su stizale nevidljivo dok je chat zatvoren
-  // (samo bi se videle ako bi se rucno otvorio chat) — sad zvuk + brojac na
-  // dugmetu, SAMO kad chat panel nije vec otvoren (izbegava spam dok se
-  // aktivno cavrlja).
-  if (!$('chatScreen').classList.contains('open')) {
-    chatUnreadCount++;
+  // Korisnikov zahtev: poruke su stizale nevidljivo dok je chat zatvoren, i
+  // sam znak/zvuk mu nije bio dovoljan ("i dalje poruke se ne otvaraju same
+  // kad stignu") — chat panel se sad SAM otvara na svaku NOVU poruku (ne i
+  // na chat:backlog reprizu istorije pri ulasku/reconnect-u, vidi isLive,
+  // inace bi se panel nepotrebno otvarao samim ulaskom u sobu).
+  if (isLive && !$('chatScreen').classList.contains('open')) {
+    $('chatScreen').classList.add('open');
+    chatUnreadCount = 0;
     updateChatBadge();
     sfx.chatMessage();
   }
