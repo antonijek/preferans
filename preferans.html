@@ -1037,7 +1037,7 @@
     <div><div class="label">Štih</div><div class="value" id="trickInfo">0/10</div></div>
   </div>
   <div class="top-actions">
-    <button class="icon-btn" id="chatToggleBtn" onclick="toggleChat()" style="display:none">💬</button>
+    <button class="icon-btn" id="chatToggleBtn" onclick="toggleChat()" style="display:none;position:relative">💬<span id="chatUnreadBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#e53935;color:#fff;border-radius:50%;min-width:18px;height:18px;font-size:0.65em;line-height:18px;text-align:center;font-weight:700;padding:0 3px"></span></button>
     <button class="icon-btn" id="leaveMatchBtn" onclick="leaveMatch()" style="display:none" title="Napusti partiju">🏳️</button>
     <button class="icon-btn" onclick="toggleScore()">📊</button>
     <button class="icon-btn" id="soundToggleBtn" onclick="toggleSound()" title="Zvuk uklj/isklj">🔊</button>

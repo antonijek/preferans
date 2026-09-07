@@ -139,6 +139,14 @@ const sfx = (() => {
     win() {
       [523, 659, 784].forEach((f, i) => tone(f, 0.18, { type: 'sine', gain: 0.07, delay: i * 0.09 }));
     },
+    // Korisnikov zahtev (2026-09-07): poruke stizu (vide se kad se chat
+    // otvori) ali NISTA ne obavesti da je nesto novo stiglo dok je chat
+    // zatvoren — kratak, blag "pling" (razlicit od click/cardPlay) plus
+    // vizuelna znacka (vidi appendChatMessageOnline).
+    chatMessage() {
+      tone(880, 0.05, { type: 'sine', gain: 0.06 });
+      tone(1175, 0.07, { type: 'sine', gain: 0.05, delay: 0.05 });
+    },
     toggleMuted() {
       muted = !muted;
       localStorage.setItem('prefSoundMuted', muted ? '1' : '0');
@@ -2316,8 +2324,24 @@ function doLeaveMatch() {
 
 // === ONLINE: chat ===
 
+let chatUnreadCount = 0;
+function updateChatBadge() {
+  const badge = $('chatUnreadBadge');
+  if (!badge) return;
+  if (chatUnreadCount > 0) {
+    badge.textContent = chatUnreadCount > 9 ? '9+' : String(chatUnreadCount);
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
 function toggleChat() {
   $('chatScreen').classList.toggle('open');
+  if ($('chatScreen').classList.contains('open')) {
+    chatUnreadCount = 0;
+    updateChatBadge();
+  }
 }
 
 function sendChatOnline() {
@@ -2337,6 +2361,15 @@ function appendChatMessageOnline(m) {
   div.textContent = `${who}: ${m.text}`;
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;
+  // Korisnikov zahtev: poruke su stizale nevidljivo dok je chat zatvoren
+  // (samo bi se videle ako bi se rucno otvorio chat) — sad zvuk + brojac na
+  // dugmetu, SAMO kad chat panel nije vec otvoren (izbegava spam dok se
+  // aktivno cavrlja).
+  if (!$('chatScreen').classList.contains('open')) {
+    chatUnreadCount++;
+    updateChatBadge();
+    sfx.chatMessage();
+  }
 }
 
 function setGameMode(m) {
