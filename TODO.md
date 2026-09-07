@@ -1,6 +1,178 @@
 # TODO — Preferans projekat
 
-## 🟢 PREDAJA NOVOJ SESIJI (2026-09-03) — PROČITAJ OVO PRVO
+## 🟢 PREDAJA NOVOJ SESIJI (2026-09-07) — PROČITAJ OVO PRVO
+
+**Sve predaje ispod (2026-09-03 i starije) su zastarele — pročitane su i
+uklopljene u ovaj rezime, ne treba ih ponovo čitati sem ako treba istorijski
+detalj.** Ova sesija je bila DUGA (licitacija+dolazak+Betl+Sans kalibracija
+uživo, pa ceo krug online multiplayer bagova otkrivenih dok je korisnik
+testirao sa 3 uređaja istovremeno).
+
+**Stanje**: `cd engine && npm test` → **198/198**. `npm run test:ui:multi -- 35`
+(root) → čisto (poslednji pun run pre online-bug kruga). Sve komitovano i
+push-ovano na `origin/main`, SVE deploy-ovano na `https://pref.antonije.dev`
+(VPS `213.199.32.240`, `pm2 restart pref-server`).
+
+### 1. AI licitacija/dolazak/Betl/Sans — kalibrisano uživo (glavni fokus)
+
+Korisnikov originalni bag-report: "licitira bez rezona i pada... nije samo
+licitacija nego i igra, potpuno losi potezi". Uzrok: `engine/src/ai.ts`
+`chooseBidAction` je koristio sirovu dužinu boje, ne procenu štihova, PLUS
+dublji bag u `chooseDeclareGame` (bira igru posle pobede licitacije) koje je
+slepo biralo Betl čim licitacija dogura do 6, bez provere da li ruka
+odgovara — ovo je kvarilo tačnost CELE Monte Carlo pretrage, ne samo Betl.
+
+Ispravljeno kroz ~30 ruku uživo kalibracije sa korisnikom (deljene preko
+`engine/tools/reproduce-trainer-hand.mjs`/`bid-trainer.html`, seed-ovan LCG
+koji se poklapa sa `engine/src/deck.ts`). **Sve kalibrisane formule su
+zapisane kao komentari u `engine/src/ai.ts`, označene "korisnikov zahtev,
+uzivo potvrdjeno 2026-09-06/07" — TO je izvor istine, ne ovaj rezime:**
+- Nosiocu treba ~5 realnih štihova u ruci (ne 2 — taj prag je SAMO za
+  dolazak/pratnju, korisnik ih je eksplicitno razdvojio).
+- As+Kralj u adutu = cela dužina kao štihovi. Go-As (bez Kralja) = dužina−1
+  AKO je dužina ≥4, inače SAMO 1 (asimetrija — dužina 3 ne dobija "višak").
+  Kralj+Dama (bez Asa) = dužina−1, ali SAMO za kratku (≤3) boju.
+  Go-Kralj (bez Dame/Asa) se NIKAD ne računa za nosioca.
+- Posle izvlačenja aduta (adut ima realan kredit + dužina≥3), sporedne boje
+  se računaju: ako imaš njihovog Asa → sekvenca od Asa nadole (Sans-stil);
+  ako imaš K+D bez Asa → 1 (samo za kratku, ≤3, sporednu boju).
+  Bare-Kralj u dugom adutu (0 sopstvenog kredita) NE otključava ovo.
+- Vanadutski As/Kralj za PRATIOCA važe samo ako je ta boja kod njega kratka
+  (≤3) — duža boja daje nosiocu podsticaj da je odbaci pa kasnije preseče.
+  JEDAN vanadutski Kralj sa bar 1 pratećom kartom (dužina 2-3) VEĆ računa
+  (ranije je trebalo 2-3 kralja ukupno — nevalidirana pretpostavka iz starog
+  koda, ispravljeno).
+- Betl (`isSuitBetlSafe`): po boji — ako imaš Asa te boje, treba niskih
+  (7-10) bar koliko ostaje kod protivnika (8−dužina); ako NEMAŠ Asa, treba
+  niskih ≥ visokih (ne samo "bar 1" — to je bilo prelabavo, izazvalo
+  regresiju, vidi test istoriju u `aiSearch.test.ts`).
+- Sans (`countSansTricks`): sekvenca od Asa nadole po boji, sabrano.
+- IGRA (bez talona): isplativo SAMO ako neka boja/Sans već dostiže PUNIH 6
+  (ne 5 — bez pretpostavljenog +1 iz talona), korisnikov zahtev "ako je
+  ukupno 6 zasto ne kazes igru".
+- **Poznata nedovršena rupa** (korisnik je primetio, nije implementirano):
+  Betl provera gleda SAMO ruku PRE talona — ne uzima u obzir da bi se
+  granični slučaj (npr. jedna usamljena opasna karta) mogao "popraviti"
+  odbacajem POSLE pobede u licitaciji. Konkretan primer u transkriptu:
+  ruka je imala usamljen ♦J (nebezbedno), a STVARNI talon je doneo 8♦ koji
+  je sve popravio — AI to ne ume da "nasluti" unapred.
+- **Card-play (choosePlayCard/aiAutoplay.ts) NIJE kalibrisan ovom metodom**
+  — to je DRUGA polovina korisnikovog originalnog bag-reporta, ostaje
+  otvoreno. Odigrane su 2 probne ruke uživo (seed 9001 potvrdio "izvuci
+  adute prvo" + obavezno sečenje kad si prazan i imaš adut — RULES 8.3,
+  već ispravno implementirano u `trick.ts`; seed 20003/30001 delimično,
+  prekinuto pre kraja). Korisnik je TAKOĐE naučio konkretnu odbrambenu
+  konvenciju (pratilac sa "suvom"/singleton bojom je vodi prvi da bi kasnije
+  drugi pratilac vratio nisku istu boju i pritisnuo nosioca) — NIJE još
+  ugrađena u kod, samo zabeležena ovde.
+- `searchChooseAction` (generička Monte Carlo pretraga preko
+  `getLegalActions()`+`applyLegalAction`, oba izvezena iz
+  `engine/src/aiSearch.ts`) je OŽIČENA u `app.js` za BIDDING/DECLARING/
+  FOLLOW_DECLARING/KONTRA_DECLARING, ne samo za igranje karte (Faza 1). I
+  dalje iza `searchAiEnabled()` (localStorage `prefSearchAI`) prekidača.
+  DISCARDING i dalje koristi čistu heuristiku (`chooseDiscard`) — nije
+  ožičeno na pretragu (treba shortlist pristup, plan "toasty-rolling-sparkle").
+
+**Alati za nastavak kalibracije** (svi u `engine/tools/`):
+- `reproduce-trainer-hand.mjs <idx>` + `bid-trainer.html` (koren repo-a) —
+  deljenje jedne ruke za brzu licitacija/dolazak vežbu.
+- `reproduce-full-deal.mjs <seed> [dealer=0]` — RAČUNA (ne reimplementira)
+  ceo razdel (sve 3 ruke + talon) pravim engine pozivom, za poklapanje sa
+  `app.js?seed=N`.
+- `app.js` podržava `?seed=N` u URL-u (`debugSeedOverride()`) — forsira
+  poznat seed na `startGame()`. Uz to ide VIDLJIV žuti natpis na vrhu
+  ekrana (`renderSeedDebugBanner()`, samo kad je seed aktivan) koji
+  ispisuje sve karte — dodato JER se konzola pokazala nepouzdanom za ovu
+  svrhu (korisnik ju je filtrirao/nije video). Osvežava se na SVAKO
+  `newHand()` (uključujući redeal), pa treba SVEŽ page-load (ne "sledeća
+  ruka" dugme) da se sinhronizuje sa novim seed-om.
+
+### 2. Pravila stranice
+
+- `pravila.html` (koren) — KOMPLETNA (ne skraćena) pravila, sav sadržaj iz
+  RULES.md. Povezana sa početne strane.
+- Početna strana pojednostavljena na JEDNU karticu "Pravila preferansa"
+  (bilo 5 pojedinačnih + link ispod — korisnik je tražio jednostavnije).
+- **Otvoreno**: korisnik želi da OSTALE kartice na početnoj ("Šta možeš
+  ovde" — Kibicuj/Chat/Podesive sobe) TAKOĐE postanu prave klikabilne
+  stranice umesto statičkog teksta. Nije razjašnjeno TAČNO šta bi svaka
+  trebalo da sadrži — treba predložiti korisniku konkretne ideje pa pitati.
+
+### 3. Online multiplayer bagovi (otkriveni dok je korisnik testirao sa 3 uređaja/telefonom uživo)
+
+Svi popravljeni i deploy-ovani:
+- **`room.abandonedSeat` se nikad nije čistio** kad se igrač vrati posle
+  "Napusti partiju" — server je ZAUVEK nastavljao da igra AI za njega,
+  UKLJUČUJUĆI licitaciju (verovatno pravi uzrok "nema opcije za licit ni
+  kod koga"). Popravljeno u `joinAsPlayer()` (`roomEvents.ts`) — čisti se
+  SAMO kad se vrati baš taj isti igrač.
+- Prazne WAITING sobe se nikad nisu brisale iz memorije (`RoomManager.ts`
+  nije imao `removeRoom`) — sad se brišu kad se svi diskonektuju dok je
+  soba još u čekanju.
+- **Mobilni "stalna greška veze" / "ispadanje iz sobe svako malo"** — prošlo
+  kroz 3 iteracije popravke:
+  1. `connect_error` se ranije tretirao kao fatalan na SVAKI neuspeli
+     reconnect pokušaj (socket.io ih radi automatski) — sad samo na PRVI,
+     stvarni neuspeh.
+  2. `connect` handler je UVEK prisilno prikazivao početni ekran, čak i
+     usred partije — probano prvo sa CSS klasom (`online-in-game`), ali
+     puno osvežavanje stranice (mobilni OS izbaci tab iz pozadine) tu
+     klasu briše isto kao svež posetilac.
+  3. **Finalno rešenje**: server SAD UVEK eksplicitno šalje `'room:none'`
+     kad korisnik STVARNO nema aktivnu sobu (`registerRoomHandlers` u
+     `roomEvents.ts`), pored postojećeg `room:info`+`game:state` kad ima —
+     klijent više NIKAD ne nagađa na osnovu tajmera/odsustva poruke, samo
+     čeka koji od ta dva stvarno stigne. Ovo bi trebalo da je robusno i na
+     genuinski nestabilnoj mreži (raniji tajmerski pristup od 500ms nije
+     bio dovoljan). **Nije još potvrđeno uživo posle ovog finalnog fix-a
+     — proveriti sa korisnikom pri sledećem javljanju.**
+- Sedenje se sad ROTIRA po gledaocu (`seatOf()` u `app.js`) — svako vidi
+  SEBE dole na sredini, ne fiksno po Position-u. Nekoliko mesta je trebalo
+  ispraviti (imena, bule, štihovi, aktivni-igrač highlight, karte u štihu)
+  — proveri `grep -n "seatOf\|SEAT_OF\[" app.js` ako se doda NOVO mesto
+  koje prikazuje nešto po sedištu, mora ići kroz `seatOf()`, ne direktno
+  `SEAT_OF[pos]`.
+- "Pogledaj karte" redizajniran u pun-ekranski overlay (`#revealedHandsScreen`
+  u `preferans.html`) sa pravim kartama (`cardEl()`), umesto sitnog spiska
+  unutar result-boksa.
+- Chat: poruke su stizale ali NIŠTA nije obaveštavalo dok je panel zatvoren
+  — sad se panel SAM otvara + zvuk (`sfx.chatMessage()`) na svaku NOVU
+  (ne backlog) poruku dok panel nije već otvoren.
+
+**🔴 OTVORENO — nije potvrđeno rešeno:**
+- Korisnik je prijavio: licitacija "dalje, 2, dalje" (jedan igrač licitirao
+  2, druga dvojica dalje) je završila u REFE umesto da igrač koji je rekao
+  2 pobedi i uzme talon. Pregledana `checkBiddingEnd()` (`game.ts`) logika
+  ručno — TRAG kroz kod pokazuje da bi OVAJ TAČAN redosled trebalo
+  ispravno da odredi pobednika (nema promena u `game.ts` ovom sesijom koje
+  bi to pokvarile). Nisam uspeo da uhvatim uživo pre kraja sesije.
+  **Postavljen je privremeni dijagnostički log** u `roomEvents.ts`
+  `game:action` handleru (`[BID DEBUG]` prefiks u pm2 logs) koji ispisuje
+  svaku bid/pass akciju + rezultujuće stanje — PRVI SLEDEĆI put kad se ovo
+  ponovi, pokreni `ssh root@213.199.32.240 "pm2 logs pref-server --lines 200 --nostream" | grep BID` da vidiš tačan trag. UKLONITI ovaj log posle
+  potvrde uzroka (traži "PRIVREMENO dijagnosticko logovanje" komentar).
+- Chat "poruke se ne otvaraju same" — POPRAVLJENO (auto-open dodat), ali
+  NIJE potvrđeno uživo od korisnika posle poslednjeg deploy-a.
+
+**Napomena o restart-u**: svaki `pm2 restart pref-server` BRIŠE sve aktivne
+sobe iz memorije (nema baze, samo in-memory) — ako korisnik testira uživo,
+reci mu da napravi NOVU sobu posle svakog server-side deploy-a. Client-only
+izmene (samo `app.js`/`preferans.html`) NE zahtevaju restart — samo
+`git pull` na VPS-u, soba ostaje netaknuta.
+
+### 4. Ostalo pomenuto, ne još urađeno
+
+- Redizajn "Šta možeš ovde" kartica u prave stranice (vidi #2 iznad).
+- Ranking/ELO sistem — korisnik dao formulu ranije (vidi memoriju
+  `project_preferans_ranking_system_design`), online multi-hand (preduslov)
+  je sad gotov, ali sama formula/leave-match-capping nije implementirana.
+- WhatsApp/Viber poziv igrača — pomenuto uzgred, nikad detaljnije traženo.
+- Marketing plan (vidi memoriju `project_preferans_marketing_plan`) —
+  korisnik rekao "prodiskutujemo kasnije".
+
+---
+
+## 🟢 STARIJA PREDAJA (2026-09-03) — kontekst pre ove sesije, pročitana i uklopljena gore
 
 **Ovaj fajl je bio zastareo od 2026-08-31** — sve ispod ("Sledeći fokus:
 BACKEND", FAZA 4/5 kao TODO) je u međuvremenu ZAVRŠENO preko više sesija
