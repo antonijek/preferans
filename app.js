@@ -1564,8 +1564,8 @@ function renderResult() {
   // "Pogledaj karte" ima smisla samo posle GAME_OVER (kraj rune) — kod
   // MATCH_OVER nema sledece runde cije karte bi se cekale/gledale.
   $('viewCardsBtn').style.display = s.phase === 'GAME_OVER' ? '' : 'none';
-  $('revealedHands').style.display = 'none';
-  $('revealedHands').innerHTML = '';
+  $('revealedHandsScreen').classList.remove('active');
+  $('revealedHandsContent').innerHTML = '';
   // Online: sledeca runda se inace deli SAMA (automatski tajmer) — "Igraj"
   // bi zbunilo kao da ovo dugme pokrece nesto sto se inace desi samo od
   // sebe. "Deli" bolje opisuje "preskoci cekanje / potvrdi odmah".
@@ -1822,19 +1822,33 @@ function viewCards() {
   renderRevealedHands(hands);
 }
 
+// Puna-ekranska preglednost (korisnikov zahtev 2026-09-07: "treba da bude
+// preko celog ekrana i da se dobro vise svacije") — PRAVE karte (cardEl(),
+// isti izgled kao za vreme igranja), jedan red po igracu, jasno naslovljen.
 function renderRevealedHands(hands) {
-  const container = $('revealedHands');
-  container.innerHTML = hands.map((h) => {
-    const sorted = sortHand(h.cards);
-    const cardsHtml = sorted.map((c) => `<span class="card tiny ${isRed(c.suit) ? 'red' : 'black'}" style="display:inline-flex">
-      <span class="rank">${c.rank}</span><span class="suit">${c.suit}</span></span>`).join('');
-    return `<div style="margin-bottom:8px;text-align:left">
-      <div style="font-size:0.85em;opacity:0.75;margin-bottom:3px">${escapeHtml(h.name ?? POS_LABELS[h.seat])}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:3px">${cardsHtml}</div>
-    </div>`;
-  }).join('');
-  container.style.display = '';
+  const content = $('revealedHandsContent');
+  content.innerHTML = '';
+  for (const h of hands) {
+    const row = el('div', 'revealed-hand-row');
+    row.style.cssText = 'margin-bottom:20px;text-align:left';
+    const label = el('div', '', escapeHtml(h.name ?? POS_LABELS[h.seat]));
+    label.style.cssText = 'font-family:"Cinzel",serif;font-size:1.1em;font-weight:700;margin-bottom:8px;color:#ffeb3b';
+    row.appendChild(label);
+    const cardsWrap = el('div');
+    cardsWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px';
+    for (const c of sortHand(h.cards)) {
+      cardsWrap.appendChild(cardEl(c, { size: 'small' }));
+    }
+    row.appendChild(cardsWrap);
+    content.appendChild(row);
+  }
+  $('revealedHandsScreen').classList.add('active');
 }
+
+function closeRevealedHands() {
+  $('revealedHandsScreen').classList.remove('active');
+}
+window.closeRevealedHands = closeRevealedHands;
 
 // === ONLINE: login/registracija ===
 
@@ -1921,34 +1935,18 @@ async function connectOnlineSocket() {
   // pocetne konekcije, npr. los token) — ako je vec bio povezan, tiho se
   // pusti da se svoj automatski reconnect sam izbori.
   let hasConnectedOnce = false;
-  let connectGen = 0;
   onlineSocket.on('connect', () => {
     hasConnectedOnce = true;
-    // Uzivo prijavljen bag (mobilni korisnik): telefon ode u pozadinu i
-    // mobilni OS moze u medjuvremenu potpuno izbaciti tab iz memorije (ne
-    // samo prekinuti socket) — povratak je onda PUNO osvezavanje stranice,
-    // sto brise i document.body-jevu 'online-in-game' klasu (pokusan raniji
-    // fix se oslanjao bas na nju). Rezultat: korisnik usred partije bi se
-    // vratio na listu soba i ne bi mogao da odigra svoj potez.
-    //
-    // Umesto da odmah nagadja "jesmo li u partiji", OVAJ handler sad SAMO
-    // ceka kratko (500ms) da vidi da li server sam salje 'room:info' ili
-    // 'game:state' (salje ih ODMAH pri konekciji ako korisnik VEC ima
-    // aktivnu sobu — server je jedini pouzdan izvor te informacije, ne bilo
-    // koje klijentsko stanje koje refresh moze obrisati). Tek ako NISTA ne
-    // stigne u tom kratkom prozoru, ovo je stvarno prazna/nova sesija i tek
-    // onda se prikazuje pocetni ekran — 'connectGen' otkazuje ovu proveru
-    // ako u medjuvremenu dodje JOS jedan 'connect' (npr. brzi uzastopni
-    // reconnect pokusaji).
-    const myGen = ++connectGen;
-    setTimeout(() => {
-      if (myGen !== connectGen) return;
-      if (document.body.classList.contains('online-in-game')) return;
-      if ($('roomScreen').classList.contains('active')) return;
-      $('loginScreen').classList.remove('active');
-      $('homeScreen').classList.add('active');
-      $('roomScreen').classList.remove('active');
-    }, 500);
+    // Uzivo prijavljen bag (mobilni korisnik, "svako malo ispadanje iz
+    // sobe"): telefon ima nestabilnu vezu i/ili mobilni OS zna da potpuno
+    // izbaci tab iz memorije u pozadini (ne samo prekine socket) — povratak
+    // je onda puno osvezavanje stranice. Stariji pokusaji su ili gledali
+    // klijentsko stanje koje refresh brise, ili nagadjali kratkim tajmerom
+    // koji na losoj mreži moze isteci PRE nego sto server uopste stigne da
+    // odgovori. Sad se NISTA ne pretpostavlja ovde — server (vidi
+    // registerRoomHandlers) UVEK eksplicitno salje ili room:info+game:state
+    // (postoji aktivna soba) ili 'room:none' (ne postoji), pa ekran ceka
+    // TAJ odgovor umesto da sam donosi odluku.
     $('roomError').textContent = '';
     startRoomListPolling();
     fetch('/api/me', { headers: { Authorization: 'Bearer ' + onlineToken } })
@@ -1974,6 +1972,17 @@ async function connectOnlineSocket() {
     // automatskih reconnect pokusaja (socket.io ovo radi sam po sebi).
     // Ne diramo UI niti gasimo onlineSocket — 'connect' ce se sam okinuti
     // kad veza stvarno uspe da se vrati.
+  });
+  // Server eksplicitno kaze "nemas aktivnu sobu" (vidi registerRoomHandlers)
+  // — SAMO tad je sigurno prikazati pocetni ekran. Ako smo VEC bili za
+  // stolom (online-in-game) i ovo stigne, to bi znacilo da nas server vise
+  // uopste ne prepoznaje (npr. restart servera je obrisao sobu) — tad
+  // pocetni ekran jeste ispravan odgovor, nema kuda drugde da se vratimo.
+  onlineSocket.on('room:none', () => {
+    document.body.classList.remove('online-in-game');
+    $('loginScreen').classList.remove('active');
+    $('homeScreen').classList.add('active');
+    $('roomScreen').classList.remove('active');
   });
   // Salje se pri (re)konekciji ako korisnik VEC ima aktivnu sobu (M6
   // reconnect) — bez ovoga bi refresh stranice dok se ceka na jos igraca

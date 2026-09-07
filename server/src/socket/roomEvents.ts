@@ -185,7 +185,17 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
   // automatically and push their current state without waiting for the
   // client to ask. Kibic grants live on the spectator's RoomState entry,
   // keyed by userId, so they survive this reattachment untouched.
+  // Uzivo prijavljen bag (mobilni korisnik, "svako malo ispadanje iz sobe"):
+  // klijent je ranije MORAO da NAGADJA (kratak tajmer) da li ce server
+  // poslati room:info/game:state, jer nista drugo nije stizalo kad korisnik
+  // NEMA aktivnu sobu — na losoj mobilnoj vezi, sam handshake+ovaj kod moze
+  // trajati duze od bilo kog razumnog tajmera, pa bi klijent prerano
+  // odlucio "nema sobe" i vratio na pocetni ekran USRED partije. Sad server
+  // UVEK eksplicitno odgovara — 'room:none' kad STVARNO nema sta da se
+  // nastavi, inace room:info/game:state kao i do sad — pa klijent nikad ne
+  // mora da pogadja na osnovu odsustva poruke.
   const existingLocation = getUserLocation(userId);
+  let resumed = false;
   if (existingLocation) {
     const room = getRoomByCode(existingLocation.code);
     if (room) {
@@ -195,6 +205,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
           socket.emit('room:info', { code: room.code, seat, locked: room.locked });
           socket.emit('game:state', buildClientState(room, { type: 'player', seat }));
           sendChatBacklog(socket, room);
+          resumed = true;
         }
       } else {
         const spectator = room.spectators.get(userId);
@@ -207,10 +218,12 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
             buildClientState(room, { type: 'spectator', kibicSeats: spectator.kibicSeats })
           );
           sendChatBacklog(socket, room);
+          resumed = true;
         }
       }
     }
   }
+  if (!resumed) socket.emit('room:none');
 
   socket.on('room:list', (_payload: unknown, ack?: Ack) => {
     ack?.({ rooms: listOpenRooms() });

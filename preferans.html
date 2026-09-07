@@ -1320,9 +1320,21 @@
   <div class="box" id="resultBox">
     <h2 id="resultTitle">Kraj</h2>
     <div id="resultMsg"></div>
-    <div id="revealedHands" style="display:none;margin:10px 0"></div>
     <button class="mode-btn" id="viewCardsBtn" style="display:none;margin-bottom:8px" onclick="viewCards()">👀 Pogledaj karte</button>
     <button class="mode-btn primary" style="min-height:48px" id="nextRoundBtn" onclick="resultAction()">Igraj</button>
+  </div>
+</div>
+
+<!-- Pogledaj karte — preko celog ekrana, korisnikov zahtev (2026-09-07):
+     ranija verzija je bila mali umetnuti spisak unutar resultBox-a sa
+     sitnim kartama, teško čitljivo "čije je čije". Ovo je zaseban pun-ekran
+     overlay (isti .screen obrazac kao login/room), sa PRAVim kartama
+     (cardEl(), isti izgled kao za vreme igranja) grupisanim po igraču. -->
+<div class="screen" id="revealedHandsScreen">
+  <div class="box" style="max-width:960px;width:100%;max-height:92vh;overflow-y:auto">
+    <h2>Sve karte ove ruke</h2>
+    <div id="revealedHandsContent"></div>
+    <button class="mode-btn primary" style="min-height:48px;margin-top:14px" onclick="closeRevealedHands()">Zatvori</button>
   </div>
 </div>
 
