@@ -11,7 +11,6 @@
 // OVOG sedista" — ovde treba da odigra CEO tok, za sva tri sedista).
 import type { Game } from './game.js';
 import type { Position } from './types.js';
-import { GAME_VALUES, STANDARD_GAMES, IGRA_GAMES } from './constants.js';
 import {
   evaluateHand,
   chooseBidAction,
@@ -20,8 +19,9 @@ import {
   chooseCallOrAlone,
   chooseKontra,
   choosePlayCard,
+  chooseDeclareGame,
 } from './ai.js';
-import type { Game as GameT, Suit } from './types.js';
+import type { Card, Game as GameT, Suit } from './types.js';
 
 const RANK_ORDER = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 const rankValue = (r: string): number => RANK_ORDER.indexOf(r);
@@ -33,7 +33,6 @@ const KONTRA_NEXT: Record<string, 'KONTRA' | 'REKONTRA' | 'SUBKONTRA' | 'MORTKON
   SUBKONTRA: 'MORTKONTRA',
 };
 
-const SUIT_TO_GAME: Record<Suit, GameT> = { '♠': 'Pik', '♥': 'Herc', '♦': 'Karo', '♣': 'Tref' };
 const SUIT_TO_IGRA: Record<Suit, GameT> = {
   '♠': 'Igra-Pik',
   '♥': 'Igra-Herc',
@@ -45,14 +44,8 @@ function isBetlGame(g: GameT | null): boolean {
   return g === 'Betl' || g === 'Igra-Betl';
 }
 
-function chooseStandardGame(hand: { suit: Suit }[], currentBid: number): GameT {
-  const best = evaluateHand(hand as never).bestSuit;
-  const candidate = best ? SUIT_TO_GAME[best.suit] : null;
-  if (candidate && GAME_VALUES[candidate] >= currentBid) return candidate;
-  for (const g of STANDARD_GAMES) {
-    if (GAME_VALUES[g] >= currentBid) return g;
-  }
-  return 'Pik';
+function chooseStandardGame(hand: Card[], currentBid: number): GameT {
+  return chooseDeclareGame(hand, currentBid);
 }
 
 function chooseIgraGame(hand: { suit: Suit }[]): GameT {

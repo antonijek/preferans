@@ -36,6 +36,15 @@ export interface RoomState {
   // (svaki put kad neko npr. otvori chat), bez ovoga bi se zakazalo N
   // paralelnih newHand() poziva.
   nextHandScheduled: boolean;
+  // Handle da bi se zakazani automatski nastavak mogao OTKAZATI (game:viewCards)
+  // — obicno polje, ne samo bool, jer treba nesto sto se moze clearTimeout-ovati.
+  nextHandTimeout: ReturnType<typeof setTimeout> | null;
+  // Postavlja se kad neko klikne "Pogledaj karte" — iskljucuje automatski
+  // tajmer TRAJNO za ovu zavrsenu ruku (korisnikov zahtev: ko hoce da
+  // pregleda ruku detaljno, treba mu vremena bez pritiska tajmera; posle
+  // toga SAMO rucni "Deli" klik nastavlja). Resetuje se na false cim
+  // sledeca ruka stvarno pocne.
+  autoAdvancePaused: boolean;
 }
 
 export interface RoomOptions {
@@ -57,5 +66,7 @@ export function createRoomState(code: string, options: RoomOptions = {}): RoomSt
     abandonedSeat: null,
     frozenBula: null,
     nextHandScheduled: false,
+    nextHandTimeout: null,
+    autoAdvancePaused: false,
   };
 }

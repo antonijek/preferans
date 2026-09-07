@@ -5,7 +5,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Game } from '../src/game.ts';
 import { makeCard } from '../src/cards.ts';
-import { computeVoidSuits, determinize, autoPlayToHandEnd } from '../src/aiSearch.ts';
+import { computeVoidSuits, determinize, autoPlayToHandEnd, searchChooseAction } from '../src/aiSearch.ts';
+import { makeDeck, shuffle as shuffleDeck } from '../src/deck.ts';
 import { applyHeuristicTurn } from '../src/aiAutoplay.ts';
 import type { GameState, Position } from '../src/types.ts';
 
@@ -221,4 +222,67 @@ test('determinize: stres — hiljade poziva kroz CELE odigrane ruke (uzivo prija
   }
   assert.ok(totalCalls > 1000, `ocekivano mnogo poziva radi stvarnog stresa, dobijeno ${totalCalls}`);
   console.log(`  (stres test: ${totalCalls} determinize() poziva, nijedan nije bacio gresku)`);
+});
+
+// === searchChooseAction — BIDDING (Faza 3: korisnikov zahtev 2026-09-02:
+// "licitirao je AI a nije analizirao koliko stihova moze da ima" — ovo
+// dokazuje da nova pretraga STVARNO razlikuje ruku koja ne moze da napravi
+// 6 stihova (REQUIRED_TRICKS je 6 za SVE standardne igre, constants.ts) od
+// ruke koja moze, umesto fiksnog praga "4+ karte u boji". ===
+
+// Deljenje 2 -> firstBidder = nextPlayer(2) = 0 (isto sto i newHand(2)).
+function biddingFixture(myHand: ReturnType<typeof makeDeck>, rng: () => number): Game {
+  const game = new Game({ seed: 999 });
+  game.newHand(2);
+  const myIds = new Set(myHand.map((c) => c.id));
+  const rest = shuffleDeck(makeDeck().filter((c) => !myIds.has(c.id)), rng);
+  game.state.players[0]!.hand = myHand.slice();
+  game.state.players[1]!.hand = rest.slice(0, 10);
+  game.state.players[2]!.hand = rest.slice(10, 20);
+  game.state.talon = rest.slice(20, 22);
+  assert.equal(game.state.currentBidder, 0, 'fixture pretpostavka: igrac 0 licitira prvi');
+  return game;
+}
+
+test('searchChooseAction (BIDDING): slaba ruka bez sigurnih stihova -> DALJE', () => {
+  const rng = makeRng(555);
+  // 10 najslabijih karata BI bila i savrsena Betl prilika (0 visokih) — dva
+  // Herc-a su namerno visoka BEZ ijedne niske podrske u toj boji (D,J, 0
+  // karata 7-10) da ruka ostane genuinski bezvredna i van Betl dometa (vidi
+  // isSuitBetlSafe: bez asa treba niske >= visoke, ovde 0 niskih < 2 visoke).
+  const myHand = [
+    makeCard('♠', '7'), makeCard('♠', '8'), makeCard('♠', '9'),
+    makeCard('♥', 'Q'), makeCard('♥', 'J'),
+    makeCard('♦', '7'), makeCard('♦', '8'), makeCard('♦', '9'),
+    makeCard('♣', '7'), makeCard('♣', '8'),
+  ];
+  const game = biddingFixture(myHand, rng);
+  const action = searchChooseAction(game.state, 0 as Position, 25, rng);
+  assert.equal(action.type, 'pass', `ocekivano DALJE za bezvrednu ruku, dobijeno ${JSON.stringify(action)}`);
+});
+
+test('searchChooseAction (BIDDING): jaka ruka sa realnim adutskim izvlacenjem (Tref A,K,J,10 + Herc A,K,10) -> BID, ne DALJE', () => {
+  // NAPOMENA: raniji test ovde je koristio ruku koja drzi SVA 4 asa (7 pikova
+  // A-K-Q-J.. + 3 preostala asa) i ocekivao BID — ali korisnikova uzivo
+  // kalibracija (2026-09-06) je pokazala da bas TAKVA, EKSTREMNO dominantna
+  // ruka realno cesto ispravno bira DALJE: kad je toliko jaka da su OBA
+  // protivnika garantovano jako slaba, cekanje da neko od njih bude
+  // prisiljen da postane bespomocni nosilac (pa ih se obara na odbrani, ili
+  // se "Pik bez kontre" ponisti bez rizika) moze doneti VECI ocekivani
+  // rezultat nego samo-prijavljivanje. To NIJE bag — to je bas ono sto
+  // pretraga treba da otkrije umesto fiksne heuristike. Ovaj test sada
+  // koristi Ruku 11 iz uzivo kalibracije (♠7 · ♥A,K,10 · ♦K,10 · ♣A,K,J,10),
+  // gde je korisnik eksplicitno potvrdio BID (racunato: Tref puna duzina=4 +
+  // Herc sporedna boja posle izvlacenja=2 → 6 stihova) BEZ te "cekaj i obori"
+  // dinamike, jer protivnici ovde NISU garantovano bespomocni.
+  const rng = makeRng(2026);
+  const myHand = [
+    makeCard('♠', '7'),
+    makeCard('♥', 'A'), makeCard('♥', 'K'), makeCard('♥', '10'),
+    makeCard('♦', 'K'), makeCard('♦', '10'),
+    makeCard('♣', 'A'), makeCard('♣', 'K'), makeCard('♣', 'J'), makeCard('♣', '10'),
+  ];
+  const game = biddingFixture(myHand, rng);
+  const action = searchChooseAction(game.state, 0 as Position, 40, rng);
+  assert.notEqual(action.type, 'pass', `ocekivano BID/IGRA, dobijeno ${JSON.stringify(action)}`);
 });

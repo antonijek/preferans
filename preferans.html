@@ -1227,27 +1227,30 @@
     <h2 class="section-title">Pravila preferansa (ukratko)</h2>
     <p>Preferans — u nekim krajevima poznat i kao <strong>balkanski preferans</strong>, <strong>preferanc</strong> ili prosto <strong>betl</strong> (po jednoj od igara u njemu) — igra se u tri igrača, u Srbiji, Crnoj Gori, Bosni i Hercegovini i dijaspori. Ovde se igra besplatno, po pravim pravilima:</p>
     <div class="home-features-grid">
-      <div class="feature-card">
+      <a class="feature-card" href="/pravila.html#licitiranje" style="text-decoration:none;color:inherit;display:block">
         <h3>Licitacija</h3>
         <p>Igrači se redom nadmeću brojevima od 2 do 7 (ili kažu "dalje"), boreći se za pravo da proglase svoju igru. Pobednik licitacije postaje nosilac i uzima talon.</p>
-      </div>
-      <div class="feature-card">
+      </a>
+      <a class="feature-card" href="/pravila.html#refa" style="text-decoration:none;color:inherit;display:block">
         <h3>Refe</h3>
         <p>Kad niko ne preuzme partiju (svi kažu "dalje", ili se Pik odigra bez kontre), sva tri igrača dobijaju po jednu "refu" — sledeći put kad neko od njih postane nosilac, taj rezultat mu se duplira.</p>
-      </div>
-      <div class="feature-card">
+      </a>
+      <a class="feature-card" href="/pravila.html#igranje" style="text-decoration:none;color:inherit;display:block">
         <h3>Betl</h3>
         <p>Nosilac se obavezuje da NE uzme nijedan štih cele ruke. Ako uhvati makar jedan jedini štih, pada.</p>
-      </div>
-      <div class="feature-card">
+      </a>
+      <a class="feature-card" href="/pravila.html#igranje" style="text-decoration:none;color:inherit;display:block">
         <h3>Sans</h3>
         <p>Igra se bez aduta i bez talona — nosilac pokušava da uzme što je moguće više štihova, pratioci se bore da ga spreče.</p>
-      </div>
-      <div class="feature-card">
+      </a>
+      <a class="feature-card" href="/pravila.html#kontra" style="text-decoration:none;color:inherit;display:block">
         <h3>Kontra</h3>
         <p>Pratioci mogu da "kontriraju" nosiočevu igru ako veruju da će pasti — to duplira (a rekontra/subkontra/mortkontra još i više) konačan rezultat te ruke.</p>
-      </div>
+      </a>
     </div>
+    <p style="text-align:center;margin-top:18px">
+      <a href="/pravila.html" style="color:#8ee08e;font-weight:600">📖 Pročitaj kompletna pravila →</a>
+    </p>
   </section>
 
   <section class="home-section">
@@ -1337,6 +1340,8 @@
   <div class="box" id="resultBox">
     <h2 id="resultTitle">Kraj</h2>
     <div id="resultMsg"></div>
+    <div id="revealedHands" style="display:none;margin:10px 0"></div>
+    <button class="mode-btn" id="viewCardsBtn" style="display:none;margin-bottom:8px" onclick="viewCards()">👀 Pogledaj karte</button>
     <button class="mode-btn primary" style="min-height:48px" id="nextRoundBtn" onclick="resultAction()">Igraj</button>
   </div>
 </div>

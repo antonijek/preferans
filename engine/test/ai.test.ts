@@ -109,10 +109,16 @@ test('ai: chooseBidAction — BID kad ima 5+ u boji', () => {
 });
 
 test('ai: chooseBidAction — PASS kad ruka slaba', () => {
+  // Napomena: cista niska ruka bi lako slucajno bila Betl-bezbedna (svaka
+  // boja sa bar 1 niskom kartom je "bezbedna" i bez asa, vidi isSuitBetlSafe)
+  // — Herc ovde namerno ima DVE visoke karte BEZ ijedne niske (Q,J, 0 karata
+  // 7-10), sto je NEBEZBEDNO (korisnikov zahtev: "K,D,J,10... to je suludo"
+  // — isti princip vazi i za par visokih bez niske podrske), da ruka ostane
+  // genuinski slaba i van Betl dometa.
   const hand = makeHand([
     ['9', '♠'], ['8', '♠'], ['7', '♠'],
-    ['9', '♥'], ['8', '♥'],
-    ['9', '♦'], ['8', '♦'],
+    ['Q', '♥'], ['J', '♥'],
+    ['8', '♦'], ['7', '♦'],
     ['9', '♣'], ['8', '♣'], ['7', '♣'],
   ]);
   const action = chooseBidAction({
@@ -312,8 +318,8 @@ test('ai: choosePlayCard — avoidTricks bez lead boje baca najslabiju (Betl nem
 
 test('ai: chooseBidAction — Mogu-eligible (nadmasen), niko jos nije potvrdio → MOGU', () => {
   const hand = makeHand([
-    ['A', '♣'], ['K', '♣'], ['9', '♣'], ['7', '♣'],
-    ['9', '♥'], ['8', '♥'], ['9', '♦'], ['7', '♦'], ['7', '♠'], ['8', '♠'],
+    ['A', '♣'], ['K', '♣'], ['J', '♣'], ['9', '♣'], ['7', '♣'],
+    ['9', '♥'], ['8', '♥'], ['9', '♦'], ['7', '♦'], ['7', '♠'],
   ]);
   const action = chooseBidAction({
     hand,
@@ -347,8 +353,8 @@ test('ai: chooseBidAction — Mogu vec potvrdio NEKO DRUGI → PASS, ne MOGU pon
 
 test('ai: chooseBidAction — drzim vrh, jaka boja → BID (podizanje rezervisano za onog ko NIJE nadmasen)', () => {
   const hand = makeHand([
-    ['A', '♣'], ['K', '♣'], ['Q', '♣'], ['9', '♣'],
-    ['9', '♥'], ['8', '♥'], ['9', '♦'], ['7', '♦'], ['7', '♠'], ['8', '♠'],
+    ['A', '♣'], ['K', '♣'], ['Q', '♣'], ['J', '♣'], ['9', '♣'],
+    ['9', '♥'], ['8', '♥'], ['9', '♦'], ['7', '♦'], ['7', '♠'],
   ]);
   const action = chooseBidAction({
     hand,

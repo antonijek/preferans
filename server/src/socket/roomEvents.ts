@@ -83,18 +83,27 @@ function broadcastRoomState(room: RoomState): void {
 // sledecim rukama, sto je i namera "Napusti partiju" funkcije.
 const NEXT_HAND_DELAY_MS = 9000;
 
+// Deljena logika za "stvarno predji na sledecu ruku" — poziva je i tajmer i
+// rucni game:dealNext. Isto sto lokalni mod radi u nextRound() (app.js) —
+// round++ i diler rotira na sledeceg igraca (newHand()'s podrazumevani
+// parametar bez argumenta bi ponovo koristio ISTOG dilera).
+function dealNextHand(room: RoomState): void {
+  room.autoAdvancePaused = false;
+  room.game.state.round++;
+  room.game.newHand(((room.game.state.dealer + 1) % 3) as Position);
+  broadcastRoomState(room);
+}
+
 function maybeAutoAdvanceHand(room: RoomState): void {
-  if (room.game.state.phase !== 'GAME_OVER' || room.nextHandScheduled) return;
+  if (room.game.state.phase !== 'GAME_OVER' || room.nextHandScheduled || room.autoAdvancePaused) return;
   room.nextHandScheduled = true;
-  setTimeout(() => {
+  room.nextHandTimeout = setTimeout(() => {
     room.nextHandScheduled = false;
-    if (room.game.state.phase !== 'GAME_OVER') return; // neko je u medjuvremenu vec nastavio/promenio stanje
-    // Isto sto lokalni mod radi u nextRound() (app.js) — round++ i diler
-    // rotira na sledeceg igraca, ne ostaje isti (newHand()'s podrazumevani
-    // parametar bez argumenta ponovo koristi ISTOG dilera).
-    room.game.state.round++;
-    room.game.newHand(((room.game.state.dealer + 1) % 3) as Position);
-    broadcastRoomState(room);
+    room.nextHandTimeout = null;
+    // Neko je u medjuvremenu vec nastavio/promenio stanje, ili je kliknuo
+    // "Pogledaj karte" (pauzira automatski nastavak) — ne diraj nista.
+    if (room.game.state.phase !== 'GAME_OVER' || room.autoAdvancePaused) return;
+    dealNextHand(room);
   }, NEXT_HAND_DELAY_MS);
 }
 
@@ -297,6 +306,53 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     }
   });
 
+  // "Pogledaj karte" — korisnikov zahtev: neko posle rune zeli da vidi sve
+  // tri ruke bez pritiska automatskog tajmera. Otkazuje zakazan automatski
+  // nastavak TRAJNO za ovu zavrsenu ruku (autoAdvancePaused) — od sada SAMO
+  // rucni game:dealNext nastavlja, dok se stvarno ne podeli sledeca ruka.
+  socket.on('game:viewCards', (_payload: unknown, ack?: Ack) => {
+    const room = currentRoom();
+    if (!room || room.game.state.phase !== 'GAME_OVER') {
+      ack?.({ error: 'Nema zavrsene ruke za pregled' });
+      return;
+    }
+    if (room.nextHandTimeout) {
+      clearTimeout(room.nextHandTimeout);
+      room.nextHandTimeout = null;
+    }
+    room.nextHandScheduled = false;
+    room.autoAdvancePaused = true;
+    // Rekonstruisi punu ruku svakog igraca za rundu koja je upravo zavrsena:
+    // karte koje je taj igrac odigrao (iz tricks) + sta mu je eventualno
+    // ostalo neodigrano (rano-prekinuta ruka, "nosilac sigurno pao").
+    const hands = ([0, 1, 2] as Position[]).map((seat) => {
+      const played = room.game.state.tricks.flatMap((trick) =>
+        trick.filter((tc) => tc.player === seat).map((tc) => tc.card)
+      );
+      return { seat, name: room.seatNames[seat], cards: [...played, ...room.game.state.players[seat]!.hand] };
+    });
+    io.to(room.code).emit('game:handsRevealed', hands);
+    ack?.({ ok: true });
+  });
+
+  // Rucni nastavak — jedini nacin da se predje na sledecu rundu posle
+  // game:viewCards (autoAdvancePaused), ali radi i pre toga (samo preskace
+  // preostalo cekanje tajmera).
+  socket.on('game:dealNext', (_payload: unknown, ack?: Ack) => {
+    const room = currentRoom();
+    if (!room || room.game.state.phase !== 'GAME_OVER') {
+      ack?.({ error: 'Nema zavrsene ruke za nastavak' });
+      return;
+    }
+    if (room.nextHandTimeout) {
+      clearTimeout(room.nextHandTimeout);
+      room.nextHandTimeout = null;
+    }
+    room.nextHandScheduled = false;
+    dealNextHand(room);
+    ack?.({ ok: true });
+  });
+
   socket.on('chat:send', (payload: { text?: string }) => {
     const room = currentRoom();
     const loc = getUserLocation(userId);
@@ -320,10 +376,13 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
 
   // Explicit, permanent leave — distinct from `disconnect` below, which
   // keeps the seat reserved indefinitely for reconnect. Leaving freezes the
-  // player's current bula, hands their seat to the server AI (aiSeat.ts)
-  // for the rest of THIS hand (online rooms only ever play one hand — see
-  // plan "Leave Match With Consequences" — so nothing further needs to be
-  // done once it ends), and frees the user to join/create a different room.
+  // player's current bula, hands their seat to the server AI (aiSeat.ts) —
+  // `abandonedSeat` carries over hand-to-hand via the auto-continue
+  // mechanism (maybeAutoAdvanceHand) added 2026-09-05, so the AI keeps
+  // covering that seat across the REST of the match now, not just the one
+  // hand in progress when they left (see [[project-preferans-ranking-system-design]]
+  // for the still-outstanding match-end capping rule for this case) — and
+  // frees the user to join/create a different room.
   socket.on('game:leave', (_payload: unknown, ack?: Ack) => {
     const room = currentRoom();
     const loc = getUserLocation(userId);

@@ -11,7 +11,7 @@ import {
   chooseKontra as aiChooseKontra,
   choosePlayCard as aiChoosePlayCard,
 } from './engine/dist/ai.js';
-import { searchChoosePlayCard } from './engine/dist/aiSearch.js';
+import { searchChoosePlayCard, searchChooseAction, applyLegalAction } from './engine/dist/aiSearch.js';
 
 // Feature-flag za search-bazirani AI (Monte Carlo determinizacija, vidi
 // plan "toasty-rolling-sparkle") — localStorage prekidac radi trenutnog
@@ -21,6 +21,50 @@ function searchAiEnabled() {
   try { return localStorage.getItem('prefSearchAI') !== '0'; } catch { return true; }
 }
 window.setSearchAiEnabled = (on) => { try { localStorage.setItem('prefSearchAI', on ? '1' : '0'); } catch {} };
+
+// Debug: ?seed=NNNN u URL-u forsira deljenje na poznat seed umesto
+// Date.now() — korisno za uzivo kalibraciju igranja karata (vidi
+// engine/tools/reproduce-full-deal.mjs), gde treba da se unapred zna CEO
+// razdel (sve 3 ruke + talon) da bi se moglo komentarisati "sta bi ko
+// trebalo da baci" bez rucnog prepisivanja karata u chat.
+function debugSeedOverride() {
+  try {
+    const v = new URLSearchParams(location.search).get('seed');
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? n : null;
+  } catch { return null; }
+}
+
+// Vidljiv natpis NA EKRANU (ne u konzoli — lakse za prevideti/filtrirati)
+// koji pokazuje sve tri ruke + talon kad je ?seed= aktivan. Postavlja se
+// JEDNOM po deljenju (poziva se iz startGame() posle newHand(0)) — ne
+// azurira se posle toga (namerno: ostatak ruke se prati kroz stvarne
+// poteze, ne kroz ponovno citanje ruku koje bi vec bile promenjene).
+function renderSeedDebugBanner() {
+  const seed = debugSeedOverride();
+  let el = document.getElementById('seedDebugBanner');
+  if (seed === null) {
+    if (el) el.remove();
+    return;
+  }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'seedDebugBanner';
+    el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;' +
+      'background:#ffeb3b;color:#000;font:12px monospace;padding:6px 10px;' +
+      'white-space:pre-wrap;word-break:break-all;max-height:30vh;overflow:auto;' +
+      'border-bottom:3px solid #f57f17;';
+    document.body.appendChild(el);
+  }
+  const s = game.state;
+  const fmt = (hand) => hand.map((c) => c.rank + c.suit).join(' ');
+  el.textContent =
+    `SEED DEBUG — seed=${seed}\n` +
+    `Jug: ${fmt(s.players[0].hand)}\n` +
+    `Istok: ${fmt(s.players[1].hand)}\n` +
+    `Zapad: ${fmt(s.players[2].hand)}\n` +
+    `Talon: ${fmt(s.talon)}`;
+}
 
 // === ZVUCNI EFEKTI ===
 // Sve procedurulno generisano preko Web Audio API (osciloatori + kratke
@@ -195,14 +239,16 @@ function createGame(config) {
   const _originalNewHand = g.newHand.bind(g);
   g.newHand = (...args) => {
     handGeneration++;
-    return _originalNewHand(...args);
+    const result = _originalNewHand(...args);
+    renderSeedDebugBanner();
+    return result;
   };
   window.game = g;
   return g;
 }
 
 let handGeneration = 0;
-let game = createGame({ seed: Date.now() & 0xffff });
+let game = createGame({ seed: debugSeedOverride() ?? (Date.now() & 0xffff) });
 let mode = '1v2';
 
 // === ONLINE MOD ===
@@ -955,16 +1001,22 @@ function renderDeclaring() {
       ctrl.appendChild(el('div', 'section-label', `${POS_LABELS[winner]} proglašava igru (Igra)...`));
       setTimeout(() => {
         if (gen !== handGeneration || game.state.phase !== 'DECLARING' || game.state.winner !== winner) return;
-        const g = aiChooseIgraGame(winner);
-        game.declareIgra(winner, g);
+        if (searchAiEnabled()) {
+          applyLegalAction(game, searchChooseAction(game.state, winner, 60));
+        } else {
+          game.declareIgra(winner, aiChooseIgraGame(winner));
+        }
         render();
       }, 600);
     } else {
       ctrl.appendChild(el('div', 'section-label', `${POS_LABELS[winner]} bira igru...`));
       setTimeout(() => {
         if (gen !== handGeneration || game.state.phase !== 'DECLARING' || game.state.winner !== winner) return;
-        const g = aiChooseGame(winner);
-        game.declareGame(winner, g);
+        if (searchAiEnabled()) {
+          applyLegalAction(game, searchChooseAction(game.state, winner, 60));
+        } else {
+          game.declareGame(winner, aiChooseGame(winner));
+        }
         render();
       }, 500);
     }
@@ -1040,7 +1092,11 @@ function renderFollowing() {
       const gen = handGeneration;
       setTimeout(() => {
         if (gen !== handGeneration || game.state.phase !== 'FOLLOW_DECLARING' || game.state.followChoices[undecided] !== null) return;
-        game.follow(undecided, willFollow ? 'DODJEM' : 'NE_DODJEM');
+        if (searchAiEnabled()) {
+          applyLegalAction(game, searchChooseAction(game.state, undecided, 120));
+        } else {
+          game.follow(undecided, willFollow ? 'DODJEM' : 'NE_DODJEM');
+        }
         render();
       }, 400);
     }
@@ -1078,14 +1134,18 @@ function renderFollowing() {
       // Zovi partnera ako NJEGOVA ruka ima bar 1 siguran stih da doprinese,
       // inace igraj sam (RULES 5.3 — poziv ima smisla samo ako pozvani
       // stvarno moze pomoci).
-      const neDodjemHand = game.state.players[neDodjem].hand;
-      const action = aiChooseCallOrAlone({
-        caller: callerCandidate,
-        neDodjemHand,
-        declaredGame: game.state.declaredGame,
-      });
-      if (action === 'CALL') game.call(callerCandidate, neDodjem);
-      else game.continueWithoutCall();
+      if (searchAiEnabled()) {
+        applyLegalAction(game, searchChooseAction(game.state, callerCandidate, 120));
+      } else {
+        const neDodjemHand = game.state.players[neDodjem].hand;
+        const action = aiChooseCallOrAlone({
+          caller: callerCandidate,
+          neDodjemHand,
+          declaredGame: game.state.declaredGame,
+        });
+        if (action === 'CALL') game.call(callerCandidate, neDodjem);
+        else game.continueWithoutCall();
+      }
       render();
     }, 400);
   }
@@ -1135,7 +1195,9 @@ function renderKontra() {
     const gen = handGeneration;
     setTimeout(() => {
       if (gen !== handGeneration || game.state.phase !== 'KONTRA_DECLARING' || game.expectedKontraPlayerPublic() !== expected) return;
-      if (willKontra) {
+      if (searchAiEnabled()) {
+        applyLegalAction(game, searchChooseAction(game.state, expected, 120));
+      } else if (willKontra) {
         const nextLevel = { null: 'KONTRA', 'KONTRA': 'REKONTRA', 'REKONTRA': 'SUBKONTRA', 'SUBKONTRA': 'MORTKONTRA' }[s.kontraLevel ?? 'null'];
         game.kontra(expected, nextLevel);
       } else {
@@ -1282,6 +1344,19 @@ function aiBidTurn(player) {
   if (game.state.phase !== 'BIDDING' || game.state.currentBidder !== player) return;
   const s = game.state;
   const hand = s.players[player].hand;
+
+  if (searchAiEnabled()) {
+    // Monte Carlo determinizaciona pretraga (plan "toasty-rolling-sparkle",
+    // Faza 3) — getLegalActions() vec ispravno kodira SVA pravila
+    // licitacije (igraEligible, numericBidFrozen dok neko drzi Igra,
+    // Mogu-sme-samo-jedan-igrac), pa nema potrebe za rucnim radnim-oko-om
+    // koji heuristicki put ispod zahteva. 80 uzoraka po kandidatu (obicno
+    // najvise 3-4 kandidata: dalje/mogu-ili-bid/igra).
+    const action = searchChooseAction(s, player, 80);
+    applyLegalAction(game, action);
+    render();
+    return;
+  }
 
   // Neko je vec rekao "Igra" — numericka licitacija je zamrznuta (RULES 3.4).
   // Mogu samo konkurisati svojom Igra ili reci "dalje". chooseBidAction() ne
@@ -1474,6 +1549,17 @@ function renderResult() {
   $('resultTitle').textContent = title;
   $('resultTitle').classList.toggle('match-over-title', s.phase === 'MATCH_OVER');
   $('resultBox').classList.toggle('match-over', s.phase === 'MATCH_OVER');
+  // "Pogledaj karte" ima smisla samo posle GAME_OVER (kraj rune) — kod
+  // MATCH_OVER nema sledece runde cije karte bi se cekale/gledale.
+  $('viewCardsBtn').style.display = s.phase === 'GAME_OVER' ? '' : 'none';
+  $('revealedHands').style.display = 'none';
+  $('revealedHands').innerHTML = '';
+  // Online: sledeca runda se inace deli SAMA (automatski tajmer) — "Igraj"
+  // bi zbunilo kao da ovo dugme pokrece nesto sto se inace desi samo od
+  // sebe. "Deli" bolje opisuje "preskoci cekanje / potvrdi odmah".
+  if (s.phase !== 'MATCH_OVER') {
+    $('nextRoundBtn').textContent = mode === 'online' ? 'Deli' : 'Igraj';
+  }
 
   if (s.phase === 'MATCH_OVER') {
     // Korisnikov zahtev: kraj PARTIJE ne treba da ponavlja narativ poslednje
@@ -1642,7 +1728,7 @@ function startGame() {
   const initialBule = Number.isFinite(bulaInput) && bulaInput > 0 ? bulaInput : 100;
   const refeMax = maxRefeForBula(initialBule);
   const refePerPlayer = Number.isFinite(refeInput) && refeInput >= 0 ? Math.min(refeInput, refeMax) : Math.min(2, refeMax);
-  game = createGame({ seed: Date.now() & 0xffff, initialBule, refePerPlayer });
+  game = createGame({ seed: debugSeedOverride() ?? (Date.now() & 0xffff), initialBule, refePerPlayer });
 
   // Nova partija — resetuj svu sesijsku istoriju od (eventualne) prethodne
   // partije na istoj stranici (Zavrsi -> nova partija sa drugim podesavanjima).
@@ -1677,16 +1763,65 @@ function nextRound() {
 }
 
 // Jedino dugme na result-ekranu (korisnikov zahtev — bilo je 2, "Sledeci
-// krug" i "Zavrsi", sad samo "Igraj"). Ponasanje zavisi od faze: obicna
-// ruka -> sledeca ruka; MATCH_OVER -> nema "sledece ruke", vraca na setup
-// (isto sto je ranije radilo "Zavrsi").
+// krug" i "Zavrsi", sad samo "Igraj"/"Deli"). Ponasanje zavisi od
+// moda+faze: lokalno obicna ruka -> sledeca ruka lokalno; MATCH_OVER ->
+// nema "sledece ruke". Online sobe se same nastavljaju automatski (server,
+// roomEvents.ts maybeAutoAdvanceHand) — ovo dugme online samo TRAZI od
+// servera da to uradi ODMAH (preskace preostalo cekanje tajmera, ili je
+// jedini nacin napred posle "Pogledaj karte" koje tajmer trajno iskljuci).
 function resultAction() {
+  if (mode === 'online') {
+    if (game.state.phase === 'MATCH_OVER') {
+      $('resultScreen').classList.remove('active');
+      goToHomeScreen();
+    } else {
+      onlineSocket.emit('game:dealNext', {}, (res) => {
+        if (res?.error) console.warn('[online] game:dealNext odbijen:', res.error);
+      });
+    }
+    return;
+  }
   if (game.state.phase === 'MATCH_OVER') {
     $('setupScreen').classList.add('active');
     $('resultScreen').classList.remove('active');
   } else {
     nextRound();
   }
+}
+
+// "Pogledaj karte" — otkriva sve tri ruke za rundu koja je upravo zavrsena.
+// Lokalno je trivijalno (game.state je vec potpuno vidljivo klijentu).
+// Online trazi od servera da otkrije (klijent inace vidi samo svoju
+// redakovanu ruku) — i to TRAJNO iskljucuje automatski tajmer za ovu rundu
+// (server: autoAdvancePaused), tako da posle ovoga samo rucni klik na
+// "Deli" (resultAction) nastavlja.
+function viewCards() {
+  if (mode === 'online') {
+    onlineSocket.emit('game:viewCards', {}, (res) => {
+      if (res?.error) console.warn('[online] game:viewCards odbijen:', res.error);
+    });
+    return;
+  }
+  const s = game.state;
+  const hands = [0, 1, 2].map((seat) => {
+    const played = s.tricks.flatMap((trick) => trick.filter((tc) => tc.player === seat).map((tc) => tc.card));
+    return { seat, name: POS_LABELS[seat], cards: [...played, ...s.players[seat].hand] };
+  });
+  renderRevealedHands(hands);
+}
+
+function renderRevealedHands(hands) {
+  const container = $('revealedHands');
+  container.innerHTML = hands.map((h) => {
+    const sorted = sortHand(h.cards);
+    const cardsHtml = sorted.map((c) => `<span class="card tiny ${isRed(c.suit) ? 'red' : 'black'}" style="display:inline-flex">
+      <span class="rank">${c.rank}</span><span class="suit">${c.suit}</span></span>`).join('');
+    return `<div style="margin-bottom:8px;text-align:left">
+      <div style="font-size:0.85em;opacity:0.75;margin-bottom:3px">${escapeHtml(h.name ?? POS_LABELS[h.seat])}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px">${cardsHtml}</div>
+    </div>`;
+  }).join('');
+  container.style.display = '';
 }
 
 // === ONLINE: login/registracija ===
@@ -1826,6 +1961,9 @@ async function connectOnlineSocket() {
   });
   onlineSocket.on('game:action-rejected', (action) => {
     console.warn('[online] akcija odbijena od servera:', action);
+  });
+  onlineSocket.on('game:handsRevealed', (hands) => {
+    renderRevealedHands(hands);
   });
   onlineSocket.on('game:error', (msg) => {
     console.error('[online] server greška:', msg);
@@ -2155,6 +2293,7 @@ function setGameMode(m) {
 window.startGame = startGame;
 window.nextRound = nextRound;
 window.resultAction = resultAction;
+window.viewCards = viewCards;
 window.setGameMode = setGameMode;
 window.userBid = userBid;
 window.userSayIgra = userSayIgra;

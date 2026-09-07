@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<title>Trening licitacije</title>
+<style>
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: radial-gradient(ellipse at center, #1e3320 0%, #10201a 60%, #0a0b0c 100%);
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100%;
+    gap: 24px;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+  h1 { font-size: 1.1em; opacity: 0.7; font-weight: 500; margin: 0; }
+  #counter { font-size: 1.4em; font-weight: 700; color: #ffeb3b; }
+  #hand {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 900px;
+  }
+  .card {
+    background: white;
+    color: #222;
+    width: 84px;
+    height: 118px;
+    border-radius: 9px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.5);
+    flex-shrink: 0;
+  }
+  .card.red { color: #c62828; }
+  .card.black { color: #222; }
+  .card .rank { font-size: 1.5em; line-height: 1; }
+  .card .suit { font-size: 1.9em; line-height: 1; }
+  #controls { display: flex; gap: 12px; }
+  button {
+    font-family: inherit;
+    font-size: 1em;
+    font-weight: 700;
+    padding: 10px 22px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.3);
+    background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.06) 100%);
+    color: #fff;
+    cursor: pointer;
+  }
+  button:hover { background: linear-gradient(180deg, rgba(255,255,255,0.26) 0%, rgba(255,255,255,0.12) 100%); }
+  button:active { transform: scale(0.96); }
+  #seedRow { font-size: 0.8em; opacity: 0.5; }
+</style>
+</head>
+<body>
+  <h1>Trening licitacije — pretpostavka: ti si prvi na potezu, niko još nije licitirao</h1>
+  <div id="counter">Ruka 1</div>
+  <div id="hand"></div>
+  <div id="controls">
+    <button id="prevBtn">← Prethodna</button>
+    <button id="nextBtn">Sledeća ruka →</button>
+  </div>
+  <div id="seedRow"></div>
+
+<script>
+const SUITS = ['♠', '♥', '♦', '♣'];
+const RANKS = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+const RANK_ORDER = RANKS;
+
+function makeDeck() {
+  const deck = [];
+  for (const s of SUITS) for (const r of RANKS) deck.push({ suit: s, rank: r });
+  return deck;
+}
+
+function makeRng(seed) {
+  let state = seed;
+  return () => {
+    state = (state * 1664525 + 1013904223) % 4294967296;
+    return state / 4294967296;
+  };
+}
+
+function shuffle(arr, rng) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function dealHand(seed) {
+  const rng = makeRng(seed);
+  const deck = shuffle(makeDeck(), rng);
+  return deck.slice(0, 10);
+}
+
+function isRed(suit) { return suit === '♥' || suit === '♦'; }
+
+function sortHand(hand) {
+  const bySuit = new Map(SUITS.map(s => [s, []]));
+  for (const c of hand) bySuit.get(c.suit).push(c);
+  let out = [];
+  for (const s of SUITS) {
+    const cards = bySuit.get(s).sort((a, b) => RANK_ORDER.indexOf(b.rank) - RANK_ORDER.indexOf(a.rank));
+    out = out.concat(cards);
+  }
+  return out;
+}
+
+let idx = 1;
+// Seed pomeren daleko od 1 da se NE poklopi sa ranije pokazanim tekstualnim
+// primerima u razgovoru (deal-quiz.ts seed 1..10 vec pokazan/analiziran).
+const SEED_BASE = 5000;
+
+function render() {
+  document.getElementById('counter').textContent = 'Ruka ' + idx;
+  document.getElementById('seedRow').textContent = 'seed ' + (SEED_BASE + idx);
+  const hand = sortHand(dealHand(SEED_BASE + idx));
+  const handEl = document.getElementById('hand');
+  handEl.innerHTML = '';
+  for (const c of hand) {
+    const div = document.createElement('div');
+    div.className = 'card ' + (isRed(c.suit) ? 'red' : 'black');
+    div.innerHTML = '<div class="rank">' + c.rank + '</div><div class="suit">' + c.suit + '</div>';
+    handEl.appendChild(div);
+  }
+}
+
+document.getElementById('nextBtn').onclick = () => { idx++; render(); };
+document.getElementById('prevBtn').onclick = () => { if (idx > 1) { idx--; render(); } };
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { idx++; render(); }
+  if (e.key === 'ArrowLeft') { if (idx > 1) { idx--; render(); } }
+});
+
+render();
+</script>
+</body>
+</html>

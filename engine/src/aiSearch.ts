@@ -10,7 +10,7 @@
 import { Game } from './game.js';
 import { makeDeck, shuffle } from './deck.js';
 import { applyHeuristicTurn } from './aiAutoplay.js';
-import type { Card, GameState, Position, Suit } from './types.js';
+import type { Card, GameState, LegalAction, Position, Suit } from './types.js';
 
 export type Rng = () => number;
 
@@ -271,6 +271,79 @@ export function searchChoosePlayCard(
     if (score > bestScore) {
       bestScore = score;
       best = card;
+    }
+  }
+  return best;
+}
+
+/**
+ * Primenjuje JEDNU `LegalAction` (kako je vraca Game.getLegalActions()) na
+ * `g` pozivom odgovarajuceg mutatora. Namerno GENERICKO — pokriva
+ * BIDDING/DECLARING/FOLLOW_DECLARING/KONTRA_DECLARING/PLAYING istim kodom
+ * koji koristi aiAutoplay.ts (heuristicki rollout), samo ovde akcija dolazi
+ * spolja (kandidat koji se ocenjuje) umesto iz fiksne heuristike.
+ */
+export function applyLegalAction(g: Game, action: LegalAction): boolean {
+  switch (action.type) {
+    case 'pass': return g.pass(action.player);
+    case 'bid': return g.bid(action.player, action.value);
+    // "Mogu X" je i dalje samo bid() na trenutnu vrednost — bid() sam
+    // prepoznaje MOGU granu (value === currentBid) i validira je ispravno.
+    case 'mogu': return g.bid(action.player, action.value);
+    case 'igra': return g.sayIgra(action.player);
+    case 'declare':
+      return g.state.igraPlayer !== null
+        ? g.declareIgra(action.player, action.game)
+        : g.declareGame(action.player, action.game);
+    case 'follow': return g.follow(action.player, action.choice);
+    case 'call': return g.call(action.player, action.callee);
+    case 'continueWithoutCall': return g.continueWithoutCall();
+    case 'kontra': return g.kontra(action.player, action.level);
+    case 'moze': return g.moze(action.player);
+    case 'playCard': return g.playCard(action.player, action.cardId);
+    case 'discard-info': return false; // nije prava akcija — vidi searchChooseAction
+    default: return false;
+  }
+}
+
+/**
+ * Faza 3/4: generička pretraga za SVAKU fazu licitacije/deklarisanja/
+ * praćenja/kontre (sve OSIM DISCARDING, koje getLegalActions() ne
+ * enumeriše kao prave kandidate — ostaje na heuristici, vidi ai.ts).
+ *
+ * Zamenjuje fiksne pragove (npr. "4+ karte u boji = licitiraj") stvarnom
+ * simulacijom: za svaku kandidat-akciju (npr. BID 2 vs. DALJE), odigraj
+ * `samples` puta ceo ostatak ruke sa uzorkovanim tudjim rukama i pogledaj
+ * stvarni ishod (bule/supe) — ovo JE odgovor na "koliko štihova realno
+ * mogu da uzmem", racunato simulacijom umesto pogadjanjem.
+ */
+export function searchChooseAction(
+  state: GameState,
+  seat: Position,
+  samples: number,
+  rng: Rng = Math.random,
+): LegalAction {
+  const probe = new Game();
+  probe.state = structuredClone(state);
+  const candidates = probe.getLegalActions().filter((a) => a.player === seat);
+  if (candidates.length === 0) {
+    throw new Error('aiSearch.searchChooseAction: nema legalnih akcija za dato sedište u ovoj fazi');
+  }
+  if (candidates.length === 1) return candidates[0]!;
+
+  let best = candidates[0]!;
+  let bestScore = -Infinity;
+  for (const action of candidates) {
+    const score = scoreCandidate({
+      realState: state,
+      perspective: seat,
+      samples,
+      rng,
+      applyCandidate: (g) => applyLegalAction(g, action),
+    });
+    if (score > bestScore) {
+      bestScore = score;
+      best = action;
     }
   }
   return best;

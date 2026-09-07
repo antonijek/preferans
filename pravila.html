@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1b5e20">
+<title>Preferans pravila — kompletna pravila igre</title>
+<meta name="description" content="Kompletna pravila preferansa (balkanski preferans, preferanc): licitacija, Mogu, Igra, praćenje, kontra, refe, bodovanje bula i supa, Betl, Sans. Sve po srpskim/crnogorskim/bosanskim pravilima.">
+<link rel="canonical" href="https://pref.antonije.dev/pravila.html">
+<link rel="icon" href="/icons/favicon-32.png">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: radial-gradient(ellipse at top, #1b3a1f 0%, #0e1a10 45%, #0a0b0c 100%);
+    color: #eef2ee;
+    line-height: 1.6;
+  }
+  a { color: #8ee08e; }
+  .top-bar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px; background: rgba(10,12,10,0.9); backdrop-filter: blur(6px);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .top-bar .logo { font-family: 'Cinzel', serif; font-weight: 700; font-size: 1.15em; color: #fff; text-decoration: none; }
+  .top-bar .back-link {
+    color: #cfe8cf; text-decoration: none; font-size: 0.9em;
+    border: 1px solid rgba(255,255,255,0.25); padding: 6px 14px; border-radius: 999px;
+  }
+  .top-bar .back-link:hover { background: rgba(255,255,255,0.08); }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 30px 20px 80px; }
+  h1.page-title {
+    font-family: 'Cinzel', serif; font-weight: 800; font-size: clamp(1.6em, 5vw, 2.3em);
+    text-align: center; margin: 10px 0 6px;
+  }
+  .subtitle { text-align: center; color: rgba(255,255,255,0.6); margin-bottom: 28px; font-size: 0.95em; }
+  .toc {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px; padding: 18px 22px; margin-bottom: 34px;
+  }
+  .toc h2 { font-family: 'Cinzel', serif; font-size: 1.05em; margin: 0 0 10px; }
+  .toc ol { margin: 0; padding-left: 22px; columns: 2; column-gap: 24px; }
+  .toc li { margin-bottom: 4px; font-size: 0.92em; }
+  .toc a { color: #d7ecd7; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  section { margin-bottom: 38px; scroll-margin-top: 70px; }
+  h2 {
+    font-family: 'Cinzel', serif; font-weight: 700; font-size: 1.4em;
+    border-bottom: 2px solid rgba(255,235,59,0.4); padding-bottom: 8px; margin-bottom: 14px;
+    color: #ffeb99;
+  }
+  h3 { font-family: 'Cinzel', serif; font-weight: 600; font-size: 1.12em; margin: 20px 0 8px; color: #cdeccd; }
+  h4 { font-size: 1em; margin: 14px 0 6px; color: #b9dab9; }
+  p { margin: 0 0 12px; color: rgba(255,255,255,0.9); }
+  ul, ol { margin: 0 0 12px; padding-left: 24px; }
+  li { margin-bottom: 4px; }
+  strong { color: #fff; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0 18px; font-size: 0.94em; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,0.12); }
+  th { color: #ffeb99; font-weight: 600; }
+  code, pre { font-family: 'Consolas', monospace; }
+  pre {
+    background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px; padding: 12px 16px; overflow-x: auto; font-size: 0.9em; color: #d7f5d7;
+  }
+  .note {
+    background: rgba(255,235,59,0.08); border-left: 3px solid #ffeb3b;
+    padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 0.93em;
+    color: rgba(255,255,255,0.85);
+  }
+  .example {
+    background: rgba(76,175,80,0.08); border-left: 3px solid #4caf50;
+    padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 0.93em;
+  }
+  .cta {
+    text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid rgba(255,255,255,0.12);
+  }
+  .cta a.play-btn {
+    display: inline-block; background: #2e7d32; color: #fff; text-decoration: none;
+    padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 1.05em;
+  }
+  .cta a.play-btn:hover { background: #388e3c; }
+  @media (max-width: 600px) { .toc ol { columns: 1; } }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <a class="logo" href="/">🃏 Preferans</a>
+  <a class="back-link" href="/">← Nazad na igru</a>
+</div>
+
+<div class="wrap">
+  <h1 class="page-title">Pravila preferansa</h1>
+  <p class="subtitle">Kompletna pravila — poznat i kao balkanski preferans, preferanc, srpski/crnogorski/bosanski preferans. Verzija 1.0, izvedeno iz "Preferans Pravila v1.2" (26. oktobar 2001) — isti dokument po kom radi engine ove aplikacije.</p>
+
+  <div class="toc">
+    <h2>Sadržaj</h2>
+    <ol>
+      <li><a href="#opste">Opšte</a></li>
+      <li><a href="#deljenje">Deljenje</a></li>
+      <li><a href="#licitiranje">Licitiranje</a></li>
+      <li><a href="#odluka">Posle licitacije — odluka o igri</a></li>
+      <li><a href="#pracenje">Praćenje (Dođem / Ne dođem)</a></li>
+      <li><a href="#kontra">Kontra</a></li>
+      <li><a href="#refa">Refa</a></li>
+      <li><a href="#igranje">Igranje partije</a></li>
+      <li><a href="#bodovanje">Bodovanje</a></li>
+      <li><a href="#finalni">Finalni rezultat</a></li>
+      <li><a href="#odnos">Odnos protivnika</a></li>
+      <li><a href="#dogovori">Dogovori (opciono)</a></li>
+      <li><a href="#primeri">Dodatak — primeri</a></li>
+    </ol>
+  </div>
+
+  <section id="opste">
+    <h2>1. Opšte</h2>
+    <h3>1.1 Igrači</h3>
+    <p>Preferans se igra u <strong>troje</strong>. Varijanta sa 4 igrača (jedan preskače krug) nije podržana u ovoj verziji.</p>
+    <h3>1.2 Karte</h3>
+    <p>Igra se sa <strong>32 karte</strong>: 7, 8, 9, 10, J, Q, K, A. <strong>As (A) je najjači</strong>, 7 najslabija. Boje (redom od najjače ka najslabijoj): pik (♠), herc (♥), karo (♦), tref (♣).</p>
+    <h3>1.3 Rang karata</h3>
+    <table>
+      <tr><th>Karta</th><th>Vrednost</th></tr>
+      <tr><td>7</td><td>0</td></tr><tr><td>8</td><td>1</td></tr><tr><td>9</td><td>2</td></tr><tr><td>10</td><td>3</td></tr>
+      <tr><td>J</td><td>4</td></tr><tr><td>Q</td><td>5</td></tr><tr><td>K</td><td>6</td></tr><tr><td>A</td><td>7</td></tr>
+    </table>
+    <h3>1.4 Redosled igrača</h3>
+    <p>Igrači su numerisani kao <strong>P1</strong> (prvi po redu), <strong>P2</strong>, <strong>P3</strong>. P1 je onaj sa leve strane dilera (u pravcu suprotnom od kazaljke na satu). Deljenje počinje od igrača sa <strong>desne</strong> strane dilera. Redosled sedenja je suprotan kazaljci na satu od dilera.</p>
+  </section>
+
+  <section id="deljenje">
+    <h2>2. Deljenje</h2>
+    <h3>2.1 Mešanje</h3>
+    <p>Diler meša špil. Igrač sa leve strane dilera seče špil (opciono, ali preporučljivo).</p>
+    <h3>2.2 Runda deljenja</h3>
+    <pre>1. 5 karata → P1 (desno od dilera)
+2. 5 karata → P2
+3. 5 karata → P3
+4. 2 karte → TALON (kup)
+5. 5 karata → P1
+6. 5 karata → P2
+7. 5 karata → P3</pre>
+    <p>Svaki igrač dobija <strong>10 karata</strong>. <strong>2 karte</strong> idu u talon (kup). Kup je okrenut naopako i ne vidi se dok neko ne dobije licitaciju.</p>
+    <h3>2.3 Licitacija počinje</h3>
+    <p>Licitaciju <strong>uvek započinje P1</strong> (onaj sa desne strane dilera u prvoj fazi deljenja).</p>
+  </section>
+
+  <section id="licitiranje">
+    <h2>3. Licitiranje</h2>
+    <h3>3.1 Vrednosti igara</h3>
+    <table>
+      <tr><th>Igra</th><th>Vrednost</th></tr>
+      <tr><td>Pik</td><td>2</td></tr><tr><td>Karo</td><td>3</td></tr><tr><td>Herc</td><td>4</td></tr>
+      <tr><td>Tref</td><td>5</td></tr><tr><td>Betl</td><td>6</td></tr><tr><td>Sans</td><td>7</td></tr>
+      <tr><td>Igra-Pik</td><td>3</td></tr><tr><td>Igra-Karo</td><td>4</td></tr><tr><td>Igra-Herc</td><td>5</td></tr>
+      <tr><td>Igra-Tref</td><td>6</td></tr><tr><td>Igra-Betl</td><td>7</td></tr><tr><td>Igra-Sans</td><td>8</td></tr>
+    </table>
+    <p><strong>Igra</strong> uvek vredi <strong>1 više</strong> od standardne verzije iste boje.</p>
+
+    <h3>3.2 Tok licitacije</h3>
+    <p>Igrači licitiraju u krug, počevši od <strong>P1</strong>. Svaki igrač može: <strong>reći "dalje"</strong> (odustajanje), <strong>licitirati višu vrednost</strong> od trenutne (počevši od 2, tj. Pik), ili <strong>reći "Igra"</strong> (vidi 3.4). Licitacija se završava kad ostane <strong>samo jedan ili nijedan</strong> igrač.</p>
+
+    <h3>3.3 Pravilo "Mogu"</h3>
+    <p>Kada igrač koji je već licitirao ponovo dođe na red: ako je <strong>prvi igrač</strong> (onaj koji je prvi licitirao tu vrednost u krugu), <strong>mora</strong> reći <strong>"mogu X"</strong> (gde je X trenutna vrednost) da bi nastavio. Ako je taj igrač već pasirao, sledeći koji je licitirao tu istu vrednost mora reći "mogu X". <strong>"Mogu"</strong> znači "ja sam taj koji je licitirao X i prihvatam tu vrednost — nastavi".</p>
+    <div class="example"><strong>Primer toka:</strong><br>P1: "2" · P2: "3" · P3: "dalje" · P1: "mogu 3" (mora potvrditi) · P2: "4" · ... ili P1: "dalje", P2: "mogu 4"</div>
+    <p>Igrač koji je nadmašen (već licitirao, trenutna vrednost je veća od njegove) <strong>ne sme</strong> sam da podigne licitaciju dok je "Mogu" opcija za tu vrednost još slobodna — mora prvo ili potvrditi (Mogu) ili reći "dalje". Ali ako je "Mogu" za tu vrednost <strong>već zauzeo neko drugi</strong>, taj igrač <strong>sme</strong> da podigne na sledeću vrednost.</p>
+
+    <h3>3.4 Specijalna opcija: "Igra"</h3>
+    <p>Igrač može reći <strong>"Igra"</strong> SAMO na svoj <strong>prvi potez</strong> u toj rundi licitacije. Čim je na svom prvom potezu već rekao broj ili "dalje", <strong>trajno gubi pravo</strong> na "Igra" do kraja te runde. "Igra" znači: "Imam dovoljno dobre karte da igram <strong>bez talona</strong>." Igrač proglašava igru <strong>istog trenutka</strong> (nema dalje licitacije). Dozvoljene igre kod "Igra": Igra-Pik, Igra-Karo, Igra-Herc, Igra-Tref. Igra-Betl i Igra-Sans se <strong>ne mogu</strong> prijaviti na ovaj način — one se prijavljuju kao "Igra Betl" ili "Igra Sans" (vidi 3.5).</p>
+    <h4>3.4.1 Više igrača kaže "Igra"</h4>
+    <p>Ako više igrača kaže "Igra": svaki proglašava koja mu je igra, a igrač sa <strong>najjačom igrom</strong> dobija. Ako dva igrača imaju <strong>istu jačinu</strong>: <strong>prvi koji je rekao "Igra"</strong> dobija.</p>
+
+    <h3>3.5 Igra-Betl i Igra-Sans</h3>
+    <p>Igrač može reći <strong>"Igra Betl"</strong> ili <strong>"Igra Sans"</strong> (ili samo "Betl"/"Sans") u toku licitacije ili nakon pobede u licitaciji. Ako je rekao <strong>u toku</strong> licitacije, tretira se kao "Igra" — ne uzima talon, igra sa onih 10 karata koje ima. Ako je <strong>dobio licitaciju regularno</strong>, uzima talon pre proglašenja igre. Uvek vrede 1 više od standardnih (vidi 3.1).</p>
+
+    <h3>3.6 Svi kažu "dalje"</h3>
+    <p>Ako svi igrači kažu "dalje": partija se ne igra, upisuje se <a href="#refa">refa</a>, deli se nova ruka.</p>
+  </section>
+
+  <section id="odluka">
+    <h2>4. Posle licitacije — odluka o igri</h2>
+    <h3>4.1 Pobednik licitacije</h3>
+    <p>Pobednik je <strong>jedini igrač koji nije rekao "dalje"</strong> (ili koji je rekao "Igra" sa najjačom igrom). Ako je pobednik licitirao normalno: <strong>uzima talon</strong> (sad ima 12 karata), <strong>odbacuje 2 karte</strong> na sto (ne pokazuje ih), i <strong>proglašava igru</strong> (mora biti ≥ vrednost na kojoj je stao). Ako je pobednik rekao "Igra": <strong>ne uzima talon</strong>, <strong>ne odbacuje karte</strong>, igra sa onim što ima (10 karata).</p>
+    <h3>4.2 Proglašena igra</h3>
+    <table>
+      <tr><th>Ako je stao na...</th><th>Može igrati...</th></tr>
+      <tr><td>2</td><td>Pik ili jače</td></tr>
+      <tr><td>3</td><td>Karo ili jače</td></tr>
+      <tr><td>4</td><td>Herc ili jače</td></tr>
+      <tr><td>5</td><td>Tref, Betl ili Sans</td></tr>
+      <tr><td>Igra-2</td><td>Igra-Pik ili jače</td></tr>
+      <tr><td>Igra-5</td><td>Igra-Tref, Igra-Betl, Igra-Sans</td></tr>
+    </table>
+    <p>Igra mora biti <strong>≥ vrednosti na kojoj je pobednik stao</strong> — sme se proglasiti i jača igra od minimuma, ne samo tačno ta vrednost.</p>
+    <h3>4.3 Vraćanje 2 karte</h3>
+    <p>Dve karte se vraćaju <strong>sakrivene</strong>. Ako pobednik ne vrati 2 karte pre nego što se počne igra — automatski pada. Vraćene karte se ne mogu vratiti nazad u ruku.</p>
+  </section>
+
+  <section id="pracenje">
+    <h2>5. Praćenje (Dođem / Ne dođem)</h2>
+    <h3>5.1 Ko se izjašnjava</h3>
+    <p>U <strong>svim igrama osim Betla</strong> (i Igra-Betla): igrač sa <strong>desne</strong> strane nosioca se izjašnjava prvi — <strong>"Dođem"</strong> ili <strong>"Ne dođem"</strong> — zatim treći igrač. U <strong>Betlu i Igra-Betlu</strong>: svi automatski prate, nema izjašnjavanja.</p>
+    <h3>5.2 Mogući ishodi praćenja</h3>
+    <table>
+      <tr><th>Ishod</th><th>Posledica</th></tr>
+      <tr><td>Oba pratioca kažu "Dođem"</td><td>Igraju sva trojica.</td></tr>
+      <tr><td>Jedan "Dođem", drugi "Ne dođem"</td><td>Igraju nosilac + taj pratilac.</td></tr>
+      <tr><td>Oba "Ne dođem"</td><td>Partija se ne igra. Nosilac automatski dobija 10 štihova.</td></tr>
+    </table>
+    <h3>5.3 Poziv ("Idemo zajedno")</h3>
+    <p>Pratilac koji je rekao "Dođem" može pozvati onog koji je rekao "Ne dođem": <strong>"Idemo zajedno"</strong>. Ako pozvani prihvati, igraju sva trojica kao partneri protiv nosioca. Pozvani igrač <strong>ne upisuje bodove</strong> — njegovi štihovi idu pratiocu koji ga je pozvao. <strong>Prag za prolaz</strong>: pozivalac i pozvani moraju <strong>ZAJEDNO</strong> uhvatiti <strong>najmanje 4 štiha</strong> (dvostruko više nego samostalni pratilac, jer su dvojica).</p>
+    <h3>5.4 Niko ne prati</h3>
+    <p>Ako oba pratioca kažu "Ne dođem", partija se ne igra (nema pravog protivnika nosiocu). Ako je proglašena igra tačno <strong>Pik</strong> (ne Igra-Pik, ne bilo koja druga igra), primenjuje se ista tro-grana logika kao kod "Pik bez kontre" (vidi 7.1.1): neko u šeširu → nosilac dobija fiksan prolaz; niko u šeširu i ima budžeta → piše se refa; niko u šeširu i nema budžeta → ruka se ponavlja. Za <strong>svaku drugu igru</strong>, nema novog okidanja refe — ali ako nosilac VEĆ ima refu na raspolaganju, ona se ovde troši i duplira ishod, bez obzira na igru.</p>
+  </section>
+
+  <section id="kontra">
+    <h2>6. Kontra</h2>
+    <h3>6.1 Kontra</h3>
+    <p>Posle praćenja, <strong>svaki pratilac</strong> koji je rekao "Dođem" i veruje da će srušiti nosioca može dati <strong>kontru</strong>. Mora reći ili "Kontra" (imam kontru) ili "Može" (nemam kontru).</p>
+    <h3>6.2 Uslov za prolaz kod kontre</h3>
+    <p>Pratilac koji je dao kontru mora, zajedno sa drugim pratiocem, uhvatiti <strong>najmanje 5 štihova</strong> da bi prošao. Inače kontraš pada.</p>
+    <h3>6.3 Odgovornost kontraša</h3>
+    <p>Pratilac koji je dao kontru <strong>snosi svu odgovornost</strong> — upisuje sve bodove zarađene protiv nosioca, na osnovu <strong>zajedničkih</strong> štihova cele odbrane (kontraš + drugi pratilac), ne samo svojih ličnih. Drugi pratilac <strong>ne upisuje bodove</strong> u kontri.</p>
+    <h3>6.4 Rekontra, subkontra, mortkontra</h3>
+    <p>Ako nosilac veruje da neće pasti, može dati <strong>rekontru</strong> na primljenu kontru (×2 ponovo). Posle rekontre, pratilac može dati <strong>subkontru</strong> (×2 ponovo), a nosilac uzvratiti <strong>mortkontru</strong> (×2 ponovo).</p>
+    <table>
+      <tr><th>Nivo</th><th>Multiplikator</th></tr>
+      <tr><td>Bez kontre</td><td>1</td></tr><tr><td>Kontra</td><td>2</td></tr>
+      <tr><td>Rekontra</td><td>4</td></tr><tr><td>Subkontra</td><td>8</td></tr><tr><td>Mortkontra</td><td>16</td></tr>
+    </table>
+    <h3>6.7 Obavezna kontra na Pik</h3>
+    <p>Kad nosilac igra standardni Pik (ne Igra-Pik), <strong>kontra je obavezna</strong> od pratioca koji veruje da može srušiti nosioca — mora dati kontru, ne sme samo prećutati. Ako oba pratioca kažu "Može" — primenjuje se pravilo "Pik bez kontre" (7.1.1).</p>
+    <h3>6.8 Kontra kada niko ne prati</h3>
+    <p>Ako je data kontra, <strong>igraju uvek sva trojica</strong> — igrač koji je rekao "Ne dođem" automatski postaje aktivan. Kontra znači igru u troje, nikad kontraš sam protiv nosioca.</p>
+    <h3>6.9 Igra-Betl i Igra-Sans — kontra</h3>
+    <p>Kontra je dozvoljena po istim pravilima i u Igra-Betlu i Igra-Sansu.</p>
+  </section>
+
+  <section id="refa">
+    <h2>7. Refa</h2>
+    <h3>7.1 Kad se piše refa</h3>
+    <p>Refa se upisuje u sledećim slučajevima: <strong>(1)</strong> svi igrači kažu "dalje" u licitaciji, ili <strong>(2)</strong> nosilac igra standardni Pik i nijedan pratilac ne da kontru (oba kažu "Može"). Kad se refa okine, <strong>sva tri igrača</strong> dobijaju po jednu refu "na raspolaganju" — ne samo budući nosilac. Svaki igrač troši svoju raspoloživu refu <strong>sam</strong>, automatski, prvi sledeći put kad ON LIČNO postane nosilac neke ruke (ne mora biti odmah sledeća ruka).</p>
+    <h3>7.1.1 Pik bez kontre — specijalno pravilo</h3>
+    <p>Kad nosilac igra standardni Pik i nijedan pratilac ne da kontru: ako nosilac ima neiskorišćenih refa — piše se refa (dodela svih troje). Ako nema slobodnog budžeta — ništa se ne piše. <strong>Izuzetak</strong>: ako je bar jedan igrač već u šeširu (negativne bule) — piše se regularan prolaz nosioca, bez refe.</p>
+    <h3>7.2 Kad se refa NE piše</h3>
+    <p>Refa se ne piše ako je nosilac već na budžetskom maksimumu, ili ako bar jedan igrač ima negativne bule (osim izuzetka iz 7.1.1). <strong>Podrazumevani maksimalan broj refa po igraču: 2</strong> za partiju od 100 bula (konfigurabilno pre partije — u ovoj aplikaciji zavisi od početne bule, veća bula dozvoljava više refa, do maksimuma 5).</p>
+    <h3>7.3 Efekat refe</h3>
+    <p>Svi bodovi (bule i supe) se <strong>množe sa 2</strong> tokom ruke pod refeom. Refe množilac se množi sa multiplikatorom kontre — npr. kontra (×2) + refa (×2) = ×4 ukupno. Posle takve ruke, nosilac troši jednu svoju raspoloživu refu. <strong>Izuzetak</strong>: ako je bar jedan igrač već u šeširu kad ruka počne, raspoloživa refa se <strong>ne troši</strong> — ostaje blokirana dok god je iko u šeširu.</p>
+  </section>
+
+  <section id="igranje">
+    <h2>8. Igranje partije</h2>
+    <h3>8.1 Ko igra prvi štih</h3>
+    <p><strong>Standardne igre i Betl</strong>: prvi igra onaj koji je prvi licitirao u krugu, bez obzira da li je nosilac ili ne. Ako taj igrač ne učestvuje u rundi, prvi igra onaj ko je licitirao odmah posle njega.</p>
+    <p><strong>Sans i Igra-Sans</strong> (izuzetak): prvi igrač je UVEK pratilac koji je neposredno PRE nosioca u redosledu bacanja karata — "igra se kroz nosioca", nosilac je u sredini između druga dva poteza, što mu otežava igru.</p>
+    <h3>8.2 Pravila štiha</h3>
+    <ol>
+      <li>Prvi igrač vodi bilo kojom kartom.</li>
+      <li>Drugi igrač mora odgovoriti na boju (pratiti istu boju ako ima).</li>
+      <li>Treći igrač (ako igra) isto mora odgovoriti na boju.</li>
+      <li>Pobednik štiha je onaj sa najjačom kartom.</li>
+    </ol>
+    <h3>8.3 Praćenje boje</h3>
+    <p><strong>Adutske igre</strong>: ako igrač ima kartu u vođenoj boji, mora je odigrati; ako nema, a ima adut, mora odigrati adut; ako nema ni adut, može bilo koju kartu.</p>
+    <p><strong>Sans i Betl</strong> (bez aduta): ako igrač ima kartu u vođenoj boji, mora je odigrati; ako nema, može bilo koju kartu.</p>
+    <h3>8.4 Određivanje pobednika štiha</h3>
+    <p><strong>Adutske igre</strong>: ako su u štihu aduti, pobednik je onaj sa najjačim adutom; inače onaj sa najjačom kartom vođene boje. <strong>Sans i Betl</strong>: pobednik je uvek onaj sa najjačom kartom vođene boje (nema aduta).</p>
+    <h3>8.5 Betl — specifična pravila</h3>
+    <p>Nosilac betla <strong>ne sme uzeti nijedan štih</strong>. Ako uzme bilo koji — pada. Pratioci koji nisu dali kontru ne padaju u betlu čak i ako uzmu 0 štihova. Pratioci koji su dali kontru — važe ista pravila kao u drugim igrama (5+ zajedno).</p>
+    <h3>8.6 Kraj ruke</h3>
+    <p>Ruka ima <strong>10 štihova</strong> (3 igrača × 10 karata = 30 karata). Posle 10. štiha prebrojavaju se štihovi po igraču i računa se prolaz/pad.</p>
+  </section>
+
+  <section id="bodovanje">
+    <h2>9. Bodovanje</h2>
+    <h3>9.1 Početno stanje</h3>
+    <p>Svaki igrač dobija <strong>100 bula</strong> na početku partije (podesivo pre partije). Partija traje dok <strong>zbir bula svih igrača ne postane tačno 0</strong>.</p>
+    <h3>9.2 Bule — prolaz ili pad</h3>
+    <pre>prolaz = -igra × 2   (nosilac gubi bule)
+pad    = +igra × 2   (nosilac dobija bule)</pre>
+    <p>Ako nosilac prođe, gubi <code>igra × 2</code> bula; ako padne, dobija <code>igra × 2</code>. Suprotničke bule se menjaju u suprotnom smeru.</p>
+    <h3>9.3 Raspodela bule među protivnicima</h3>
+    <p><strong>Bez kontre</strong>: ako nosilac prođe, svaki pratilac dobija <code>igra × 1</code> (polovinu); ako padne, svaki gubi isto toliko. Ako je samo jedan pratilac (drugi rekao "Ne dođem"), taj jedan dobija/gubi celu vrednost. Ako je pozvan igrač, pozivalac snosi sve. Ako je kontra data, kontraš snosi sve.</p>
+    <p><strong>Sa kontrom</strong>: multiplikatori (2/4/8/16) se primenjuju na bule i supe; kontraš snosi celokupnu promenu bule.</p>
+    <h3>9.4 Supe</h3>
+    <p>Supe su bodovi koje <strong>pratioci</strong> zarađuju protiv nosioca, na osnovu svog broja uzetih štihova:</p>
+    <pre>supa = broj_uzetih_štihova_ovog_pratioca × igra × 2</pre>
+    <p>Supe se množe sa multiplikatorom kontre i sa ×2 ako je ruka pod refeom. Ako nosilac padne, njegovi štihovi se ne računaju kao supe. Pozvani igrač ne upisuje supe. <strong>Kontraš upisuje sve supe</strong> (na osnovu zajedničkih štihova cele odbrane), bez obzira da li nosilac padne ili prođe.</p>
+    <h4>9.4.1 Betl — specifične supe</h4>
+    <p>Kad nosilac betla padne (uzeo ≥1 štih), <strong>svaki pratilac</strong> beleži fiksnu vrednost — <strong>60 supa</strong> (standardni Betl) ili <strong>70 supa</strong> (Igra-Betl) — bez obzira na broj uzetih štihova, i bez obzira ko je dao kontru (ovo je namerno drugačije od pravila 6.3/9.4 za ostale igre — Betl supa je fiksna, ne vezana za lične štihove). Ako je data kontra, množi se multiplikatorom kontre. Kad nosilac betla prođe (0 štihova), dobija <code>betl × 2</code> negativnih bula, a pratioci ne zarađuju supe.</p>
+    <h3>9.5 Kapa / šešir</h3>
+    <p>Kad igrač pređe sa pozitivnih bula u negativan saldo, kaže se da je <strong>"ispod kape"</strong> (ili "šešira"). Igrač ispod kape ne može da piše refu.</p>
+    <h3>9.6 Otpisivanje (ako partija mora da se prekine)</h3>
+    <p>Ako partija mora da se prekine pre nego što zbir bula postane 0, svi igrači otpisuju bule tako da zbir postane tačno 0 — igrač sa najlošijim bulama ostaje u najvećem minusu (dobija najmanji otpis), a najbolji igrač otpisuje najviše.</p>
+  </section>
+
+  <section id="finalni">
+    <h2>10. Finalni rezultat</h2>
+    <p>Kad partija završi (zbir bula = 0), svaki igrač računa svoj finalni rezultat:</p>
+    <pre>finalni_rezultat = -supe_protiv_protivnika + supe_od_protivnika + finalni_broj_bula × 10</pre>
+    <p>Rezultat <strong>ispod nule je dobar</strong> (igrač je u plusu), <strong>iznad nule je loš</strong>.</p>
+  </section>
+
+  <section id="odnos">
+    <h2>11. Odnos protivnika</h2>
+    <p>Pratioci igraju kao partneri protiv nosioca. Pozvani igrač ili kontraš igraju da pomognu pratiocu — svaka odigrana karta treba da pomogne pratiocu (ili kontrašu). Nosilac igra samo za sebe, nema partnera.</p>
+  </section>
+
+  <section id="dogovori">
+    <h2>12. Dogovori (opciono)</h2>
+    <p>Sledeća pravila su <strong>opciona</strong> i <strong>nisu podrazumevana</strong> u ovoj aplikaciji — navedena su ovde radi potpunosti, jer neka društva igraju po njima kao dodatnom dogovoru pre partije:</p>
+    <ul>
+      <li>Licitacija na 2/3/4/5 zahteva minimum 3 aduta.</li>
+      <li>Licitacija na 2/3/4/5 zahteva 3 aduta sa najjačom kartom Q, K ili A.</li>
+      <li>Sans bez kontre: pratilac koji je prvi kreće iz trefa.</li>
+      <li>Sans sa kontrom: pratilac koji nije dao kontru kreće iz pika, ili boje do koje je kontraš licitirao.</li>
+      <li>Kad igrač polaže na pik, mora imati bar 2 asa, ili adutski štih i asa.</li>
+    </ul>
+  </section>
+
+  <section id="primeri">
+    <h2>Dodatak — primeri</h2>
+    <h3>Bule</h3>
+    <div class="example">Milenko prošao na Trefu (vrednost 5). Dusko pao, Nikola prošao.<br>Milenko: −10 bula (5×2) · Dusko: +5 bula (polovina) · Nikola: 0</div>
+    <div class="example">Milenko prošao na Betlu (vrednost 6). Igor dao kontru i pao.<br>Milenko: −24 bula (6×2×2) · Igor: +24 bula (snosi sve kao kontraš) · Dusko: 0 (pozvan, ne upisuje)</div>
+    <h3>Supe</h3>
+    <div class="example">Milenko uhvatio 6 štihova na Trefu. Dusko i Nikola pratili, svaki po 2.<br>Dusko: 2×5×2 = 20 supe · Nikola: 2×5×2 = 20 supe</div>
+    <div class="example">Sekula pao na kontru Igra-Tref, pod refeom. Jasmina dala kontru.<br>Sekula (kontraš Jasmina upisuje): 5×6×2×2×2 = 240 supe (5 štihova, Igra-Tref=6, ×2 supe, ×2 kontra, ×2 refa)</div>
+    <h3>Otpisivanje</h3>
+    <div class="example">Nikola 24, Dusko 34, Milenko 28 bula. Zbir 86 (nije deljivo sa 3).<br>Otpisuju: Dusko −29, Milenko −29, Nikola −28 (najlošiji ostaje u najvećem minusu).</div>
+  </section>
+
+  <div class="cta">
+    <a class="play-btn" href="/">🎮 Igraj preferans sada</a>
+  </div>
+</div>
+
+</body>
+</html>
