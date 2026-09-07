@@ -318,6 +318,17 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     }
     const safeAction = withAuthenticatedActor(action, loc.seat);
     const accepted = applyAction(room.game, safeAction);
+    if (safeAction.type === 'bid' || safeAction.type === 'pass') {
+      // PRIVREMENO dijagnosticko logovanje (uzivo prijavljen bag: "dalje, 2,
+      // dalje" je zavrsilo u refe umesto da igrac koji je rekao 2 pobedi) —
+      // ukloniti posle potvrde uzroka.
+      const s = room.game.state;
+      console.log(
+        `[BID DEBUG] room=${room.code} action=${JSON.stringify(safeAction)} accepted=${accepted} ` +
+        `phase=${s.phase} winner=${s.winner} currentBid=${s.currentBid} currentBidder=${s.currentBidder} ` +
+        `passed=${s.players.map(p => p.hasPassedBid)} bidLevels=${s.players.map(p => p.bidLevel)}`
+      );
+    }
     if (accepted) {
       broadcastRoomState(room);
     } else {

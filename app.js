@@ -1921,28 +1921,34 @@ async function connectOnlineSocket() {
   // pocetne konekcije, npr. los token) — ako je vec bio povezan, tiho se
   // pusti da se svoj automatski reconnect sam izbori.
   let hasConnectedOnce = false;
+  let connectGen = 0;
   onlineSocket.on('connect', () => {
     hasConnectedOnce = true;
-    // Uzivo prijavljen bag (mobilni korisnik): telefon ode u pozadinu, veza
-    // se prekine (mobilni browser suspenduje pozadinske tabove), pa se posle
-    // vracanja OVAJ handler okine na reconnect — i ranije je UVEK prisilno
-    // prikazivao pocetni ekran, cak i kad je korisnik vec bio USRED partije
-    // za stolom. Rezultat: vracanje na telefon posle malo vremena je bacalo
-    // covjeka nazad na listu soba umesto da ga tiho vrati za sto. Sad se ovaj
-    // "pocetni ekran" reset radi SAMO ako STVARNO nismo vec za stolom —
-    // 'online-in-game' klasa (postavlja je game:state handler ispod cim
-    // faza prestane da bude WAITING) je pouzdan signal da smo vec u partiji.
-    const alreadyInGame = document.body.classList.contains('online-in-game');
-    if (!alreadyInGame) {
-      // Pozdravni ekran je PRVA stvar posle logina (korisnikov zahtev — ne
-      // zeli da ga soba/modal doceka odmah), soba dolazi tek na klik. Ako je
-      // ovo zapravo reconnect na VEC postojecu sobu (ali JOS u cekanju,
-      // faza WAITING), 'room:info' ispod ce preusmeriti na roomScreen (tu se
-      // vidi kod sobe).
+    // Uzivo prijavljen bag (mobilni korisnik): telefon ode u pozadinu i
+    // mobilni OS moze u medjuvremenu potpuno izbaciti tab iz memorije (ne
+    // samo prekinuti socket) — povratak je onda PUNO osvezavanje stranice,
+    // sto brise i document.body-jevu 'online-in-game' klasu (pokusan raniji
+    // fix se oslanjao bas na nju). Rezultat: korisnik usred partije bi se
+    // vratio na listu soba i ne bi mogao da odigra svoj potez.
+    //
+    // Umesto da odmah nagadja "jesmo li u partiji", OVAJ handler sad SAMO
+    // ceka kratko (500ms) da vidi da li server sam salje 'room:info' ili
+    // 'game:state' (salje ih ODMAH pri konekciji ako korisnik VEC ima
+    // aktivnu sobu — server je jedini pouzdan izvor te informacije, ne bilo
+    // koje klijentsko stanje koje refresh moze obrisati). Tek ako NISTA ne
+    // stigne u tom kratkom prozoru, ovo je stvarno prazna/nova sesija i tek
+    // onda se prikazuje pocetni ekran — 'connectGen' otkazuje ovu proveru
+    // ako u medjuvremenu dodje JOS jedan 'connect' (npr. brzi uzastopni
+    // reconnect pokusaji).
+    const myGen = ++connectGen;
+    setTimeout(() => {
+      if (myGen !== connectGen) return;
+      if (document.body.classList.contains('online-in-game')) return;
+      if ($('roomScreen').classList.contains('active')) return;
       $('loginScreen').classList.remove('active');
       $('homeScreen').classList.add('active');
       $('roomScreen').classList.remove('active');
-    }
+    }, 500);
     $('roomError').textContent = '';
     startRoomListPolling();
     fetch('/api/me', { headers: { Authorization: 'Bearer ' + onlineToken } })
