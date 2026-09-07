@@ -467,6 +467,18 @@ const SEAT_OF = {
   1: 'east',  // Istok desno
   2: 'west',  // Zapad gore
 };
+// Online mod: sediste se ROTIRA tako da SVAKO uvek vidi SEBE na jugu (dole),
+// ne fiksno po Position-u — korisnikov zahtev, uzivo prijavljeno: "svako
+// treba da sebe vidi kao dolje u sredini, a ne sa strana". Lokalni modovi
+// (1v2/3ai imaju fiksno "vas" na P0; 3human je hot-seat bez jedinstvenog
+// "ja") zadrzavaju staru fiksnu mapu (SEAT_OF direktno).
+const SEAT_ROTATION_ORDER = ['south', 'east', 'west'];
+function seatOf(pos) {
+  if (mode === 'online' && mySeat !== null) {
+    return SEAT_ROTATION_ORDER[(pos - mySeat + 3) % 3];
+  }
+  return SEAT_OF[pos];
+}
 const SEAT_PLAYER_NAME = ['Vi (Jug)', 'Istok', 'Zapad'];
 const SEAT_PLAYER_CLASS = ['p0', 'p1', 'p2'];
 
@@ -497,13 +509,13 @@ function escapeHtml(str) {
 function renderSeats() {
   // Postavi (ili osvezi, u online modu se imena saznaju tek posle
   // pridruzivanja/svakog novog stanja) imena sedista
-  $('name-south').textContent = seatDisplayName(0);
-  $('name-east').textContent = seatDisplayName(1);
-  $('name-west').textContent = seatDisplayName(2);
+  $(`name-${seatOf(0)}`).textContent = seatDisplayName(0);
+  $(`name-${seatOf(1)}`).textContent = seatDisplayName(1);
+  $(`name-${seatOf(2)}`).textContent = seatDisplayName(2);
 
   // Update bule / tricks / cards
   for (let pos = 0; pos < 3; pos++) {
-    const seat = SEAT_OF[pos];
+    const seat = seatOf(pos);
     const p = game.state.players[pos];
     $(`bule-${seat}`).textContent = p.bulas?.[0] ?? p.bula ?? 100; // fallback ako nema bula
     // Bule će doći iz game.state.bulas; popravi dole
@@ -518,7 +530,7 @@ function renderState() {
   else if (s.phase === 'DISCARDING' || s.phase === 'DECLARING') activePos = s.winner;
   else if (s.phase === 'KONTRA_DECLARING') activePos = game.expectedKontraPlayerPublic();
   for (let pos = 0; pos < 3; pos++) {
-    const seat = SEAT_OF[pos];
+    const seat = seatOf(pos);
     const el = $(`seat-${seat}`);
     el.classList.toggle('active', activePos === pos);
     $(`dealer-${seat}`).style.display = s.dealer === pos ? 'flex' : 'none';
@@ -529,12 +541,12 @@ function renderState() {
   $('trickInfo').textContent = `${s.trickCount}/10`;
 
   // Pojedinačne bule na sedenja
-  $('bule-south').textContent = s.bulas[0];
-  $('bule-east').textContent = s.bulas[1];
-  $('bule-west').textContent = s.bulas[2];
-  $('tricks-south').textContent = s.players[0].tricksWon;
-  $('tricks-east').textContent = s.players[1].tricksWon;
-  $('tricks-west').textContent = s.players[2].tricksWon;
+  $(`bule-${seatOf(0)}`).textContent = s.bulas[0];
+  $(`bule-${seatOf(1)}`).textContent = s.bulas[1];
+  $(`bule-${seatOf(2)}`).textContent = s.bulas[2];
+  $(`tricks-${seatOf(0)}`).textContent = s.players[0].tricksWon;
+  $(`tricks-${seatOf(1)}`).textContent = s.players[1].tricksWon;
+  $(`tricks-${seatOf(2)}`).textContent = s.players[2].tricksWon;
 }
 
 // === STATUS BAR: ugovor + talon + odbrana + poslednji štih (uvek vidljivo
@@ -681,7 +693,7 @@ function isBetlGame(g) {
 function renderSeatExtras() {
   const s = game.state;
   for (let p = 0; p < 3; p++) {
-    const seat = SEAT_OF[p];
+    const seat = seatOf(p);
 
     const leftNet = netSupeBetween(p, leftNeighborOf(p));
     const leftEl = $(`supe-left-${seat}`);
@@ -735,7 +747,7 @@ function renderTrick() {
   // Dodaj karte iz currentTrick
   if (s.currentTrick.length > 0) {
     s.currentTrick.forEach((tc, idx) => {
-      const seat = SEAT_OF[tc.player];
+      const seat = seatOf(tc.player);
       const slot = $(`slot-${seat}`);
       const node = cardEl(tc.card, { size: 'small' });
       // Blaga, ne-savrsena rotacija (korisnikov zahtev — "kao pravo bacanje
@@ -753,7 +765,7 @@ function renderTrick() {
 
   // Highlight za trenutnog igrača
   if (s.phase === 'PLAYING' && s.currentTrick.length < 3) {
-    const seat = SEAT_OF[s.currentPlayer];
+    const seat = seatOf(s.currentPlayer);
     $(`slot-${seat}`).classList.add('current-turn');
   }
 }
@@ -782,7 +794,7 @@ function renderBiddingPanel() {
   } else {
     for (const b of s.bids) {
       const cls = `bid-entry p${b.player}`;
-      const seat = SEAT_OF[b.player];
+      const seat = seatOf(b.player);
       const seatLabel = seatDisplayName(b.player);
       let txt = '';
       if (b.type === 'PASS') txt = `<strong>dalje</strong>`;
@@ -1898,7 +1910,19 @@ async function connectOnlineSocket() {
   game = createOnlineGameProxy(onlineSocket = io('/', { auth: { token: onlineToken } }));
   window.game = game; // F12 debug (createGame() radi ovo za lokalni mod, ovde je isti obicaj)
 
+  // Uzivo prijavljen bag (mobilni korisnik, "stalno greska veze"):
+  // socket.io SAM pokusava reconnect posle svakog ispada, ali 'connect_error'
+  // se okida na SVAKI neuspeli pokusaj — i pocetni I svaki naredni tokom vec
+  // aktivne sesije. Stari kod je na SVAKI takav dogadjaj izbacivao korisnika
+  // nazad na login ekran, sto na mobilnom (kratki, normalni padovi signala
+  // dok se prelazi izmedju WiFi/mobilnih podataka) izgleda kao neprekidno
+  // "greska veze" iako se veza sama vraca za par sekundi. Sad se puna greska
+  // prikazuje SAMO ako se JOS NIKAD nije uspesno povezao (pravi neuspeh
+  // pocetne konekcije, npr. los token) — ako je vec bio povezan, tiho se
+  // pusti da se svoj automatski reconnect sam izbori.
+  let hasConnectedOnce = false;
   onlineSocket.on('connect', () => {
+    hasConnectedOnce = true;
     // Pozdravni ekran je PRVA stvar posle logina (korisnikov zahtev — ne
     // zeli da ga soba/modal doceka odmah), soba dolazi tek na klik. Ako je
     // ovo zapravo reconnect na VEC postojecu sobu, 'room:info' ispod ce
@@ -1918,11 +1942,19 @@ async function connectOnlineSocket() {
       .catch(() => {});
   });
   onlineSocket.on('connect_error', (err) => {
-    onlineSocket = null;
-    $('loginScreen').classList.add('active');
-    $('homeScreen').classList.remove('active');
-    $('roomScreen').classList.remove('active');
-    $('loginError').textContent = 'Greška konekcije: ' + err.message;
+    if (!hasConnectedOnce) {
+      // Prava, pocetna konekcija nije uspela (npr. istekao token) — tek
+      // ovde ima smisla prekinuti i vratiti na login sa porukom.
+      onlineSocket = null;
+      $('loginScreen').classList.add('active');
+      $('homeScreen').classList.remove('active');
+      $('roomScreen').classList.remove('active');
+      $('loginError').textContent = 'Greška konekcije: ' + err.message;
+    }
+    // Vec smo bili povezani — ovo je samo JEDAN neuspeli pokusaj u nizu
+    // automatskih reconnect pokusaja (socket.io ovo radi sam po sebi).
+    // Ne diramo UI niti gasimo onlineSocket — 'connect' ce se sam okinuti
+    // kad veza stvarno uspe da se vrati.
   });
   // Salje se pri (re)konekciji ako korisnik VEC ima aktivnu sobu (M6
   // reconnect) — bez ovoga bi refresh stranice dok se ceka na jos igraca

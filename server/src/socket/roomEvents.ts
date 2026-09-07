@@ -6,6 +6,7 @@ import {
   setUserLocation,
   clearUserLocation,
   listOpenRooms,
+  removeRoom,
 } from '../rooms/RoomManager.js';
 import type { RoomState, ChatMessage } from '../rooms/RoomState.js';
 import { CHAT_LOG_LIMIT } from '../rooms/RoomState.js';
@@ -79,8 +80,13 @@ function broadcastRoomState(room: RoomState): void {
 // zaglavila na ekranu rezultata zauvek. GAME_OVER = kraj RUKE (partija
 // nastavlja dok bule ne padnu na 0, RULES 9.1); MATCH_OVER = kraj CELE
 // partije, tu se namerno NE nastavlja automatski. `abandonedSeat` ostaje
-// netaknut preko poziva newHand() — AI nastavlja da vozi tu poziciju i u
-// sledecim rukama, sto je i namera "Napusti partiju" funkcije.
+// netaknut preko poziva newHand() (AI nastavlja da vozi tu poziciju u
+// sledecim rukama) SVE DOK se taj isti igrac stvarno ne vrati — tad ga
+// joinAsPlayer() cisti (vidi tamo). Ovo se poklapa sa onim sto potvrdno
+// dugme za "Napusti partiju" korisniku obecava ("AI preuzima do kraja OVE
+// ruke", ne cele partije) — uzivo prijavljen bag: `abandonedSeat` se ranije
+// NIGDE nije ciscio, pa je AI ostajao zaglavljen na tom sedistu zauvek i
+// posle povratka (nikad ne bi dobio ni dugmad za licitaciju).
 const NEXT_HAND_DELAY_MS = 9000;
 
 // Deljena logika za "stvarno predji na sledecu ruku" — poziva je i tajmer i
@@ -144,6 +150,19 @@ function joinAsPlayer(room: RoomState, userId: number, socket: Socket, name: str
   room.sockets[seat] = socket;
   socket.join(room.code);
   setUserLocation(userId, { code: room.code, role: 'player', seat });
+
+  // Uzivo prijavljen bag: igrac koji se vrati posle "napusti partiju" je
+  // dobijao ispravno ime nazad (gore), ali room.abandonedSeat NIGDE nije
+  // bio ciscen — maybeDriveAiTurn() gleda SAMO tu zastavicu (ne da li je
+  // neko stvarno seo nazad), pa je AI zauvek nastavljao da igra za njega,
+  // ukljucujuci i licitaciju (klijent nikad nije dobijao dugmad jer je
+  // server vec sam odgovarao za to sediste). Ciscenje SAMO kad se VRATI
+  // BAS taj napusteni igrac (ne bilo koji rejoin) — abandonedSeat i dalje
+  // vazi normalno dok god je taj konkretan covek odsutan.
+  if (room.abandonedSeat === seat) {
+    room.abandonedSeat = null;
+    room.frozenBula = null;
+  }
 
   const filled = room.seatUserIds.every((u) => u !== null);
   if (filled && room.game.state.phase === 'WAITING') {
@@ -430,6 +449,19 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     } else {
       const spectator = room.spectators.get(userId);
       if (spectator?.socket === socket) spectator.socket = null;
+    }
+
+    // Uzivo prijavljen bag: soba u cekanju (igra jos nije ni pocela) je
+    // ostajala zauvek "otvorena" u lobiju cak i kad je svako ko ju je
+    // napravio davno diskonektovan i nikad se nece vratiti — nema sta da
+    // se izgubi (nikakva partija jos nije ni pocela), pa je bezbedno
+    // obrisati je cim NIKO vise nije prikacen. Ne dira sobe SA vec
+    // pocetom igrom — tamo je diskonekcija normalna (M6 reconnect ceka ih).
+    if (room.game.state.phase === 'WAITING') {
+      const anyoneConnected =
+        room.sockets.some((s) => s !== null) ||
+        Array.from(room.spectators.values()).some((s) => s.socket !== null);
+      if (!anyoneConnected) removeRoom(room.code);
     }
   });
 }

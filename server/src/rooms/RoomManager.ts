@@ -35,6 +35,15 @@ export function getRoomByCode(code: string): RoomState | undefined {
   return roomsByCode.get(code.toUpperCase());
 }
 
+// Uzivo prijavljen bag: sobe se nikad nisu brisale, pa je soba u cekanju
+// (pre pocetka igre) ostajala zauvek vidljiva/otvorena u lobiju cak i kad
+// je svako ko ju je napravio odavno diskonektovan i nikad se nece vratiti
+// (pozivalac — roomEvents.ts's disconnect handler — sam odlucuje KADA je
+// "prazna", ovo samo cisti mapu).
+export function removeRoom(code: string): void {
+  roomsByCode.delete(code.toUpperCase());
+}
+
 export interface RoomSummary {
   code: string;
   playerCount: number;
