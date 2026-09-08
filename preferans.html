@@ -316,18 +316,21 @@
     /* width FIKSNA (ne min-width) — korisnikov zahtev: kutija sa duzim
        imenom ("chrome lap top") je bila vidno sira od ostale dve. Dugo ime
        se sad skrati sa "..." (vidi .player-name overflow ispod) umesto da
-       rasteze celu kutiju. */
-    width: 84px;
+       rasteze celu kutiju. NAPOMENA: 84px je bilo PREUSKO — cak i obicna
+       imena ("Telefon") su se sekla, jer uppercase+letter-spacing+bold
+       zauzimaju vise od o cemu deluje na prvi pogled. Prosireno + smanjen
+       padding/letter-spacing da vise imena stane bez skracivanja. */
+    width: 104px;
     overflow: hidden;
   }
   .player-name {
     background: rgba(0,0,0,0.3);
     border-bottom: 1px solid rgba(255,213,110,0.22);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    padding: 4px 8px 3px;
+    padding: 4px 4px 3px;
     margin-bottom: 4px;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.2px;
     color: rgba(255,255,255,0.75);
   }
   .player-seat.you .player-name {
@@ -495,6 +498,7 @@
   .bid-entry.p2 { border-left: 3px solid #ffe082; }
   .bid-entry strong { font-weight: 800; }
   .bid-entry.dalje { opacity: 0.55; }
+  .bid-entry.bid { background: rgba(79,195,247,0.28); }
   .bid-entry.mogu { background: rgba(76,175,80,0.3); }
   .bid-entry.igra { background: rgba(255,152,0,0.3); }
 
@@ -939,6 +943,15 @@
   .chat-panel.minimized { max-height: unset; }
   .chat-panel.minimized .chat-log,
   .chat-panel.minimized .chat-input-row { display: none; }
+  /* Korisnikov zahtev: minimizovan chat NE sme sam da se digne na novu
+     poruku ("bilo bi bolje da ima notifikaciju da pocrveni") — crveni sjaj
+     na naslovnoj traci dok korisnik sam ne klikne da otvori. */
+  .chat-panel.minimized.has-unread { border-color: #ef5350; animation: chatUnreadPulse 1.2s ease-in-out infinite; }
+  .chat-panel.minimized.has-unread .chat-panel-header { color: #ff8a80; }
+  @keyframes chatUnreadPulse {
+    0%, 100% { box-shadow: 0 6px 20px rgba(0,0,0,0.5), 0 0 6px rgba(239,83,80,0.5); }
+    50% { box-shadow: 0 6px 20px rgba(0,0,0,0.5), 0 0 14px rgba(239,83,80,0.9); }
+  }
   .chat-panel-header {
     display: flex; align-items: center; justify-content: space-between;
     font-weight: 700; font-size: 0.8em; opacity: 0.85;
@@ -1015,27 +1028,37 @@
      jer flex-basis/grow i dalje diktiraju stvarnu sirinu. */
   .room-list-row button { width: auto; margin: 0; padding: 6px 14px; min-height: unset; flex: none; }
 
+  /* Korisnikov zahtev: "univerzalni modal koji ce sva obavestenja isto
+     prikazivati" — svi baneri (kibic zahtev, poziv u sobu, napusti-partiju
+     potvrda, kibic-odobrenje panel) sad dele ISTU brass/zlato pozadinu
+     umesto ranije razlicitih golih #2b2f36 pravougaonika bez ikakvog
+     vizuelnog identiteta. Boja OKVIRA ostaje semanticka po nameni (zeleno
+     zahtev, crveno opasna potvrda). */
+  .kibic-request-banner, .leave-confirm-banner, #kibicRequestPanel {
+    background: linear-gradient(180deg, #3a2a1a 0%, #201409 100%);
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  }
   .kibic-request-banner {
     position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
-    background: #2b2f36; border: 2px solid #66bb6a; border-radius: 10px;
+    border: 2px solid #66bb6a;
     padding: 10px 14px; z-index: 500; display: flex; align-items: center; gap: 10px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
   }
   .kibic-request-banner button { width: auto; margin: 0; padding: 6px 12px; min-height: unset; }
 
   .leave-confirm-banner {
     position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
-    background: #2b2f36; border: 2px solid #e05555; border-radius: 10px;
+    border: 2px solid #e05555;
     padding: 12px 16px; z-index: 500; display: flex; flex-direction: column; gap: 10px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4); max-width: 320px; text-align: center;
+    max-width: 320px; text-align: center;
   }
   .leave-confirm-banner .leave-confirm-actions { display: flex; gap: 10px; justify-content: center; }
   .leave-confirm-banner button { width: auto; margin: 0; padding: 6px 14px; min-height: unset; }
 
   #kibicRequestPanel {
     position: fixed; top: 70px; right: 12px; z-index: 400;
-    background: #2b2f36; border: 2px solid rgba(255,255,255,0.2); border-radius: 10px;
-    padding: 10px 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    border: 2px solid rgba(var(--gold-rgb),0.5);
+    padding: 10px 14px;
   }
   #kibicRequestPanel label { display: block; font-size: 0.85em; margin-bottom: 6px; }
   #kibicRequestPanel .icon-btn { min-width: unset; padding: 6px 10px; font-size: 0.85em; }
@@ -1331,7 +1354,13 @@
        centriranje (raste dok ima sadrzaja) umesto da ga FIKSIRAJU na
        visinu reda — min-height:0 + align-self:stretch (umesto center) su
        standardni par za "overflow:auto ne skroluje u grid/flex detetu". */
-    #leftSidePanel, #rightSidePanel { grid-row: 1; height: 100%; min-height: 0; overflow-y: auto; align-self: stretch; padding: 4px 3px; }
+    /* overflow-x:hidden je OBAVEZAN ovde, ne kozmetika — CSS spec kaze da
+       kad je overflow-y postavljen na necega drugo od 'visible' a overflow-x
+       ostane na default 'visible', overflow-x se RACUNA kao 'auto' (ne
+       ostaje 'visible'). Bez ovoga se dobija HORIZONTALNI scroll cim
+       sadrzaj malo prevazidje 120px sirinu kolone (uzivo prijavljeno:
+       "stavio si hor scroll, a trebalo je vertikalni"). */
+    #leftSidePanel, #rightSidePanel { grid-row: 1; height: 100%; min-height: 0; overflow-y: auto; overflow-x: hidden; align-self: stretch; padding: 4px 3px; }
     #leftSidePanel { grid-column: 1; }
     #rightSidePanel { grid-column: 3; }
     #rightSidePanel .bid-log { flex-direction: column; align-items: stretch; width: 100%; margin: 0; padding: 3px 2px; }
@@ -1358,6 +1387,14 @@
     #slot-west { left: 28%; }
     #slot-east { right: 28%; }
     #slot-south { bottom: 38%; }
+    /* Korisnikov zahtev: talon karte na stolu su prevelike na telefonu,
+       "nista se ne vidi" (2 karte "small" 58x82 pored labele lako pokriju
+       pola uskog stola). Znatno manje ovde, cim se telefon-portret uslov
+       ionako vec drugacije stesnjava. */
+    .talon-center-cards .card.small { width: 40px; height: 56px; }
+    .talon-center-cards .card.small .rank { font-size: 1em; }
+    .talon-center-cards .card.small .suit { font-size: 1.15em; }
+    .talon-center-label { font-size: 0.6em; }
   }
 </style>
 </head>

@@ -414,6 +414,14 @@ function recordHandIfNew() {
     // cim krene sledeca, a istorija se renderuje mnogo kasnije).
     followSeats: computeFollowSeats(game.state),
     tricksWon: [game.state.players[0].tricksWon, game.state.players[1].tricksWon, game.state.players[2].tricksWon],
+    // Korisnikov zahtev: tabela je pokazivala "prošao (0)" za "niko ne
+    // prati" ruke, sto izgleda kao bag. NIJE — engine (handleNoOneFollows,
+    // RULES 5.4) racuna bule/supe direktno preko formule za ove "neodigrane"
+    // ruke i NIKAD ne inkrementira tricksWon (nema stvarnog playCard() toka
+    // da bi se brojalo), iako komentar u engine kodu kaze "nosilac automatski
+    // dobija 10 stihova" — to je namera pravila, ne stvarno upisana vrednost.
+    // wasPlayed razlikuje ova dva slucaja za prikaz (vidi renderScoreContent).
+    wasPlayed: game.state.tricks.length > 0,
   });
   if (result.winner !== null) {
     for (let p = 0; p < 3; p++) {
@@ -755,24 +763,25 @@ function defenseSummaryText(s) {
   if (s.winner === null || s.declaredGame === null) return null;
   const followers = [0, 1, 2].filter(p => p !== s.winner);
   if (followers.some(p => s.followChoices[p] === null)) return null;
-  const isBetl = isBetlGame(s.declaredGame);
+  // Korisnikov zahtev: "nije jedno ispod drugog" (bilo spojeno u red preko
+  // dva razmaka) + ukloniti objasnjenje pravila (Betl parentetika) — vec
+  // trazeno ranije, jos nije bilo uklonjeno ovde (samo na drugom mestu).
   const parts = followers.map(p =>
     `${POS_LABELS[p]}: ${s.followChoices[p] === 'DODJEM' ? 'Dođem' : 'Ne dođem'}`
   );
   let extra = '';
   if (s.caller !== null && s.callee !== null) {
-    extra = ` — <strong>${POS_LABELS[s.caller]} zove ${POS_LABELS[s.callee]}</strong>`;
+    extra = `<strong>${POS_LABELS[s.caller]} zove ${POS_LABELS[s.callee]}</strong>`;
   } else {
     const neDodjemCount = followers.filter(p => s.followChoices[p] === 'NE_DODJEM').length;
     if (neDodjemCount === 1) {
       const solo = followers.find(p => s.followChoices[p] === 'DODJEM');
-      extra = ` — <strong>${POS_LABELS[solo]} igra sam</strong>`;
+      extra = `<strong>${POS_LABELS[solo]} igra sam</strong>`;
     } else if (neDodjemCount === followers.length) {
-      extra = ` — <strong>niko ne prati</strong>`;
+      extra = `<strong>niko ne prati</strong>`;
     }
   }
-  if (isBetl) extra += ' <span style="opacity:0.7">(Betl — svi automatski prate)</span>';
-  return parts.join('  ') + extra;
+  return [...parts, extra].filter(Boolean).join('<br>');
 }
 
 function isBetlGame(g) {
@@ -886,7 +895,11 @@ function renderBiddingPanel() {
       else if (b.type === 'IGRA') txt = `<strong>Igra</strong>`; // bez imena (RULES 3.4) — konkretna igra se bira tek posle pobede
       else if (b.type === 'MOGU') txt = `<strong>mogu ${b.value}</strong>`;
       else txt = `<strong>${b.value}</strong>`;
-      const extraCls = b.type === 'PASS' ? 'dalje' : (b.type === 'IGRA' ? 'igra' : (b.type === 'MOGU' ? 'mogu' : ''));
+      // Korisnikov zahtev: "samo Mogu X je zeleno, ostalo je i dalje isto"
+      // — obican broj (BID, npr. "Zapad: 3") nije imao SVOJU boju uopste,
+      // za razliku od dalje/mogu/igra. Dodata plava (bid) da sve 4 vrste
+      // licitacionog poteza budu vizuelno razlicite.
+      const extraCls = b.type === 'PASS' ? 'dalje' : (b.type === 'IGRA' ? 'igra' : (b.type === 'MOGU' ? 'mogu' : 'bid'));
       log.innerHTML += `<span class="${cls} ${extraCls}">${seatLabel}: ${txt}</span>`;
     }
     // Skroluj na kraj
@@ -1809,10 +1822,15 @@ function renderScoreContent() {
       // OBA ako su dosli posebno, svako sa svojim brojem stihova. "Prosao"
       // sad nosi i koliko je NOSILAC uhvatio (ne posebna "Stihovi" kolona,
       // koja se uklonjena).
-      const followTxt = h.followSeats && h.followSeats.length > 0
+      // wasPlayed razdvaja stvarno odigrane ruke od "niko ne prati"/"Pik bez
+      // kontre" formulskih ishoda (RULES 5.4/7.1.1) — u ovim drugim tricksWon
+      // ostaje 0 za sve (nikad se stvarno ne igra), pa bi "(0)" izgledalo kao
+      // bag ("nosilac prosao a nije uhvatio nijedan stih"). Bez broja u tom
+      // slucaju je tacnije nego pogresno "(0)".
+      const followTxt = h.wasPlayed && h.followSeats && h.followSeats.length > 0
         ? h.followSeats.map(p => `<span class="follow-line">${POS_LABELS[p]}: ${h.tricksWon[p]}</span>`).join('')
         : '—';
-      const winnerTricks = h.winner !== null && h.tricksWon ? h.tricksWon[h.winner] : null;
+      const winnerTricks = h.wasPlayed && h.winner !== null && h.tricksWon ? h.tricksWon[h.winner] : null;
       const resultTxt = h.passed
         ? `✓ prošao${winnerTricks !== null ? ` (${winnerTricks})` : ''}`
         : `✗ pao${winnerTricks !== null ? ` (${winnerTricks})` : ''}`;
@@ -2590,6 +2608,7 @@ function toggleChatMinimize() {
   const minimized = $('chatScreen').classList.toggle('minimized');
   $('chatMinimizeBtn').textContent = minimized ? '▢' : '▁';
   $('chatMinimizeBtn').title = minimized ? 'Otvori' : 'Minimizuj';
+  if (!minimized) $('chatScreen').classList.remove('has-unread');
 }
 window.toggleChatMinimize = toggleChatMinimize;
 
@@ -2630,11 +2649,12 @@ function appendChatMessageOnline(m, isLive = true) {
     updateChatBadge();
     sfx.chatMessage();
   } else if (isLive && $('chatScreen').classList.contains('minimized')) {
-    // Otvoren ali minimizovan (samo naslovna traka) — nova poruka ga
-    // razmimizuje, inace bi prosla nezapazeno iza minimizovane trake.
-    $('chatScreen').classList.remove('minimized');
-    $('chatMinimizeBtn').textContent = '▁';
-    $('chatMinimizeBtn').title = 'Minimizuj';
+    // Korisnikov zahtev: minimize je RANIJE bio ponisten na svaku novu
+    // poruku (dizao se sam) — "bolje da ima notifikaciju da pocrveni, ali
+    // da se ne dize dok korisnik ne klikne". Sad SAMO vizuelna oznaka
+    // (crveni sjaj na naslovnoj traci), minimizovano stanje ostaje dok
+    // korisnik sam ne klikne da otvori.
+    $('chatScreen').classList.add('has-unread');
     sfx.chatMessage();
   }
 }
