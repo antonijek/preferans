@@ -22,6 +22,22 @@ function searchAiEnabled() {
 }
 window.setSearchAiEnabled = (on) => { try { localStorage.setItem('prefSearchAI', on ? '1' : '0'); } catch {} };
 
+// CSS klasa za dugmad izbora igre (posle odbacivanja talona/Igra tiebreak) —
+// dosad su sva bila identicna siva .bid-btn, korisnikov utisak "ruzno,
+// nerazlikuju se". Boja prati boju karte (crno za pik/tref, crveno za
+// herc/karo), Sans/Betl dobijaju sopstveni akcenat.
+const GAME_OPTION_ACCENT = {
+  'Pik': 'opt-black', 'Tref': 'opt-black',
+  'Herc': 'opt-red', 'Karo': 'opt-red',
+  'Igra-Pik': 'opt-black', 'Igra-Tref': 'opt-black',
+  'Igra-Herc': 'opt-red', 'Igra-Karo': 'opt-red',
+  'Sans': 'opt-sans', 'Igra-Sans': 'opt-sans',
+  'Betl': 'opt-betl', 'Igra-Betl': 'opt-betl',
+};
+function gameOptionAccentClass(g) {
+  return GAME_OPTION_ACCENT[g] ?? '';
+}
+
 // Debug: ?seed=NNNN u URL-u forsira deljenje na poznat seed umesto
 // Date.now() — korisno za uzivo kalibraciju igranja karata (vidi
 // engine/tools/reproduce-full-deal.mjs), gde treba da se unapred zna CEO
@@ -530,12 +546,31 @@ function renderSeats() {
   }
 }
 
+// Ko TRENUTNO treba da odluci Dodjem/Ne dodjem, pa Zovi/Igraj sam (RULES 5.3)
+// — deljeno izmedju renderState() (zuti okvir na sedistu) i activeHandOwner()
+// (koja se ruka prikazuje u '3human' hot-seat modu). Bag: renderState() je
+// ranije ovde imao samo default (s.currentPlayer, zaostalo iz PLAYING faze
+// prethodnog stiha) pa je zuti okvir tokom FOLLOW_DECLARING znao da ostane
+// na pogresnom igracu (uzivo prijavljeno: prikazuje "Dodjem/Ne dodjem" kod
+// jednog igraca, a okvir je na drugom).
+function expectedFollowActor(s) {
+  const followers = [0, 1, 2].filter(p => p !== s.winner);
+  const undecided = followers.find(p => s.followChoices[p] === null);
+  if (undecided !== undefined) return undecided;
+  if (s.caller === null) {
+    const callerCandidate = followers.find(p => s.followChoices[p] === 'DODJEM');
+    if (callerCandidate !== undefined) return callerCandidate;
+  }
+  return s.winner;
+}
+
 function renderState() {
   const s = game.state;
   // Aktivan igrač highlight — currentBidder tokom BIDDING, winner tokom DISCARD/DECLARE, currentPlayer tokom igranja
   let activePos = s.currentPlayer;
   if (s.phase === 'BIDDING') activePos = s.currentBidder;
   else if (s.phase === 'DISCARDING' || s.phase === 'DECLARING') activePos = s.winner;
+  else if (s.phase === 'FOLLOW_DECLARING') activePos = expectedFollowActor(s);
   else if (s.phase === 'KONTRA_DECLARING') activePos = game.expectedKontraPlayerPublic();
   for (let pos = 0; pos < 3; pos++) {
     const seat = seatOf(pos);
@@ -995,7 +1030,7 @@ function renderDeclaring() {
     ctrl.appendChild(el('div', 'section-label', mode === '3human' ? `POTEZ: ${POS_LABELS[player]} — IGRA` : 'IGRA'));
     const games = IGRA_GAMES.filter(g => GAME_VALUES[g] >= s.currentBid);
     for (const g of games) {
-      const btn = el('button', 'bid-btn', g.replace('Igra-', ''));
+      const btn = el('button', `bid-btn ${gameOptionAccentClass(g)}`, g.replace('Igra-', ''));
       btn.onclick = (e) => {
         logTrustedAction(`userDeclareIgraTiebreak game=${g} player=${player}`, e);
         game.declareIgra(player, g);
@@ -1055,8 +1090,8 @@ function renderDeclaring() {
     : STANDARD_GAMES.filter(g => GAME_VALUES[g] >= s.currentBid);
 
   for (const g of games) {
-    const displayName = isIgra ? g.replace('Igra-', '') : `${g} (${GAME_VALUES[g]})`;
-    const btn = el('button', 'bid-btn', displayName);
+    const displayName = isIgra ? g.replace('Igra-', '') : g;
+    const btn = el('button', `bid-btn ${gameOptionAccentClass(g)}`, displayName);
     btn.onclick = (e) => {
       logTrustedAction(`userDeclare game=${g} isIgra=${isIgra}`, e);
       if (isIgra) game.declareIgra(winner, g);
@@ -1138,7 +1173,7 @@ function renderFollowing() {
   const isHumanCaller = isHuman(callerCandidate);
   if (isHumanCaller) {
     ctrl.appendChild(el('div', 'section-label', mode === '3human' ? `POTEZ: ${POS_LABELS[callerCandidate]}` : 'TVOJ POTEZ'));
-    const call = el('button', 'bid-btn', `Pozovi ${POS_LABELS[neDodjem]}`);
+    const call = el('button', 'bid-btn primary', `Pozovi ${POS_LABELS[neDodjem]}`);
     call.onclick = (e) => { logTrustedAction(`userCall callee=${neDodjem}`, e); game.call(callerCandidate, neDodjem); render(); };
     ctrl.appendChild(call);
     const solo = el('button', 'bid-btn primary', 'Igram sam');
@@ -1239,18 +1274,11 @@ function activeHandOwner(s) {
   if (s.phase === 'PLAYING') return s.currentPlayer;
   if (s.phase === 'BIDDING') return s.currentBidder;
   if (s.phase === 'FOLLOW_DECLARING') {
-    // Ista logika kao renderFollowing() — prikazi ruku onoga ko TRENUTNO
-    // treba da odluci (Dodjem/Ne dodjem, pa Zovi/Igraj sam), ne uvek
-    // nosioca. Bag: ranije se ovde uvek vracao s.winner, pa je pratilac na
-    // potezu video tudju (nosiocevu) ruku umesto svoje.
-    const followers = [0, 1, 2].filter(p => p !== s.winner);
-    const undecided = followers.find(p => s.followChoices[p] === null);
-    if (undecided !== undefined) return undecided;
-    if (s.caller === null) {
-      const callerCandidate = followers.find(p => s.followChoices[p] === 'DODJEM');
-      if (callerCandidate !== undefined) return callerCandidate;
-    }
-    return s.winner;
+    // Ista logika kao renderFollowing()/renderState() — prikazi ruku onoga
+    // ko TRENUTNO treba da odluci (Dodjem/Ne dodjem, pa Zovi/Igraj sam), ne
+    // uvek nosioca. Bag: ranije se ovde uvek vracao s.winner, pa je pratilac
+    // na potezu video tudju (nosiocevu) ruku umesto svoje.
+    return expectedFollowActor(s);
   }
   if (s.phase === 'KONTRA_DECLARING') {
     const expected = game.expectedKontraPlayerPublic();

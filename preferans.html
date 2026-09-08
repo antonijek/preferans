@@ -266,16 +266,29 @@
      ali u kompaktnijem obliku. */
   .player-seat {
     position: absolute;
-    background: rgba(0,0,0,0.5);
-    border-radius: 10px;
-    padding: 4px 6px;
+    background: linear-gradient(180deg, rgba(30,30,30,0.6) 0%, rgba(0,0,0,0.55) 100%);
+    border-radius: 12px;
+    padding: 5px 8px;
     text-align: center;
-    border: 2px solid transparent;
-    transition: border 0.3s, transform 0.2s;
+    border: 2px solid rgba(255,255,255,0.14);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.35);
+    transition: border 0.2s, transform 0.2s, box-shadow 0.2s;
     min-width: 72px;
   }
-  .player-seat.active { border-color: #ffeb3b; transform: scale(1.05); box-shadow: 0 0 15px rgba(255,235,59,0.5); }
-  .player-seat.you { border-color: rgba(76,175,80,0.5); }
+  .player-seat.you { border-color: rgba(76,175,80,0.55); }
+  /* Naglasenije "na potezu" isticanje (korisnikov utisak: "sad je lose
+     naglaseno") — deblja zuta ivica + blagi puls umesto staticnog sjaja,
+     da privuce pogled i na periferiji ekrana. */
+  .player-seat.active {
+    border-color: #ffeb3b;
+    border-width: 3px;
+    transform: scale(1.08);
+    animation: seatActivePulse 1.3s ease-in-out infinite;
+  }
+  @keyframes seatActivePulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(255,235,59,0.55); }
+    50% { box-shadow: 0 0 20px rgba(255,235,59,0.9); }
+  }
 
   .dealer-badge {
     position: absolute;
@@ -401,6 +414,13 @@
     border-radius: 14px;
     font-weight: 600;
   }
+  /* U uskoj bocnoj koloni (desktop 260px, landscape telefon 120px) dugacak
+     tekst (npr. Igra-tiebreak najava) se ranije secao na ivici umesto da
+     predje u red — inline-flex deca po defaultu ne skupljaju se ispod svoje
+     "prirodne" (nepreliomljene) sirine (isti uzrok kao raniji chat-log bag,
+     vidi belesku gore). min-width:0 dozvoljava skupljanje, overflow-wrap
+     prelama dugacke reci kad zatreba. */
+  .side-panel .bid-entry { white-space: normal; overflow-wrap: break-word; min-width: 0; max-width: 100%; }
   .bid-entry.p0 { border-left: 3px solid #4fc3f7; }
   .bid-entry.p1 { border-left: 3px solid #ff8a80; }
   .bid-entry.p2 { border-left: 3px solid #ffe082; }
@@ -462,6 +482,17 @@
      brojeva) — korisnikov utisak "veliki nezgrapan blok". */
   .bid-btn.igra { background: rgba(255,152,0,0.3); border-color: #ff9800; max-width: 140px; line-height: 1.3; }
 
+  /* Dugmad izbora igre (posle odbacivanja talona / Igra tiebreak) — boja
+     prati boju karte umesto podrazumevanog sivog .bid-btn izgleda. */
+  .bid-btn.opt-black { background: linear-gradient(180deg, #4a4a4a 0%, #262626 100%); border-color: #6b6b6b; }
+  .bid-btn.opt-black:hover { background: linear-gradient(180deg, #565656 0%, #303030 100%); }
+  .bid-btn.opt-red { background: linear-gradient(180deg, #c14b4b 0%, #922f2f 100%); border-color: #e57373; }
+  .bid-btn.opt-red:hover { background: linear-gradient(180deg, #cc5757 0%, #9d3838 100%); }
+  .bid-btn.opt-sans { background: linear-gradient(180deg, #d4b13a 0%, #a8871e 100%); border-color: #ffd54f; color: #1b1b1b; }
+  .bid-btn.opt-sans:hover { background: linear-gradient(180deg, #ddbc47 0%, #b39227 100%); }
+  .bid-btn.opt-betl { background: linear-gradient(180deg, #8e44ad 0%, #6c3483 100%); border-color: #ba68c8; }
+  .bid-btn.opt-betl:hover { background: linear-gradient(180deg, #984ebb 0%, #763b8f 100%); }
+
   /* === TVOJ HAND === */
   /* Suptilna linija+senka odvaja "tvoje karte" od licitacione/kontrolne
      zone iznad — jasnija hijerarhija (bidding-log/dugmad = info+akcije,
@@ -522,7 +553,9 @@
     transform: rotate(var(--rot, 0deg)) translateY(calc(var(--lift, 0px) - 10px)) scale(1.08);
     z-index: 50 !important;
   }
-  .hand-area .card + .card { margin-left: -16px; }
+  /* Karte blize jedna drugoj (korisnikov zahtev — "kao da ih osoba drzi") —
+     vece preklapanje nego ranije. */
+  .hand-area .card + .card { margin-left: -26px; }
   /* Zeleno umesto zuto (korisnikov zahtev, doslednije sa .playable ivicom
      ispod) + podignute gore preko translateY, iznad baznog --lift-a iz
      applyHandFan-a da se lepezasta rotacija/preklapanje ne izgubi. */
@@ -540,12 +573,15 @@
   .card.playable { box-shadow: 0 0 0 2px rgba(76,175,80,0.6), 0 2px 5px rgba(0,0,0,0.4); }
   .card.red { color: #c62828; }
   .card.black { color: #222; }
-  .card .rank { font-size: 1.2em; line-height: 1; }
-  .card .suit { font-size: 1.5em; line-height: 1; }
-  .card.tiny .rank { font-size: 0.95em; }
-  .card.tiny .suit { font-size: 1.15em; }
-  .card.small .rank { font-size: 1em; }
-  .card.small .suit { font-size: 1.25em; }
+  /* Oznaka karte uvecana (korisnikov zahtev — "da zauzme vise prostora u
+     samoj karti, manji padding") — rank+suit sad dominiraju kartu umesto da
+     ostave dosta praznog prostora oko sebe. */
+  .card .rank { font-size: 1.55em; line-height: 1; }
+  .card .suit { font-size: 1.95em; line-height: 1; margin-top: 1px; }
+  .card.tiny .rank { font-size: 1.05em; }
+  .card.tiny .suit { font-size: 1.3em; }
+  .card.small .rank { font-size: 1.25em; }
+  .card.small .suit { font-size: 1.55em; }
 
   /* === MODAL === */
   .screen {
@@ -766,11 +802,14 @@
     display: none;
     position: fixed; left: 8px; bottom: 8px; z-index: 250;
     width: min(320px, calc(100vw - 16px));
-    max-height: min(360px, 50vh);
+    /* Vise prostora za same poruke (korisnikov zahtev — "sto vise prostora
+       porukama") — visina panela povecana, dok su header/input dole svedeni
+       na minimum, pa skoro cela ova visina ide .chat-log-u. */
+    max-height: min(440px, 70vh);
     background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
     border: 2px solid rgba(255,255,255,0.25);
-    border-radius: 14px;
-    padding: 10px;
+    border-radius: 12px;
+    padding: 6px 8px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.5);
     flex-direction: column;
     overflow: hidden;
@@ -778,21 +817,46 @@
   .chat-panel.open { display: flex; }
   .chat-panel-header {
     display: flex; align-items: center; justify-content: space-between;
-    font-weight: 700; margin-bottom: 6px; flex-shrink: 0;
+    font-weight: 700; font-size: 0.8em; opacity: 0.85;
+    margin-bottom: 3px; flex-shrink: 0;
   }
-  .chat-panel-header .icon-btn { min-width: unset; min-height: unset; padding: 2px 8px; }
+  .chat-panel-header .icon-btn {
+    min-width: unset; min-height: unset; padding: 0 6px; font-size: 0.85em;
+    background: transparent; border: none; box-shadow: none;
+  }
+  .chat-panel-header .icon-btn:hover { background: rgba(255,255,255,0.15); }
   .chat-panel input[type="text"] {
     background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2);
-    border-radius: 8px; color: white; padding: 8px 10px; flex: 1;
+    border-radius: 8px; color: white; padding: 6px 9px; flex: 1;
+    font-size: 0.9em; min-width: 0;
   }
+  .chat-panel input[type="text"]::placeholder { color: rgba(255,255,255,0.3); }
+  /* "Posalji" je delio .mode-btn sa setup-ekranom (padding:14px/min-height:56px)
+     — ogroman u malom chat-redu (korisnikov zahtev "sto manje na... posalji").
+     Ne diramo .mode-btn (koriste ga druge stranice) — samo ovde suzavamo. */
+  .chat-panel button.mode-btn { padding: 6px 12px; min-height: unset; font-size: 0.85em; flex: none; }
+  .chat-input-row { display: flex; gap: 5px; flex-shrink: 0; }
 
   /* min-height:0 je bitan deo popravke (ne kozmetika) — bez njega flex
      stavka po defaultu odbija da se skupi ispod visine svog sadrzaja, pa
      .chat-log RASTE preko .chat-panel-ovog max-height-a umesto da sam
      skroluje (uzivo prijavljen bag: "chat raste kako se pise i prekriva
      ekran"). */
-  .chat-log { text-align: left; overflow-y: auto; margin-bottom: 10px; font-size: 0.85em; flex: 1; min-height: 0; }
-  .chat-log div { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .chat-log {
+    text-align: left; overflow-y: auto; overflow-x: hidden;
+    margin-bottom: 6px; font-size: 0.85em; flex: 1; min-height: 0;
+  }
+  /* Duga poruka bez razmaka (npr. link) se ranije siriла preko sirine panela
+     umesto da predje u red — pravilo flex-item min-width:auto default je
+     forsiralo horizontalni scroll (korisnikov zahtev: "nek predje u drugi
+     red"). overflow-wrap prelama i unutar "reci" kad nema drugog izbora. */
+  .chat-log div { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.08); overflow-wrap: break-word; word-break: break-word; }
+  /* Tanja scroll traka (korisnikov utisak "presiroke, ne uklapaju se") —
+     Chrome/Edge/Safari (::-webkit-*) + Firefox (scrollbar-width/-color). */
+  .chat-log { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.35) transparent; }
+  .chat-log::-webkit-scrollbar { width: 6px; }
+  .chat-log::-webkit-scrollbar-track { background: transparent; }
+  .chat-log::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.35); border-radius: 4px; }
 
   .room-list-header {
     display: flex; align-items: center; justify-content: space-between;
@@ -943,11 +1007,11 @@
   @media (min-width: 700px) {
     body { font-size: 1.1em; }
     .card { width: 76px; height: 108px; }
-    .card .rank { font-size: 1.4em; }
-    .card .suit { font-size: 1.8em; }
+    .card .rank { font-size: 1.75em; }
+    .card .suit { font-size: 2.2em; }
     .card.small { width: 68px; height: 94px; }
     .trick-slot { width: 76px; height: 102px; }
-    .hand-area .card + .card { margin-left: -24px; }
+    .hand-area .card + .card { margin-left: -34px; }
   }
 
   /* Siri raspored: sto + bocni paneli jedan pored drugog (korisnikov
@@ -971,7 +1035,14 @@
       justify-content: center;
       gap: 3px;
       overflow: hidden;
+      padding: 2px 8px;
     }
+    /* Sto veci na siroko/visokim ekranima (korisnikov utisak: "previse
+       prazng prostora gore/dole oko stola") — bazni min(54vh,480px) cuva
+       telefon-portret proporciju, ovde na desktopu ima dovoljno visine da
+       sto stvarno iskoristi vise prostora umesto da ostane malen usred
+       velike prazne .table-area kolone. */
+    .table-felt { height: min(72vh, 640px); }
     .side-panel {
       grid-row: 1;
       align-self: center;
@@ -997,18 +1068,21 @@
      Manji sto/sedista/padding ovde oslobadjaju dovoljno prostora da SVE
      (bez skrolovanja) stane na tipican telefon-u-landscape-u ekran. */
   @media (max-height: 480px) {
-    .table-felt { height: min(38vh, 220px); min-height: 130px; }
+    .table-felt { height: min(58vh, 300px); min-height: 130px; }
     .player-seat { padding: 2px 5px; min-width: 60px; }
     .player-name { font-size: 0.7em; }
     .player-bule { font-size: 0.9em; }
     .player-tricks { font-size: 0.58em; }
-    .top-bar { padding: 3px 8px; }
     .bottom-panel { padding: 4px 8px; }
     .hand-area { min-height: 60px; gap: 4px; }
     .side-panel { padding: 6px; gap: 4px; }
     .card { width: 46px; height: 66px; }
-    .card .rank { font-size: 1em; }
-    .card .suit { font-size: 1.1em; }
+    .card .rank { font-size: 1.2em; }
+    .card .suit { font-size: 1.4em; }
+    /* Suprotno od portret/desktop "kao u ruci" preklapanja — na telefonu
+       horizontalno korisnik trazi VISE razmaka izmedju karata, lakse za
+       tacan tap prstom, ne gust izgled "kao drzano u ruci". */
+    .hand-area .card + .card { margin-left: -2px; }
     .bid-btn { padding: 5px 10px; min-height: 28px; font-size: 0.85em; }
     .bid-log { padding: 2px 6px; min-height: 18px; font-size: 0.75em; }
     /* .trick-slot je fiksno 68x92 u baznom CSS-u (podesavano za znatno
@@ -1021,6 +1095,58 @@
        (portrait/desktop) pozicioniranja koje je vec fino podeseno. */
     .trick-slot { width: 44px; height: 60px; }
     #slot-south { bottom: 60%; }
+
+    /* Korisnikov zahtev (telefon horizontalno): brend-red (naslov+bule) i
+       licitacija/dodjem-nedodjem OPCIJE ispod stola oduzimaju previse
+       vertikalnog prostora — sto ne moze da se prosiri. Naslov+bule se
+       kolabiraju (skrivaju), a dugmad (chat/predaja/tabela/zvuk/restart)
+       se izmeste u uspravnu traku sa desne strane umesto da ostanu u
+       (sad kolabiranom) top-bar redu. Licitacija/dodjem/kontra idu u
+       DESNI bocni panel pored stola (kao na sirokom desktopu, vidi
+       @media min-width:900px) umesto ispod — na landscape telefonu ima
+       dovoljno SIRINE (obrnuto od portreta) da ovo stane pored stola. */
+    .top-bar h1, .top-bar .top-info { display: none; }
+    .top-bar { padding: 0; min-height: 0; border: none; }
+    .top-actions {
+      position: fixed; top: 50%; right: 4px; transform: translateY(-50%);
+      flex-direction: column; gap: 6px; z-index: 90;
+      background: rgba(0,0,0,0.4); padding: 6px 4px; border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    }
+    .table-area {
+      display: grid;
+      grid-template-columns: minmax(0, 120px) minmax(0, 1fr) minmax(0, 120px);
+      grid-template-rows: 1fr;
+      gap: 4px;
+      /* padding-right rezervise mesto za fiksnu ikon-traku (.top-actions,
+         right:4px, ~40px siroka dugmad) — bez ovoga ona PREKLAPA sadrzaj
+         desnog bocnog panela (uzivo/screenshot-om otkriveno: tekst
+         licitacije sece se ispod dugmadi). */
+      padding: 4px 52px 4px 4px;
+      overflow: hidden;
+    }
+    #leftSidePanel, #rightSidePanel { grid-row: 1; max-height: 100%; overflow-y: auto; align-self: center; }
+    #leftSidePanel { grid-column: 1; }
+    #rightSidePanel { grid-column: 3; }
+    #rightSidePanel .bid-log { flex-direction: column; align-items: stretch; width: 100%; margin: 0; }
+    #rightSidePanel .bid-controls { flex-direction: column; align-items: stretch; }
+    #rightSidePanel .bid-btn { width: 100%; max-width: none; flex: none; }
+  }
+
+  /* Portret uzan telefon: sto sto sire (skoro do ivica ekrana — korisnikov
+     zahtev), a fiksne px-velicine stih-slotova (68x92 iz baznog pravila,
+     podesene za siri sto) se na uskom-ali-VISOKOM stolu (37%/37%/42%
+     trougao pozicija) medjusobno preklapaju (uzivo prijavljeno: "kad baci
+     drugi igrac prekrije kartu prvog"). Manji slotovi + razmaknutije
+     pozicije (30% umesto 37%, 38% umesto 42%) drze sve tri karte
+     medjusobno razdvojene i na najuzim ekranima. */
+  @media (max-width: 480px) and (orientation: portrait) {
+    .table-area { padding: 3px; gap: 5px; }
+    .table-felt { max-width: 97vw; }
+    .trick-slot { width: 50px; height: 68px; }
+    #slot-west { left: 28%; }
+    #slot-east { right: 28%; }
+    #slot-south { bottom: 38%; }
   }
 </style>
 </head>
@@ -1309,7 +1435,7 @@
     <button class="icon-btn" onclick="toggleChat()" title="Sakrij">✕</button>
   </div>
   <div id="chatLog" class="chat-log"></div>
-  <div style="display:flex;gap:8px">
+  <div class="chat-input-row">
     <input type="text" id="chatInput" placeholder="poruka..." onkeydown="if(event.key==='Enter')sendChatOnline()">
     <button class="mode-btn" style="width:auto;margin:0" onclick="sendChatOnline()">Pošalji</button>
   </div>
