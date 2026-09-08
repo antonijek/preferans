@@ -348,7 +348,7 @@ function isHuman(player) {
 // engine popunjava na kraju SVAKE ruke koja se stvarno bodovala.
 let handHistory = [];
 let debtMatrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
-let lastRecordedHandResult = null;
+let lastRecordedRound = null;
 let lastRefeSum = 0;
 let lastRefePendingSum = 0;
 
@@ -366,8 +366,16 @@ function rightNeighborOf(p) { return (p + 2) % 3; }
 
 function recordHandIfNew() {
   const result = game.state.lastHandResult;
-  if (!result || result === lastRecordedHandResult) return;
-  lastRecordedHandResult = result;
+  // BAG (uzivo prijavljeno: "tabela duplira, 2x Sans, 5x Herc"): poredjenje
+  // po REFERENCI objekta (result === lastRecordedRound) radi samo u
+  // lokalnom modu gde je game.state isti mutirani objekat kroz ceo render.
+  // Online mod RADI game.state = state na SVAKI game:state broadcast (nov
+  // objekat iz JSON-a, cak i kad se nista stvarno ne promeni — npr. neko
+  // pise u chat dok je rezultat prikazan) — referenca je skoro UVEK nova pa
+  // se ista zavrsena ruka upisivala ponovo na SVAKI takav re-broadcast.
+  // round je stabilan primitivan broj, poredi se po VREDNOSTI.
+  if (!result || game.state.round === lastRecordedRound) return;
+  lastRecordedRound = game.state.round;
   handHistory.push({
     round: game.state.round,
     winner: result.winner,
@@ -380,6 +388,12 @@ function recordHandIfNew() {
     // talona) — korisnikova ponavljana zabuna oko "Igra X odmah" bila je
     // delom i to sto se istorija runde nije razlikovala od normalne pobede.
     viaIgra: game.state.igraPlayer === result.winner,
+    // Korisnikov zahtev: tabela nije prikazivala ni ko je dosao/zvao ni
+    // koliko je ko stihova uhvatio — MORA se snimiti OVDE (game.state jos
+    // ima followChoices/tricksWon od bas zavrsene ruke, newHand() ih resetuje
+    // cim krene sledeca, a istorija se renderuje mnogo kasnije).
+    defenseText: defenseSummaryText(game.state),
+    tricksWon: [game.state.players[0].tricksWon, game.state.players[1].tricksWon, game.state.players[2].tricksWon],
   });
   if (result.winner !== null) {
     for (let p = 0; p < 3; p++) {
@@ -1606,7 +1620,7 @@ function renderResult() {
   // "GAME_OVER" u engine-u znaci kraj RUKE, ne kraj cele partije (ta se
   // nastavlja dok zbir bula ne padne na TACNO 0, vidi RULES 9.1/9.1.1) —
   // "MATCH_OVER" je NOVA, odvojena faza za stvarni kraj CELE partije.
-  const title = s.phase === 'REFE' ? '🤝 Refe' : (s.phase === 'MATCH_OVER' ? '🏆 Kraj partije!' : '🏁 Kraj runde');
+  const title = s.phase === 'REFE' ? '🤝 Refe' : (s.phase === 'MATCH_OVER' ? '🏆 Kraj partije!' : '🏁 Kraj ruke');
   $('resultTitle').textContent = title;
   $('resultTitle').classList.toggle('match-over-title', s.phase === 'MATCH_OVER');
   $('resultBox').classList.toggle('match-over', s.phase === 'MATCH_OVER');
@@ -1766,15 +1780,21 @@ function renderScoreContent() {
   } else {
     const kontraShort = { KONTRA: '×2', REKONTRA: '×4', SUBKONTRA: '×8', MORTKONTRA: '×16' };
     html += `<div style="overflow-x:auto"><table class="score-table"><thead><tr>
-      <th>Krug</th><th>Nosilac</th><th>Igra</th><th>Kontra</th><th>Rezultat</th><th>Bule</th>
+      <th>Krug</th><th>Nosilac</th><th>Igra</th><th>Kontra</th><th>Odbrana</th><th>Štihovi</th><th>Rezultat</th><th>Bule</th>
     </tr></thead><tbody>`;
     for (const h of [...handHistory].reverse()) {
       const resultTxt = h.passed ? '✓ prošao' : '✗ pao';
+      // Korisnikov zahtev: tabela je pokazivala rezultat ali ne i KO je
+      // dosao/zvao niti koliko je ko stihova uhvatio — bez toga se ne vidi
+      // ZASTO je neko dobio/nije dobio supe za tu rundu.
+      const tricksTxt = h.tricksWon ? [0, 1, 2].map(p => `${POS_LABELS[p]}: ${h.tricksWon[p]}`).join(' · ') : '—';
       html += `<tr>
         <td>${h.round}</td>
         <td>${POS_LABELS[h.winner]}</td>
         <td>${h.winnerGame}${h.viaIgra ? ' <span style="opacity:0.6">(Igra)</span>' : ''}</td>
         <td>${kontraShort[h.kontraLevel] ?? '—'}</td>
+        <td>${h.defenseText ?? '—'}</td>
+        <td>${tricksTxt}</td>
         <td>${resultTxt}</td>
         <td>${h.bulas.join('/')}</td>
       </tr>`;
@@ -1827,7 +1847,7 @@ function startGame() {
   // Bez ovoga bi supe-dug-matrica/istorija ruka procurile u novu partiju.
   handHistory = [];
   debtMatrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
-  lastRecordedHandResult = null;
+  lastRecordedRound = null;
   lastRefeSum = 0;
   lastRefePendingSum = 0;
 
@@ -1899,15 +1919,30 @@ function viewCards() {
     const played = s.tricks.flatMap((trick) => trick.filter((tc) => tc.player === seat).map((tc) => tc.card));
     return { seat, name: POS_LABELS[seat], cards: [...played, ...s.players[seat].hand] };
   });
-  renderRevealedHands(hands);
+  renderRevealedHands(hands, s.talon);
 }
 
 // Puna-ekranska preglednost (korisnikov zahtev 2026-09-07: "treba da bude
 // preko celog ekrana i da se dobro vise svacije") — PRAVE karte (cardEl(),
 // isti izgled kao za vreme igranja), jedan red po igracu, jasno naslovljen.
-function renderRevealedHands(hands) {
+function renderRevealedHands(hands, talon) {
   const content = $('revealedHandsContent');
   content.innerHTML = '';
+  // Korisnikov zahtev: talon (2 karte koje niko nije dobio) nedostajao je
+  // sa ovog ekrana — bez njega se ne vidi "sta je bilo u talonu" prilikom
+  // pregleda cele ruke.
+  if (talon && talon.length > 0) {
+    const row = el('div', 'revealed-hand-row');
+    row.style.cssText = 'margin-bottom:20px;text-align:left';
+    const label = el('div', '', 'Talon');
+    label.style.cssText = 'font-family:"Cinzel",serif;font-size:1.1em;font-weight:700;margin-bottom:8px;color:#ffeb3b';
+    row.appendChild(label);
+    const cardsWrap = el('div');
+    cardsWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px';
+    for (const c of talon) cardsWrap.appendChild(cardEl(c, { size: 'small' }));
+    row.appendChild(cardsWrap);
+    content.appendChild(row);
+  }
   for (const h of hands) {
     const row = el('div', 'revealed-hand-row');
     row.style.cssText = 'margin-bottom:20px;text-align:left';
@@ -2124,8 +2159,8 @@ async function connectOnlineSocket() {
   onlineSocket.on('game:action-rejected', (action) => {
     console.warn('[online] akcija odbijena od servera:', action);
   });
-  onlineSocket.on('game:handsRevealed', (hands) => {
-    renderRevealedHands(hands);
+  onlineSocket.on('game:handsRevealed', (payload) => {
+    renderRevealedHands(payload.hands, payload.talon);
   });
   onlineSocket.on('game:error', (msg) => {
     console.error('[online] server greška:', msg);

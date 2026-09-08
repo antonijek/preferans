@@ -162,6 +162,12 @@
     font-size: 0.9em;
     box-shadow: 0 4px 14px rgba(0,0,0,0.5);
     z-index: 300;
+    /* Korisnikov zahtev (telefon): bez max-width se poruka (npr. "Ime
+       koristi refu — bule/supe x2") lomila na uzan shrink-to-fit sirinu i
+       cepala u vise redova nego sto je stvarno potrebno. Skoro cela sirina
+       ekrana + centriran tekst umesto uzastopnih uskih redova. */
+    max-width: min(92vw, 380px);
+    text-align: center;
   }
 
   /* === STO (sredina) + bocni paneli ===
@@ -428,6 +434,12 @@
     margin: 0 auto;
   }
   .bid-log-empty { opacity: 0.5; font-style: italic; }
+  /* Korisnikov zahtev: iznad "Dostupne igre" dugmadi je stajala PRAZNA
+     braon kutija (renderDeclaring() cisti bidLog na '' za taj prikaz) —
+     izgledala je kao nedovrseno/prazno input polje. :empty je sam-odrzavajuci
+     nacin da nestane cim NEMA sadrzaja, bez da se menja svako mesto koje
+     puni/prazni #bidLog. */
+  .bid-log:empty { display: none; }
   .bid-entry {
     display: inline-flex;
     align-items: center;
@@ -511,7 +523,12 @@
      vidi SAMO kroz malu obojenu ikonicu ispred imena. Sans/Betl (nemaju
      boju karte) zadrzavaju sopstveni akcenat. */
   .opt-suit-icon { font-size: 1.15em; }
-  .opt-suit-icon.black { color: #eceff1; text-shadow: 0 0 3px rgba(0,0,0,0.8); }
+  /* Korisnikov zahtev: crna ikonica je bila skoro bela/nevidljiva ("belo
+     nije dobro"). Crveno je dobro citljivo direktno na dugmetu (jarko na
+     tamnom), ali crno bi bilo NEVIDLJIVO na tamnoj pozadini dugmeta bez
+     sopstvene podloge — mala svetla "pločica" iza nje daje isti kontrast
+     kakav crni znak ima na beloj karti. */
+  .opt-suit-icon.black { background: #eceff1; color: #1a1a1a; border-radius: 5px; padding: 0 4px; text-shadow: none; }
   .opt-suit-icon.red { color: #ff5252; }
   .bid-btn.opt-sans { background: linear-gradient(180deg, #d4b13a 0%, #a8871e 100%); border-color: #ffd54f; color: #1b1b1b; }
   .bid-btn.opt-sans:hover { background: linear-gradient(180deg, #ddbc47 0%, #b39227 100%); }
@@ -1115,17 +1132,24 @@
          sirok, pa sto vizuelno "pobegne" ka praznoj strani (uzivo
          prijavljeno: "levu marginu si makao skroz, desna ogromna"). 1fr na
          OBE strane ih prisiljava da UVEK budu tacno iste sirine bez obzira
-         na sadrzaj — sto ostaje centrirano, a justify-self ispod i dalje
-         lepi paneli-content uz sto (ne uz spoljnu ivicu ekrana). */
+         na sadrzaj — sto ostaje centrirano. */
       grid-template-columns: minmax(0, 1fr) minmax(0, 820px) minmax(0, 1fr);
       grid-template-rows: 1fr;
-      gap: 3px;
+      gap: 14px;
       overflow: hidden;
-      padding: 10px 8px;
+      /* levo/desno padding == gap, da je margina STO<->panel identicna
+         panel<->ivica-ekrana margini (korisnikov zahtev: "isti toliki"). */
+      padding: 10px 14px;
     }
-    #leftSidePanel { justify-self: end; }
-    #rightSidePanel { justify-self: start; }
-    .side-panel { max-width: 260px; }
+    /* NAPOMENA (7. put prijavljen isti utisak — prethodna popravka je
+       resila SAMETRIJU ali ne i sustinu): justify-self:end/start +
+       max-width:260px su panel drzali NA MALOJ, sadrzaj-velicini sirini
+       cak i kad je 1fr traka mnogo sira — sto je davalo VELIKU mrtvu
+       prazninu izmedju panela i ivice ekrana ("licitacija je i dalje uz
+       sto, ali sa druge strane ima mnogo prostora koji nicemu ne sluzi").
+       Bez justify-self/max-width, panel po GRID DEFAULT-u (stretch) ispuni
+       CELU svoju 1fr traku — "gap" iznad je jedina (mala, dosledna)
+       margina i ka stolu i ka ivici ekrana, tacno ono sto je trazeno. */
     /* Sto veci na siroko/visokim ekranima (korisnikov utisak: "previse
        prazng prostora gore/dole oko stola") — bazni min(54vh,480px) cuva
        telefon-portret proporciju, ovde na desktopu ima dovoljno visine da
@@ -1206,9 +1230,13 @@
        prostora jer red karata ne popunjava celu sirinu, vidi .hand-area
        justify-content:center), u RED (ne koloni) jer je taj prostor plitak
        ali sirok. */
+    /* Korisnikov zahtev: u JEDNOM redu su 4 dugmeta bila dovoljno siroka da
+       prekriju poslednju kartu u ruci ispod njih. 2x2 mreza umesto 1x4 reda
+       prepolovljuje potrebnu sirinu (visina raste, ali tu ima slobodnog
+       crnog prostora ispod stola koji se ionako ne koristi). */
     .top-actions {
       position: fixed; bottom: 4px; right: 4px;
-      flex-direction: row; gap: 4px; z-index: 90;
+      display: grid; grid-template-columns: repeat(2, auto); gap: 4px; z-index: 90;
       background: rgba(0,0,0,0.4); padding: 4px; border-radius: 10px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.4);
     }
@@ -1221,7 +1249,13 @@
       padding: 4px;
       overflow: hidden;
     }
-    #leftSidePanel, #rightSidePanel { grid-row: 1; max-height: 100%; overflow-y: auto; align-self: center; padding: 4px 3px; }
+    /* Korisnikov zahtev: kad licitacija naraste (npr. do 6/7), poslednja 1-2
+       stavke se nisu videle niti moglo da se doskroluje. align-self:center
+       + max-height:100% ostavljaju grid item-u NEODREDJENU visinu za
+       centriranje (raste dok ima sadrzaja) umesto da ga FIKSIRAJU na
+       visinu reda — min-height:0 + align-self:stretch (umesto center) su
+       standardni par za "overflow:auto ne skroluje u grid/flex detetu". */
+    #leftSidePanel, #rightSidePanel { grid-row: 1; height: 100%; min-height: 0; overflow-y: auto; align-self: stretch; padding: 4px 3px; }
     #leftSidePanel { grid-column: 1; }
     #rightSidePanel { grid-column: 3; }
     #rightSidePanel .bid-log { flex-direction: column; align-items: stretch; width: 100%; margin: 0; padding: 3px 2px; }

@@ -422,7 +422,13 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
       );
       return { seat, name: room.seatNames[seat], cards: [...played, ...room.game.state.players[seat]!.hand] };
     });
-    io.to(room.code).emit('game:handsRevealed', hands);
+    // Korisnikov zahtev: "kad jedan igrac klikne Pogledaj karte treba samo
+    // njemu da se pokazu, ne svima" — ranije se io.to(room.code) slalo SVIMA
+    // u sobi cim BILO KO klikne. Auto-advance pauza iznad ostaje deljena
+    // (razumno — dok neko cita, runda ne treba automatski da produzi), sama otkrivena
+    // ruka je sad privatna, samo posiljaocu.
+    // Korisnikov zahtev: talon nije bio prikazan na ovom ekranu.
+    socket.emit('game:handsRevealed', { hands, talon: room.game.state.talon });
     ack?.({ ok: true });
   });
 
