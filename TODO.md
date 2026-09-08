@@ -1,5 +1,143 @@
 # TODO — Preferans projekat
 
+## 🟢 PREDAJA NOVOJ SESIJI (2026-09-08) — PROČITAJ OVO PRVO
+
+**Predaja ispod (2026-09-07 i starije) je pročitana i uklopljena — ne treba
+je ponovo čitati sem za istorijski detalj.** Ova sesija je bila ISKLJUČIVO
+UI/UX (nijedna izmena u `engine/src/`) — dugačak niz uživo prijavljenih
+vizuelnih bagova i "klasična kockarnica" redizajn (drvo/mahagoni + zlato
+umesto zelenog/providno-belog svuda van samog stola), plus par pravih
+funkcionalnih bagova u online multiplayer sloju. Sve komitovano/pushovano/
+deploy-ovano na `https://pref.antonije.dev`. Korisnik je otišao na spavanje
+sa eksplicitnim zahtevom "sve dobro istestiraj" — autonomno noćno odobrenje
+i dalje na snazi ako se ponovi (vidi memoriju `project_preferans_overnight_ui_session`).
+
+**Stanje testova**: `cd engine && npm test` → **201/201**. Playwright
+vizuelna provera (desktop/portret/landscape/home) posle SVIH izmena ove
+sesije → **0 page-error-a**. `npm run test:ui:multi` (pun AI-vs-AI smoke)
+se OVE sesije više puta zaglavio zbog sandbox ograničenja (previše
+uzastopnih Chromium pokretanja u istoj dugoj sesiji — vidi memoriju
+`feedback_headless_browser_batch_limit`) — NIJE stigao da se pusti čist
+posle POSLEDNJEG commit-a. Preporuka sledećoj sesiji: pokreni
+`npm run test:ui:multi -- 15` RANO (pre gomilanja Playwright poziva) da
+potvrdiš da poslednji batch nije uveo regresiju u AI bidding/play petlju.
+
+### Vizuelni pravac: "klasična kockarnica"
+Korisnik izabrao (od 4 ponuđene opcije) — drvo/mahagoni umesto crne/sive na
+`.top-bar`/`.bottom-panel`/`.side-panel`/`.chat-panel`/svim modalima
+(`.screen .box`), zlatni trim (`--gold`/`--gold-bright`/`--gold-dark` CSS
+promenljive, `--gold-rgb` za translucentne varijante — SVE zlatne nijanse u
+fajlu sad idu kroz ove, ranije 3 nedosledne hex vrednosti). Zeleno OSTAJE
+rezervisano za sam sto (felt) i "aktivno/potvrdi" dugmad
+(`.mode-btn.active`, `.bid-btn.primary`) — namerno, ne dirati bez razloga.
+Sva "obična" dugmad (`.mode-btn`/`.bid-btn`/`.icon-btn`) su brass gradijent.
+
+### Pravi bagovi nađeni i popravljeni ove sesije
+1. **Žuti okvir "na potezu" na pogrešnom igraču tokom FOLLOW_DECLARING** —
+   `renderState()` nije imao granu za tu fazu (activeHandOwner() je već
+   imao ispravnu logiku, sad deljena kroz `expectedFollowActor()`).
+2. **`game:dealNext` je delio sledeću rundu na PRVI klik BILO KOG igrača**
+   umesto da čeka sve — `RoomState.dealNextReady` + `activeSeatsForRoom()`,
+   klijent prikazuje "Spremni: X / Čeka se: Y".
+3. **Tabela je duplirala unose istorije** (2x Sans, 5x Herc) —
+   `recordHandIfNew()` je poredio po REFERENCI objekta, što radi samo
+   lokalno (isti mutirani `game.state` kroz render); online radi
+   `game.state = state` na SVAKI broadcast (nov objekat iz JSON-a i kad se
+   ništa ne promeni, npr. chat poruka). Sad poredi po `game.state.round`
+   (stabilan primitivan broj).
+4. **"Pogledaj karte" je slao svima u sobi** (`io.to(room.code)`) umesto
+   samo pošiljaocu — sad `socket.emit`, ostali dobijaju "X gleda karte,
+   sačekajte" umesto punog sadržaja. Više ne pauzira TRAJNO auto-tajmer
+   (`autoAdvancePaused` polje uklonjeno) — gledanje karata više ne blokira
+   ni 9s tajmer ni "svi kliknuli Deli".
+5. **`.screen.full-page` modal (Soba/Setup/Login) — vrh se nije video,
+   prijavljeno 7+ puta** — pravi uzrok: fiksni `.full-page-header`
+   (z-index:210) fizički prekriva gornji deo kutije kad se ona centrira u
+   CELOJ visini viewporta. `top: 56px` na `.screen.full-page` centrira
+   samo unutar prostora ISPOD headera.
+6. **Sto/bočni paneli na desktopu necentrirani (isto prijavljeno 2x)** —
+   `minmax(0,260px)` na obe strane prati SADRŽAJ (auto-sizing); prazan
+   levi panel se stiska skoro na 0, puni desni ostaje širok, sto vizuelno
+   "beži". `1fr` na obe strane ih drži UVEK jednakim; kasnije i
+   `max-width:260px`+`justify-self` uklonjeni (panel sad ispuni CELU 1fr
+   traku — korisnik eksplicitno tražio "proširi skoro do krajeva").
+7. **Landscape telefon: vertikalni scroll bočnih panela NIJE radio** (2
+   pokušaja popravke, drugi potvrđen automatizovanim testom) — pravi
+   uzrok: `.bid-log` nasleđuje `flex-wrap:wrap`; u `flex-direction:column`
+   kontekstu to prelama sadržaj u NOVE (horizontalne, nevidljive jer
+   `overflow-x:hidden`) kolone umesto da legitimno preraste visinu.
+   `flex-wrap:nowrap` na oba mesta (desktop 900px+ I landscape) — potvrđeno
+   testom: scrollHeight 301→387, scrollTop uspešno 0→86.
+8. **`overflow-y:auto` bez `overflow-x` = horizontalni scroll** (CSS spec:
+   overflow-x se računa kao 'auto', ne 'visible', kad je overflow-y
+   eksplicitno postavljen) — landscape bočni paneli. `overflow-x:hidden`
+   dodat eksplicitno.
+9. **Nema obaveštenja kad neko ispadne sa mreže/zatvori browser** —
+   `disconnect` handler je samo čistio socket bez ikakvog signala ostalima
+   (za razliku od eksplicitnog "napusti partiju"). Dodato
+   `room:playerDisconnected`/`room:playerReconnected` — sedište OSTAJE
+   rezervisano za M6 reconnect kao i do sad (namerna odluka, ne dirati),
+   ostali sad bar znaju šta se dešava.
+10. `.room-list-row button`/`.player-seat` su nasleđivali `flex:1`/imali
+    `min-width` umesto fiksne širine — dugme "Pozovi" i kutija imena su
+    menjali veličinu zavisno od dužine imena pored sebe.
+
+### 🔴 OTVORENO — nije potvrđeno rešeno, dijagnostika postavljena
+- **Tabela ne prikazuje ko je došao/koliko je uhvatio na STVARNO odigranoj
+  ruci** (korisnik: "došao sam na tref, uzeo 4 štiha, tabela prazna").
+  Pokušao sam da reprodukujem preko `engine/dist` direktno (Game +
+  aiAutoplay, 5 nasumičnih ruku sa pravim pratiocem koji dolazi) — SVE
+  pokazuju ispravne `followChoices`/`tricksWon` podatke na GAME_OVER, uklj.
+  `activateAllFollowers()` kontra-granu. Nisam uspeo da nađem uzrok statičkom
+  analizom niti lokalnom simulacijom. **Postavljen privremeni
+  `console.log('[TABELA DEBUG]', ...)`** u `recordHandIfNew()` (app.js) —
+  sledeći put kad se ovo desi, otvori F12 → Console PRE otvaranja tabele
+  (ili odmah posle kraja te ruke) i pošalji šta piše. Ukloniti log posle
+  potvrde uzroka.
+- **Pozivnica (room:invite) možda ne stiže pozvanom** — server DOKAZANO
+  šalje poruku pravom, živom soketu (`[INVITE DEBUG] foundSockets=1`
+  potvrđeno u pm2 logs), ali korisnik prijavio da pozvani ništa ne vidi.
+  Klijentski kod (`onlineSocket.on('room:invited', ...)` → `showInviteBanner`)
+  izgleda ispravno pri pregledu. Moguće objašnjenje: "zombi" socket (stari,
+  mrtav ali još registrovan u `presence.ts`'s `online` mapi zbog mobilne
+  nestabilnosti) — nije potvrđeno. `[INVITE DEBUG]` log i dalje aktivan na
+  serveru, korisno za sledeći test.
+- **Sans "pogrešan prvi igrač"** (korisnik: "juče je radilo, danas ne") —
+  engine kod (`getFirstPlayer()`, `(winner+2)%3` za Sans) je NEPROMENJEN od
+  2026-09-05 fix-a, ova sesija nije dirala `engine/src/`. Najverovatnije
+  vizuelna zabuna zbog `seatOf()` rotacije sedišta po gledaocu (svako vidi
+  sebe dole), ne stvaran bag u pravilima — treba TAČAN primer (ko je
+  nosilac, ko je stvarno prvi igrao, sa koje pozicije gleda prijavljivač).
+
+### Novo dodato (funkcionalnost, ne bag)
+- **🏠 "Ustani od stola"** — izađi na početnu BEZ napuštanja partije
+  (sedište/soket ostaju, razlika od "napusti partiju" koje predaje AI-ju);
+  "↩️ Nazad za sto" dugme na početnoj vraća prikaz. `awayFromTable` flag
+  sprečava da sledeći `game:state` nasilno vrati na sto.
+- Half-split dugmad za izbor igre (Pik/Herc/Karo/Tref) — leva polovina ime
+  na zelenoj pozadini, desna PUNA boja (crna pik/tref, crvena herc/karo) sa
+  znakom — tražio 4 puta dok nije tačno pogođeno.
+- Tabela restrukturirana: "Odbrana" (prozni tekst) i "Štihovi" (uvek 0 za
+  formulske "niko ne prati"/"Pik bez kontre" ishode — `handleNoOneFollows`/
+  `handleUnplayedHand` u engine-u NIKAD ne inkrementiraju tricksWon uprkos
+  komentaru "nosilac automatski dobija 10 štihova" — to je namera pravila,
+  ne stvarno upisana vrednost) zamenjene sa "Pratnja" (ko prati + štihovi)
+  i "Prošao" (uklj. koliko je nosilac uhvatio, SAMO ako `wasPlayed`).
+  `table-layout:fixed` sprečava horizontalni scroll bez širenja modala.
+- Chat: dugme za minimizovanje (ostaje minimizovano, samo crveno pulsira na
+  novu poruku — NE diže se samo, korisnik eksplicitno tražio ovo posle
+  prve verzije koja se dizala sama).
+- Home page: uklonjena redundantna "Prava pravila" kartica, ostaje samo
+  jedna klikabilna "Pravila preferansa" → `/pravila.html`.
+
+### Odbijeno da se uradi (van obima ove sesije, javljeno korisniku)
+- "Kad je licit 2/dalje/Igra, ne čekaj prisilni pass" flow-optimizacija za
+  Igra tiebreak bidding — razumljiv predlog, ali menja redosled licitacije
+  (engine logika), previše rizično da se ubaci nabrzinu u već ogroman UI
+  paket. Ostaje kao poseban zadatak za sledeću sesiju ako korisnik potvrdi.
+
+---
+
 ## 🟢 PREDAJA NOVOJ SESIJI (2026-09-07) — PROČITAJ OVO PRVO
 
 **Sve predaje ispod (2026-09-03 i starije) su zastarele — pročitane su i
