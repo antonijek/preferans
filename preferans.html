@@ -752,7 +752,12 @@
   .screen h2 { font-family: 'Cinzel', serif; margin-bottom: 12px; text-align: center; font-size: 1.5em; }
   /* Setup ekran — bogatiji vizuelni identitet (korisnikov zahtev: "da
      privucem igrace izgledom") umesto golog teksta naslova. */
-  .setup-box { position: relative; overflow: hidden; }
+  /* overflow:hidden ovde je gazio .box-ov overflow-y:auto (ISTA specificnost,
+     kasnije u fajlu = pobedjuje) — sadrzaj se SEKAO na dnu umesto da skroluje
+     kad ne stane (korisnikov zahtev: "vrh i dno se ne vide skroz", najvise
+     pogodjen dugacak #roomScreen koji deli ovu klasu). Vertikalni scroll
+     vracen, horizontalno ostaje hidden (decorative watermark/uglovi). */
+  .setup-box { position: relative; overflow-x: hidden; overflow-y: auto; }
   .setup-title {
     font-family: 'Cinzel', serif;
     font-size: 2.2em !important;
@@ -1450,10 +1455,12 @@
     <h2 class="setup-title">Soba</h2>
     <div id="roomStatus" style="margin-bottom:12px;min-height:1.4em"></div>
 
-    <div class="room-list-header">
-      <span>Trenutno online</span>
-    </div>
-    <div id="onlineUsersList" class="room-list"><div class="room-list-empty">Učitavanje...</div></div>
+    <!-- Korisnikov zahtev: lista "ko je online" je ranije uvek stajala
+         razvucena na vrhu sobe, guralа sve ostalo dole i cinila ekran
+         predugackim (posebno na telefonu, "vrh i dno se ne vide"). Sad je
+         iza dugmeta, sklonjena dok se ne zatrazi. -->
+    <button class="mode-btn" id="onlineUsersToggleBtn" onclick="toggleOnlineUsersPanel()">👥 Ko je online (<span id="onlineUsersCount">0</span>)</button>
+    <div id="onlineUsersList" class="room-list" style="display:none"><div class="room-list-empty">Učitavanje...</div></div>
 
     <div class="setup-field">
       <label for="roomStartBula">Početna bula</label>

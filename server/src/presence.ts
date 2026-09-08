@@ -12,14 +12,24 @@ export function markOffline(socketId: string): void {
   online.delete(socketId);
 }
 
-export function listOnlineUsers(): { name: string }[] {
+export function listOnlineUsers(): { userId: number; name: string }[] {
   // A user connected in multiple tabs shouldn't appear twice.
   const seen = new Set<number>();
-  const result: { name: string }[] = [];
+  const result: { userId: number; name: string }[] = [];
   for (const { userId, name } of online.values()) {
     if (seen.has(userId)) continue;
     seen.add(userId);
-    result.push({ name });
+    result.push({ userId, name });
   }
   return result;
+}
+
+// Za "pozovi igraca" (room:invite) — nadje SVE sokete tog korisnika (mozda
+// ima vise otvorenih tabova/uredjaja), da pozivnica stigne na svaki.
+export function getSocketIdsForUser(userId: number): string[] {
+  const ids: string[] = [];
+  for (const [socketId, info] of online.entries()) {
+    if (info.userId === userId) ids.push(socketId);
+  }
+  return ids;
 }

@@ -15,7 +15,7 @@ import { redactStateFor } from '../redact.js';
 import type { Viewer } from '../redact.js';
 import { applyAction, withAuthenticatedActor } from './gameEvents.js';
 import type { GameAction } from './gameEvents.js';
-import { listOnlineUsers } from '../presence.js';
+import { listOnlineUsers, getSocketIdsForUser } from '../presence.js';
 import { computeAiAction } from '../ai/aiSeat.js';
 
 type Ack = (response: Record<string, unknown>) => void;
@@ -244,6 +244,23 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
 
   socket.on('presence:list', (_payload: unknown, ack?: Ack) => {
     ack?.({ users: listOnlineUsers() });
+  });
+
+  // "Pozovi igraca" — korisnikov zahtev: umesto da se kod sobe deli rucno
+  // (chat/spolja), direktno pozovi nekog ko je trenutno online. Cilja se
+  // SAMO userId (klijent ne salje kod sobe) — server vec zna posiljaocevu
+  // sobu preko currentRoom(), isti obrazac kao svaki drugi handler ovde.
+  socket.on('room:invite', (payload: { userId?: unknown }, ack?: Ack) => {
+    const room = currentRoom();
+    if (!room) { ack?.({ error: 'Prvo napravi ili se pridruži sobi' }); return; }
+    const targetUserId = Number(payload?.userId);
+    if (!Number.isInteger(targetUserId)) { ack?.({ error: 'Nevažeći poziv' }); return; }
+    const targetSocketIds = getSocketIdsForUser(targetUserId);
+    if (targetSocketIds.length === 0) { ack?.({ error: 'Igrač više nije online' }); return; }
+    for (const sid of targetSocketIds) {
+      io.to(sid).emit('room:invited', { code: room.code, fromName: name });
+    }
+    ack?.({ ok: true });
   });
 
   socket.on('room:create', (payload: { initialBule?: number; refePerPlayer?: number }, ack?: Ack) => {

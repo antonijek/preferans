@@ -2132,6 +2132,9 @@ async function connectOnlineSocket() {
   onlineSocket.on('kibic:incoming-request', (p) => {
     showKibicRequestBanner(p.spectatorUserId, p.name);
   });
+  onlineSocket.on('room:invited', (p) => {
+    showInviteBanner(p.code, p.fromName);
+  });
   onlineSocket.on('game:dealNextStatus', (p) => {
     dealNextReadySeats = p?.ready ?? [];
     renderResult();
@@ -2220,9 +2223,54 @@ function refreshOnlineUsers() {
   onlineSocket.emit('presence:list', {}, (res) => renderOnlineUsers(res?.users ?? []));
 }
 
+// Lista "ko je online" u sobi je ranije bila UVEK razvucena na vrhu ekrana
+// (korisnikov zahtev: sakriti iza dugmeta, otvoriti na klik).
+function toggleOnlineUsersPanel() {
+  const list = $('onlineUsersList');
+  list.style.display = list.style.display === 'none' ? '' : 'none';
+}
+window.toggleOnlineUsersPanel = toggleOnlineUsersPanel;
+
+// Poziva konkretnog online igraca u MOJU trenutnu sobu — server zna koja je
+// moja soba (currentRoom() preko userId-a), klijent salje samo cilja.
+function inviteOnlineUser(userId, name) {
+  if (!onlineSocket) return;
+  onlineSocket.emit('room:invite', { userId }, (res) => {
+    if (res?.error) { showAppToast(`⚠️ ${res.error}`); return; }
+    showAppToast(`📞 Pozivnica poslata: ${name}`);
+  });
+}
+window.inviteOnlineUser = inviteOnlineUser;
+
+// Banner za primljenu pozivnicu — isti obrazac kao kibic-zahtev banner
+// (textContent svuda, fromName je tudji unos).
+function showInviteBanner(code, fromName) {
+  const banner = document.createElement('div');
+  banner.className = 'kibic-request-banner';
+  const span = document.createElement('span');
+  span.textContent = `${fromName} te poziva u sobu ${code}.`;
+  banner.appendChild(span);
+  const join = document.createElement('button');
+  join.textContent = 'Pridruži se';
+  join.onclick = () => {
+    banner.remove();
+    goToRoomScreen();
+    $('roomCodeInput').value = code;
+    joinRoomOnline();
+  };
+  const dismiss = document.createElement('button');
+  dismiss.textContent = 'Zatvori';
+  dismiss.onclick = () => banner.remove();
+  banner.appendChild(join);
+  banner.appendChild(dismiss);
+  $('kibicBanners').appendChild(banner);
+}
+
 function renderOnlineUsers(users) {
   const countEl = $('homeOnlineCount');
   if (countEl) countEl.textContent = `🟢 ${users.length} ${users.length === 1 ? 'igrač' : 'igrača'} online`;
+  const toggleCountEl = $('onlineUsersCount');
+  if (toggleCountEl) toggleCountEl.textContent = String(users.length);
 
   const list = $('onlineUsersList');
   if (list) {
@@ -2238,6 +2286,14 @@ function renderOnlineUsers(users) {
         const span = document.createElement('span');
         span.textContent = u.name;
         row.appendChild(span);
+        // Korisnikov zahtev: "mogucnost poziva odredjenog igraca" — salje
+        // pozivnicu preko servera (server vec zna MOJU trenutnu sobu, ne
+        // treba je slati odavde) na SVE njegove otvorene tabove/uredjaje.
+        const inviteBtn = document.createElement('button');
+        inviteBtn.className = 'mode-btn';
+        inviteBtn.textContent = '📞 Pozovi';
+        inviteBtn.onclick = () => inviteOnlineUser(u.userId, u.name);
+        row.appendChild(inviteBtn);
         list.appendChild(row);
       }
     }
