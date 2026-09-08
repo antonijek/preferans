@@ -644,6 +644,28 @@ export function choosePlayCard(args: {
       }
       // Nema tu boju — propadni na standardnu logiku ispod.
     }
+    // Odbrambena konvencija (korisnikova, zabelezena uzivo 2026-09-06/07,
+    // JOS NIJE potvrdjena uzivo protiv AI-ja): pratilac koji drzi tacno
+    // JEDNU kartu neke vanadutske boje je vodi PRVI ("suva" boja) da bi se
+    // "objavio" saigracu kao void u toj boji — kasnije, kad saigrac osvoji
+    // stih, moze vratiti NISKU kartu iste boje da ovaj preseca adutom i
+    // pritiska nosioca. Ima smisla samo dok jos ima adut u ruci (inace nema
+    // cime kasnije da sece).
+    if (!isDeclarer && trump) {
+      const bySuit = new Map<Suit, Card[]>();
+      for (const c of hand) {
+        if (c.suit === trump) continue;
+        if (!bySuit.has(c.suit)) bySuit.set(c.suit, []);
+        bySuit.get(c.suit)!.push(c);
+      }
+      const hasTrump = hand.some(c => c.suit === trump);
+      if (hasTrump) {
+        for (const suit of ['♠', '♥', '♦', '♣'] as Suit[]) {
+          const cards = bySuit.get(suit);
+          if (cards && cards.length === 1) return cards[0]!;
+        }
+      }
+    }
     const sorted = legal.slice().sort((a, b) => {
       // Van aduta prioritet (čuvaj adute)
       if (trump) {

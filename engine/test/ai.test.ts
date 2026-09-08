@@ -463,6 +463,62 @@ test('ai: choosePlayCard — Sans konvencija se NE primenjuje van PRVOG stiha ru
   assert.equal(c!.rank, '7', 'standardna najslabija karta, konvencija samo za trickCount===0');
 });
 
+// === Odbrambena konvencija: vodi "suvu" (singl) vanadutsku boju ===
+
+test('ai: choosePlayCard — pratilac sa singl vanadutskom bojom je vodi, da najavi void saigracu', () => {
+  const hand = makeHand([
+    ['9', '♦'], // singl karo — jedina karta te boje
+    ['K', '♣'], ['9', '♣'], ['7', '♣'],
+    ['7', '♠'], // adut, da bi kasnije mogao da sece
+  ]);
+  const c = choosePlayCard({
+    hand,
+    currentTrick: [],
+    trump: '♠',
+    declaredGame: 'Pik',
+    winnerTricks: 0,
+    isDeclarer: false,
+    kontraLevel: null,
+    trickCount: 2,
+  });
+  assert.equal(c!.suit, '♦');
+  assert.equal(c!.rank, '9', 'jedina karta u karou, vodi je da najavi void');
+});
+
+test('ai: choosePlayCard — singl-vodjenje se NE primenjuje na NOSIOCA', () => {
+  const hand = makeHand([
+    ['9', '♦'], ['K', '♣'], ['9', '♣'], ['7', '♣'], ['7', '♠'],
+  ]);
+  const c = choosePlayCard({
+    hand,
+    currentTrick: [],
+    trump: '♠',
+    declaredGame: 'Pik',
+    winnerTricks: 0,
+    isDeclarer: true,
+    kontraLevel: null,
+    trickCount: 2,
+  });
+  assert.notEqual(c!.suit, '♦', 'nosilac ne prati ovu odbrambenu konvenciju');
+});
+
+test('ai: choosePlayCard — singl-vodjenje se ne primenjuje bez aduta u ruci (nema cime kasnije da se sece)', () => {
+  const hand = makeHand([
+    ['9', '♦'], ['K', '♣'], ['9', '♣'], ['7', '♣'], ['A', '♥'],
+  ]);
+  const c = choosePlayCard({
+    hand,
+    currentTrick: [],
+    trump: '♠',
+    declaredGame: 'Pik',
+    winnerTricks: 0,
+    isDeclarer: false,
+    kontraLevel: null,
+    trickCount: 2,
+  });
+  assert.notEqual(c!.suit, '♦', 'nema aduta u ruci — konvencija besmislena bez mogucnosti secenja kasnije');
+});
+
 // === Ne "pregazi" saigraca koji vec drzi stih ===
 
 test('ai: choosePlayCard — saigrac (ne nosilac) vodi stih, ja imam jacu kartu → bacam najslabiju, ne pregazujem', () => {
