@@ -289,6 +289,10 @@ let mode = '1v2';
 // mySeat: koje sedište (0/1/2) KONTROLIŠE ovaj klijent — dodeljuje ga server
 // pri room:create/room:join, ostaje null dok se ne pridruzimo sobi.
 let mySeat = null;
+// Koju sobu JA trenutno drzim (server je poslednji izvor istine preko
+// room:info/game:state, ovo je samo za "Pridruzi se" dugme u listi otvorenih
+// soba — korisnikov zahtev: ne nudi ponovno pridruzivanje sopstvenoj sobi).
+let myRoomCode = null;
 let onlineSocket = null;
 let onlineToken = null;
 try { onlineToken = localStorage.getItem('pref_token'); } catch (e) { /* privatni mod ili blokiran storage — ok, samo bez pamcenja */ }
@@ -2067,7 +2071,7 @@ async function connectOnlineSocket() {
   // pozdravnog ekrana na sobu, jer tu se kod stvarno vidi.
   onlineSocket.on('room:info', (info) => {
     if (info.seat !== null) mySeat = info.seat;
-    if (info.code) $('roomCodeInput').value = info.code;
+    if (info.code) { $('roomCodeInput').value = info.code; myRoomCode = info.code; }
     if (game.state?.phase === 'WAITING' || !game.state) {
       $('roomStatus').innerHTML = `Kod sobe: <b style="font-size:1.3em">${info.code}</b> — čeka se još igrača...`;
       $('homeScreen').classList.remove('active');
@@ -2152,6 +2156,7 @@ function backToSetup() {
   document.body.classList.remove('online-in-game');
   mode = '1v2';
   mySeat = null;
+  myRoomCode = null;
   $('loginScreen').classList.remove('active');
   $('homeScreen').classList.remove('active');
   $('roomScreen').classList.remove('active');
@@ -2185,6 +2190,7 @@ function logoutOnline() {
   document.body.classList.remove('online-in-game');
   mode = '1v2';
   mySeat = null;
+  myRoomCode = null;
   $('homeScreen').classList.remove('active');
   $('roomScreen').classList.remove('active');
   $('chatScreen').classList.remove('open');
@@ -2340,9 +2346,25 @@ function renderRoomList(rooms) {
     const row = el('div', 'room-list-row',
       `<span><span class="code">${r.code}</span> <span class="players">(${r.playerCount}/3${r.locked ? ' 🔒' : ''})</span></span>`
     );
-    const btn = el('button', 'mode-btn', 'Pridruži se');
-    btn.onclick = () => { $('roomCodeInput').value = r.code; joinRoomOnline(); };
-    row.appendChild(btn);
+    const isMine = r.code === myRoomCode;
+    if (isMine) {
+      // Korisnikov zahtev: "ne treba dugme Pridruzi se ako je igrac vec
+      // pridruzen" — sopstvena soba u listi je samo informativna, ne akcija.
+      const tag = el('span', '', 'Ti si ovde');
+      tag.style.cssText = 'opacity:0.7;font-weight:600;padding:6px 14px';
+      row.appendChild(tag);
+    } else {
+      const doJoin = () => { $('roomCodeInput').value = r.code; joinRoomOnline(); };
+      // Korisnikov zahtev: "klik na to ne radi, treba da te povede u tu sobu"
+      // — ceo red je sad klikabilan (ne samo malo dugme), lakse za pogoditi
+      // dodirom na telefonu. stopPropagation na dugmetu spreca DUPLI poziv
+      // (klik na dugme bi inace probubblovao i na row.onclick ispod).
+      row.style.cursor = 'pointer';
+      row.onclick = doJoin;
+      const btn = el('button', 'mode-btn', 'Pridruži se');
+      btn.onclick = (e) => { e.stopPropagation(); doJoin(); };
+      row.appendChild(btn);
+    }
     container.appendChild(row);
   }
 }
@@ -2355,6 +2377,7 @@ function createRoomOnline() {
   onlineSocket.emit('room:create', { initialBule, refePerPlayer }, (res) => {
     if (res.error) { $('roomError').textContent = res.error; return; }
     mySeat = res.seat;
+    myRoomCode = res.code;
     $('roomCodeInput').value = res.code;
     $('roomStatus').innerHTML = `Kod sobe: <b style="font-size:1.3em">${res.code}</b> — podeli ga sa drugarima. Čeka se još igrača...`;
   });
@@ -2366,6 +2389,7 @@ function joinRoomOnline() {
   onlineSocket.emit('room:join', { code }, (res) => {
     if (res.error) { $('roomError').textContent = res.error; return; }
     mySeat = res.seat;
+    myRoomCode = res.code;
     $('roomStatus').textContent = `Pridružen sobi ${res.code}, čeka se početak...`;
   });
 }
@@ -2376,6 +2400,7 @@ function joinAsSpectatorOnline() {
   onlineSocket.emit('room:join-as-spectator', { code }, (res) => {
     if (res.error) { $('roomError').textContent = res.error; return; }
     mySeat = null;
+    myRoomCode = res.code;
     $('roomStatus').textContent = `Kibiciraš sobu ${res.code}.`;
     $('kibicRequestPanel').style.display = '';
   });

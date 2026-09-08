@@ -727,13 +727,17 @@
   .home-footer {
     display: flex; justify-content: center; padding: 30px 24px 50px;
   }
+  /* "Klasicna kockarnica" pravac — korisnikov utisak: modali (Soba/Setup/
+     Login) su ostali "sve zeleno, jednolicno" dok su .table-area paneli vec
+     presli na drvo/zlato. Isti ton ovde; zeleno ostaje SAMO na samom stolu
+     i kao poseban "wow" akcenat za MATCH_OVER (.box.match-over ispod). */
   .screen .box {
-    background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
+    background: linear-gradient(180deg, #3c2b1a 0%, #1e150c 100%);
     border-radius: 18px;
     padding: 24px;
     max-width: 460px;
     width: 100%;
-    border: 2px solid rgba(255,255,255,0.2);
+    border: 2px solid rgba(184,134,11,0.4);
     max-height: 90vh;
     overflow-y: auto;
     transition: border-color 0.3s, box-shadow 0.3s;
@@ -916,7 +920,13 @@
   }
   .room-list-row .code { font-weight: bold; letter-spacing: 1px; }
   .room-list-row .players { opacity: 0.75; font-size: 0.85em; }
-  .room-list-row button { width: auto; margin: 0; padding: 6px 14px; min-height: unset; }
+  /* flex:none je BITAN deo popravke, ne kozmetika — .mode-btn nosi flex:1 iz
+     bazne definicije, pa je u ovom flex redu dugme raslo/skupljalo se OBRNUTO
+     proporcionalno duzini imena pored sebe (uzivo prijavljeno: "jedno dugme
+     pozovi veliko, drugo malo" — kraci "Edge" je ostavljao vise prostora
+     dugmetu nego duzi "chrome lap top"). Bez ovoga width:auto sam ne pomaze
+     jer flex-basis/grow i dalje diktiraju stvarnu sirinu. */
+  .room-list-row button { width: auto; margin: 0; padding: 6px 14px; min-height: unset; flex: none; }
 
   .kibic-request-banner {
     position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
@@ -1097,13 +1107,25 @@
          stola, pa paneli sede odmah uz njegovu stvarnu ivicu. Visak prostora
          na vrlo sirokim ekranima ide NA IVICE cele .table-area (justify-
          content:center), ne izmedju panela i stola. */
-      grid-template-columns: minmax(0, 260px) minmax(0, 820px) minmax(0, 260px);
+      /* NAPOMENA (izmena posle uzivo prijavljenog baga): minmax(0,260px) na
+         OBE strane je izgledalo centrirano SAMO dok oba panela imaju slican
+         sadrzaj. Cim je jedan panel prazan (npr. levi pre prvog stiha) a
+         drugi ima tekst (licitacija), grid track prati SADRZAJ (auto-sizing
+         unutar minmax) — prazan panel se stisne skoro na 0, puni ostane
+         sirok, pa sto vizuelno "pobegne" ka praznoj strani (uzivo
+         prijavljeno: "levu marginu si makao skroz, desna ogromna"). 1fr na
+         OBE strane ih prisiljava da UVEK budu tacno iste sirine bez obzira
+         na sadrzaj — sto ostaje centrirano, a justify-self ispod i dalje
+         lepi paneli-content uz sto (ne uz spoljnu ivicu ekrana). */
+      grid-template-columns: minmax(0, 1fr) minmax(0, 820px) minmax(0, 1fr);
       grid-template-rows: 1fr;
-      justify-content: center;
       gap: 3px;
       overflow: hidden;
       padding: 10px 8px;
     }
+    #leftSidePanel { justify-self: end; }
+    #rightSidePanel { justify-self: start; }
+    .side-panel { max-width: 260px; }
     /* Sto veci na siroko/visokim ekranima (korisnikov utisak: "previse
        prazng prostora gore/dole oko stola") — bazni min(54vh,480px) cuva
        telefon-portret proporciju, ovde na desktopu ima dovoljno visine da

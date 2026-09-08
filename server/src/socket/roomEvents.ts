@@ -66,6 +66,15 @@ function buildClientState(room: RoomState, viewer: Viewer) {
 }
 
 function broadcastRoomState(room: RoomState): void {
+  // PRIVREMENO dijagnosticko logovanje (uzivo prijavljeno: "sva trojica udju
+  // u sobu, karte se podele samo jednom, ostali ostaju u predsoblju") —
+  // ukloniti posle potvrde uzroka. connected=false bi znacio da server MISLI
+  // da je sediste popunjeno ali socket vise nije zivo (npr. tih disconnect
+  // koji nije ocistio seat) — upravo ono sto bi objasnilo "stuck" klijente.
+  console.log(
+    `[JOIN DEBUG] broadcastRoomState room=${room.code} phase=${room.game.state.phase} ` +
+    `seats=${room.sockets.map((s, i) => `${i}:${room.seatUserIds[i] ?? '-'}:${s ? (s.connected ? 'live' : 'dead') : 'empty'}`).join(',')}`
+  );
   room.sockets.forEach((socket, seat) => {
     socket?.emit('game:state', buildClientState(room, { type: 'player', seat: seat as Position }));
   });
@@ -256,6 +265,12 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     const targetUserId = Number(payload?.userId);
     if (!Number.isInteger(targetUserId)) { ack?.({ error: 'Nevažeći poziv' }); return; }
     const targetSocketIds = getSocketIdsForUser(targetUserId);
+    // PRIVREMENO dijagnosticko logovanje (uzivo prijavljeno: "kad se uputi
+    // poziv, igracu nikako ne stize") — ukloniti posle potvrde uzroka.
+    console.log(
+      `[INVITE DEBUG] from=${userId}(${name}) target=${targetUserId} ` +
+      `foundSockets=${targetSocketIds.length} room=${room.code}`
+    );
     if (targetSocketIds.length === 0) { ack?.({ error: 'Igrač više nije online' }); return; }
     for (const sid of targetSocketIds) {
       io.to(sid).emit('room:invited', { code: room.code, fromName: name });
