@@ -2080,11 +2080,18 @@ async function connectOnlineSocket() {
     // AI koji je preuzeo delovao kao da je stvarno TAJ igrac ("izgleda da
     // je on licitirao Mogu 4"). Samo za sedista koja nisu MOJE — meni je
     // vec jasno da sam ja otisao/vratio se.
-    if (state.abandonedSeat !== game.state?.abandonedSeat) {
+    // BAG (uzivo prijavljen, "pridruzivanje pokvareno"): na PRVOM game:state
+    // eventu posle konekcije game.state JOS NE POSTOJI (undefined) — stari
+    // kod je citao game.state.abandonedSeat (bez ?.) unutar showAppToast,
+    // sto je bacalo TypeError i prekidalo CEO handler PRE `game.state =
+    // state`, pa se nikad nije preslo sa ekrana sobe na sto. prevAbandoned
+    // normalizuje na null kad god game.state jos ne postoji.
+    const prevAbandoned = game.state?.abandonedSeat ?? null;
+    if (state.abandonedSeat !== prevAbandoned) {
       if (state.abandonedSeat !== null && state.abandonedSeat !== mySeat) {
         showAppToast(`🏳️ ${escapeHtml(state.players[state.abandonedSeat]?.name ?? '')} je napustio partiju — AI igra umesto njega`);
-      } else if (state.abandonedSeat === null && game.state?.abandonedSeat !== null && game.state?.abandonedSeat !== mySeat) {
-        showAppToast(`↩️ ${escapeHtml(state.players[game.state.abandonedSeat]?.name ?? '')} se vratio za sto`);
+      } else if (state.abandonedSeat === null && prevAbandoned !== null && prevAbandoned !== mySeat) {
+        showAppToast(`↩️ ${escapeHtml(state.players[prevAbandoned]?.name ?? '')} se vratio za sto`);
       }
     }
     game.state = state;
