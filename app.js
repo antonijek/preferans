@@ -29,6 +29,10 @@ window.setSearchAiEnabled = (on) => { try { localStorage.setItem('prefSearchAI',
 // posle prve verzije — puna crna/crvena pozadina "nije lepa") sa oznakom
 // boje karte kao OBOJENA ikonica unutar dugmeta (vidi gameOptionLabel).
 const GAME_OPTION_ACCENT = {
+  'Pik': 'opt-suit', 'Igra-Pik': 'opt-suit',
+  'Tref': 'opt-suit', 'Igra-Tref': 'opt-suit',
+  'Herc': 'opt-suit', 'Igra-Herc': 'opt-suit',
+  'Karo': 'opt-suit', 'Igra-Karo': 'opt-suit',
   'Sans': 'opt-sans', 'Igra-Sans': 'opt-sans',
   'Betl': 'opt-betl', 'Igra-Betl': 'opt-betl',
 };
@@ -40,11 +44,14 @@ const SUIT_OPTION_ICON = {
   'Herc': ['♥', 'red'], 'Karo': ['♦', 'red'],
 };
 // Labela dugmeta kao HTML (bezbedno — g je uvek iz fiksnog GAME enum-a, nikad
-// korisnikov unos): boja karte kao obojena ikonica ispred imena.
+// korisnikov unos). Korisnikov zahtev (ponovljen 4x): dugme podeljeno na
+// POLA — leva polovina ime na neutralnoj/zelenoj pozadini, desna polovina
+// OBOJENA (crno za pik/tref, crveno za herc/karo) sa samim znakom boje.
 function gameOptionLabel(g) {
   const base = g.replace('Igra-', '');
   const icon = SUIT_OPTION_ICON[base];
-  return icon ? `<span class="opt-suit-icon ${icon[1]}">${icon[0]}</span> ${base}` : base;
+  if (!icon) return base;
+  return `<span class="opt-half-name">${base}</span><span class="opt-half-suit ${icon[1]}">${icon[0]}</span>`;
 }
 
 // Debug: ?seed=NNNN u URL-u forsira deljenje na poznat seed umesto
@@ -364,6 +371,19 @@ function netSupeBetween(me, other) {
 function leftNeighborOf(p) { return (p + 1) % 3; }
 function rightNeighborOf(p) { return (p + 2) % 3; }
 
+// Koja SEDISTA se racunaju kao "stvarno pratili" ovu ruku, za tabelu —
+// korisnikov zahtev: "jedan ako ide sam ili zove, a oba ako dodju posebno".
+// Betl je poseban slucaj (RULES — oba pratioca UVEK prate, nema Dodjem/Ne
+// dodjem izbora), i "niko ne prati" vraca praznu listu.
+function computeFollowSeats(s) {
+  if (s.winner === null || s.declaredGame === null) return [];
+  const followers = [0, 1, 2].filter(p => p !== s.winner);
+  if (isBetlGame(s.declaredGame)) return followers;
+  if (followers.some(p => s.followChoices[p] === null)) return [];
+  const dodjem = followers.filter(p => s.followChoices[p] === 'DODJEM');
+  return dodjem;
+}
+
 function recordHandIfNew() {
   const result = game.state.lastHandResult;
   // BAG (uzivo prijavljeno: "tabela duplira, 2x Sans, 5x Herc"): poredjenje
@@ -392,7 +412,7 @@ function recordHandIfNew() {
     // koliko je ko stihova uhvatio — MORA se snimiti OVDE (game.state jos
     // ima followChoices/tricksWon od bas zavrsene ruke, newHand() ih resetuje
     // cim krene sledeca, a istorija se renderuje mnogo kasnije).
-    defenseText: defenseSummaryText(game.state),
+    followSeats: computeFollowSeats(game.state),
     tricksWon: [game.state.players[0].tricksWon, game.state.players[1].tricksWon, game.state.players[2].tricksWon],
   });
   if (result.winner !== null) {
@@ -505,10 +525,7 @@ const cardEl = (c, opts = {}) => {
   if (opts.disabled) klass.push('disabled');
   if (opts.selected) klass.push('selected');
   const node = el('div', klass.join(' '));
-  // corner-index = mali indeks u gornjem levom uglu (korisnikov zahtev —
-  // "klasican izgled kao prave karte"), pored postojeceg velikog centralnog
-  // rank+suit (drzan zbog citljivosti u igri na daljinu, ne zamenjen).
-  node.innerHTML = `<div class="corner-index"><span class="corner-rank">${c.rank}</span><span class="corner-suit">${c.suit}</span></div><div class="rank">${c.rank}</div><div class="suit">${c.suit}</div>`;
+  node.innerHTML = `<div class="rank">${c.rank}</div><div class="suit">${c.suit}</div>`;
   return node;
 };
 
@@ -1033,7 +1050,9 @@ function renderDeclaring() {
   if (s.igraCompetitors !== null) {
     const player = s.currentBidder;
     const log = $('bidLog');
-    log.innerHTML = `<span class="bid-entry p${player}"><strong>${POS_LABELS[player]}</strong> proglašava svoju Igru (${s.igraCompetitors.length} igrača rekla Igra — poredi se jačina)</span>`;
+    // Korisnikov zahtev: objasnjenje pravila u zagradi je nepotrebno ("ljudi
+    // koji igraju preferans to znaju") — ukloniti SVA slicna objasnjenja.
+    log.innerHTML = `<span class="bid-entry p${player}"><strong>${POS_LABELS[player]}</strong> proglašava igru</span>`;
 
     if (!isHuman(player) && mode === 'online') {
       ctrl.appendChild(el('div', 'section-label', `Čeka se ${seatDisplayName(player)} (proglašava Igru)...`));
@@ -1781,23 +1800,28 @@ function renderScoreContent() {
   if (handHistory.length === 0) {
     html += `<div class="score-empty">Još nije odigrana nijedna ruka.</div>`;
   } else {
-    const kontraShort = { KONTRA: '×2', REKONTRA: '×4', SUBKONTRA: '×8', MORTKONTRA: '×16' };
+    const kontraName = { KONTRA: 'Kontra', REKONTRA: 'Rekontra', SUBKONTRA: 'Subkontra', MORTKONTRA: 'Mortkontra' };
     html += `<div style="overflow-x:auto"><table class="score-table"><thead><tr>
-      <th>Krug</th><th>Nosilac</th><th>Igra</th><th>Kontra</th><th>Odbrana</th><th>Štihovi</th><th>Rezultat</th><th>Bule</th>
+      <th>Krug</th><th>Nosilac</th><th>Igra</th><th>Kontra</th><th>Pratnja</th><th>Prošao</th><th>Bule</th>
     </tr></thead><tbody>`;
     for (const h of [...handHistory].reverse()) {
-      const resultTxt = h.passed ? '✓ prošao' : '✗ pao';
-      // Korisnikov zahtev: tabela je pokazivala rezultat ali ne i KO je
-      // dosao/zvao niti koliko je ko stihova uhvatio — bez toga se ne vidi
-      // ZASTO je neko dobio/nije dobio supe za tu rundu.
-      const tricksTxt = h.tricksWon ? [0, 1, 2].map(p => `${POS_LABELS[p]}: ${h.tricksWon[p]}`).join(' · ') : '—';
+      // Korisnikov zahtev: "Pratnja" kolona — jedan igrac ako ide sam/zove,
+      // OBA ako su dosli posebno, svako sa svojim brojem stihova. "Prosao"
+      // sad nosi i koliko je NOSILAC uhvatio (ne posebna "Stihovi" kolona,
+      // koja se uklonjena).
+      const followTxt = h.followSeats && h.followSeats.length > 0
+        ? h.followSeats.map(p => `<span class="follow-line">${POS_LABELS[p]}: ${h.tricksWon[p]}</span>`).join('')
+        : '—';
+      const winnerTricks = h.winner !== null && h.tricksWon ? h.tricksWon[h.winner] : null;
+      const resultTxt = h.passed
+        ? `✓ prošao${winnerTricks !== null ? ` (${winnerTricks})` : ''}`
+        : `✗ pao${winnerTricks !== null ? ` (${winnerTricks})` : ''}`;
       html += `<tr>
         <td>${h.round}</td>
         <td>${POS_LABELS[h.winner]}</td>
         <td>${h.winnerGame}${h.viaIgra ? ' <span style="opacity:0.6">(Igra)</span>' : ''}</td>
-        <td>${kontraShort[h.kontraLevel] ?? '—'}</td>
-        <td>${h.defenseText ?? '—'}</td>
-        <td>${tricksTxt}</td>
+        <td>${kontraName[h.kontraLevel] ?? 'Ne'}</td>
+        <td>${followTxt}</td>
         <td>${resultTxt}</td>
         <td>${h.bulas.join('/')}</td>
       </tr>`;
@@ -2161,6 +2185,9 @@ async function connectOnlineSocket() {
   });
   onlineSocket.on('game:action-rejected', (action) => {
     console.warn('[online] akcija odbijena od servera:', action);
+  });
+  onlineSocket.on('game:viewingCards', (p) => {
+    showAppToast(`👀 ${escapeHtml(p.name)} gleda karte prethodne ruke, sačekajte...`);
   });
   onlineSocket.on('game:handsRevealed', (payload) => {
     renderRevealedHands(payload.hands, payload.talon);
@@ -2557,6 +2584,15 @@ function toggleChat() {
   }
 }
 
+// Minimizuje na samo naslovnu traku (korisnikov zahtev — telefon: otvoren
+// chat prekriva karte u ruci) bez potpunog zatvaranja panela.
+function toggleChatMinimize() {
+  const minimized = $('chatScreen').classList.toggle('minimized');
+  $('chatMinimizeBtn').textContent = minimized ? '▢' : '▁';
+  $('chatMinimizeBtn').title = minimized ? 'Otvori' : 'Minimizuj';
+}
+window.toggleChatMinimize = toggleChatMinimize;
+
 function sendChatOnline() {
   const input = $('chatInput');
   const text = input.value.trim();
@@ -2592,6 +2628,13 @@ function appendChatMessageOnline(m, isLive = true) {
     $('chatScreen').classList.add('open');
     chatUnreadCount = 0;
     updateChatBadge();
+    sfx.chatMessage();
+  } else if (isLive && $('chatScreen').classList.contains('minimized')) {
+    // Otvoren ali minimizovan (samo naslovna traka) — nova poruka ga
+    // razmimizuje, inace bi prosla nezapazeno iza minimizovane trake.
+    $('chatScreen').classList.remove('minimized');
+    $('chatMinimizeBtn').textContent = '▁';
+    $('chatMinimizeBtn').title = 'Minimizuj';
     sfx.chatMessage();
   }
 }

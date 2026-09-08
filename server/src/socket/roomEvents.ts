@@ -108,7 +108,6 @@ const NEXT_HAND_DELAY_MS = 9000;
 // round++ i diler rotira na sledeceg igraca (newHand()'s podrazumevani
 // parametar bez argumenta bi ponovo koristio ISTOG dilera).
 function dealNextHand(room: RoomState): void {
-  room.autoAdvancePaused = false;
   room.dealNextReady = new Set();
   room.game.state.round++;
   room.game.newHand(((room.game.state.dealer + 1) % 3) as Position);
@@ -123,14 +122,13 @@ function activeSeatsForRoom(room: RoomState): Position[] {
 }
 
 function maybeAutoAdvanceHand(room: RoomState): void {
-  if (room.game.state.phase !== 'GAME_OVER' || room.nextHandScheduled || room.autoAdvancePaused) return;
+  if (room.game.state.phase !== 'GAME_OVER' || room.nextHandScheduled) return;
   room.nextHandScheduled = true;
   room.nextHandTimeout = setTimeout(() => {
     room.nextHandScheduled = false;
     room.nextHandTimeout = null;
-    // Neko je u medjuvremenu vec nastavio/promenio stanje, ili je kliknuo
-    // "Pogledaj karte" (pauzira automatski nastavak) — ne diraj nista.
-    if (room.game.state.phase !== 'GAME_OVER' || room.autoAdvancePaused) return;
+    // Neko je u medjuvremenu vec nastavio/promenio stanje — ne diraj nista.
+    if (room.game.state.phase !== 'GAME_OVER') return;
     dealNextHand(room);
   }, NEXT_HAND_DELAY_MS);
 }
@@ -398,21 +396,24 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
   });
 
   // "Pogledaj karte" — korisnikov zahtev: neko posle rune zeli da vidi sve
-  // tri ruke bez pritiska automatskog tajmera. Otkazuje zakazan automatski
-  // nastavak TRAJNO za ovu zavrsenu ruku (autoAdvancePaused) — od sada SAMO
-  // rucni game:dealNext nastavlja, dok se stvarno ne podeli sledeca ruka.
+  // tri ruke. RANIJE je ovo TRAJNO otkazivalo automatski nastavak
+  // (autoAdvancePaused) — ako gledalac posle toga nikad ne klikne "Deli"
+  // rucno, runda bi ostala zaglavljena zauvek cak i kad su OSTALA dvojica
+  // vec kliknula. Korisnikov zahtev: gledanje karata ne sme da blokira ni
+  // 9-sekundni tajmer ni "svi kliknuli Deli" — samo prikazuje karte
+  // PRIVATNO, ne dira tajmer/dealNextReady uopste.
   socket.on('game:viewCards', (_payload: unknown, ack?: Ack) => {
     const room = currentRoom();
     if (!room || room.game.state.phase !== 'GAME_OVER') {
       ack?.({ error: 'Nema zavrsene ruke za pregled' });
       return;
     }
-    if (room.nextHandTimeout) {
-      clearTimeout(room.nextHandTimeout);
-      room.nextHandTimeout = null;
+    // Obavesti OSTALE (ne posiljaoca) da neko gleda karte — korisnikov
+    // zahtev: "ostalima neka pise igrac X gleda karte, sacekajte".
+    const viewerLoc = getUserLocation(userId);
+    if (viewerLoc?.role === 'player') {
+      socket.to(room.code).emit('game:viewingCards', { seat: viewerLoc.seat, name });
     }
-    room.nextHandScheduled = false;
-    room.autoAdvancePaused = true;
     // Rekonstruisi punu ruku svakog igraca za rundu koja je upravo zavrsena:
     // karte koje je taj igrac odigrao (iz tricks) + sta mu je eventualno
     // ostalo neodigrano (rano-prekinuta ruka, "nosilac sigurno pao").

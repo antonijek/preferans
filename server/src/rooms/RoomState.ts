@@ -39,12 +39,6 @@ export interface RoomState {
   // Handle da bi se zakazani automatski nastavak mogao OTKAZATI (game:viewCards)
   // — obicno polje, ne samo bool, jer treba nesto sto se moze clearTimeout-ovati.
   nextHandTimeout: ReturnType<typeof setTimeout> | null;
-  // Postavlja se kad neko klikne "Pogledaj karte" — iskljucuje automatski
-  // tajmer TRAJNO za ovu zavrsenu ruku (korisnikov zahtev: ko hoce da
-  // pregleda ruku detaljno, treba mu vremena bez pritiska tajmera; posle
-  // toga SAMO rucni "Deli" klik nastavlja). Resetuje se na false cim
-  // sledeca ruka stvarno pocne.
-  autoAdvancePaused: boolean;
   // Koja sedista su vec kliknula "Deli" za OVU zavrsenu ruku — korisnikov
   // zahtev: jedan igrac vise NE SME sam da forsira sledecu rundu za sve
   // (ranije je game:dealNext delio odmah na PRVI klik). Sad ceka da SVI
@@ -73,7 +67,6 @@ export function createRoomState(code: string, options: RoomOptions = {}): RoomSt
     frozenBula: null,
     nextHandScheduled: false,
     nextHandTimeout: null,
-    autoAdvancePaused: false,
     dealNextReady: new Set(),
   };
 }

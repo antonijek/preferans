@@ -313,12 +313,17 @@
     border: 1px solid rgba(255,213,110,0.22);
     box-shadow: 0 4px 12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);
     transition: border 0.2s, transform 0.2s, box-shadow 0.2s;
-    min-width: 76px;
+    /* width FIKSNA (ne min-width) — korisnikov zahtev: kutija sa duzim
+       imenom ("chrome lap top") je bila vidno sira od ostale dve. Dugo ime
+       se sad skrati sa "..." (vidi .player-name overflow ispod) umesto da
+       rasteze celu kutiju. */
+    width: 84px;
     overflow: hidden;
   }
   .player-name {
     background: rgba(0,0,0,0.3);
     border-bottom: 1px solid rgba(255,213,110,0.22);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     padding: 4px 8px 3px;
     margin-bottom: 4px;
     text-transform: uppercase;
@@ -464,11 +469,16 @@
      nacin da nestane cim NEMA sadrzaja, bez da se menja svako mesto koje
      puni/prazni #bidLog. */
   .bid-log:empty { display: none; }
+  /* Korisnikov zahtev: "polja gde pise igrac X su braon, doslo nerazgovetno"
+     — na TAMNOM braon panelu, providna BELA 0.08 se skoro gubi. Vidljivo
+     svetlija podloga + tanak gornji sjaj daje pravu "pilulu" koja iskace
+     iz pozadine, ne samo blagi ton razlike. */
   .bid-entry {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    background: rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.18);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
     padding: 3px 8px;
     border-radius: 14px;
     font-weight: 600;
@@ -539,21 +549,33 @@
   /* max-width sprecava da dugme razvuce CELI red grid-a kad je samo (retko
      koriscena opcija ne treba da izgleda "teze" od common-case dugmadi
      brojeva) — korisnikov utisak "veliki nezgrapan blok". */
-  .bid-btn.igra { background: rgba(255,152,0,0.3); border-color: #ff9800; max-width: 140px; line-height: 1.3; }
+  /* Korisnikov zahtev: providna (0.3 alpha) narandzasta preko NOVE brass
+     pozadine .bid-btn-a se mesala u prljav braon — puna/nepovezana
+     pozadina umesto providnog sloja. */
+  .bid-btn.igra { background: linear-gradient(180deg, #ffa726 0%, #e65100 100%); border-color: #ff9800; color: #1b1b1b; max-width: 140px; line-height: 1.3; }
+  .bid-btn.igra:hover { background: linear-gradient(180deg, #ffb74d 0%, #f4511e 100%); }
 
-  /* Dugmad izbora igre (posle odbacivanja talona / Igra tiebreak) — Pik/
-     Herc/Karo/Tref ostaju neutralno .bid-btn dugme (korisnikov zahtev posle
-     prve verzije: puna crna/crvena pozadina "nije lepa"), boja karte se
-     vidi SAMO kroz malu obojenu ikonicu ispred imena. Sans/Betl (nemaju
-     boju karte) zadrzavaju sopstveni akcenat. */
-  .opt-suit-icon { font-size: 1.15em; }
-  /* Korisnikov zahtev: crna ikonica je bila skoro bela/nevidljiva ("belo
-     nije dobro"). Crveno je dobro citljivo direktno na dugmetu (jarko na
-     tamnom), ali crno bi bilo NEVIDLJIVO na tamnoj pozadini dugmeta bez
-     sopstvene podloge — mala svetla "pločica" iza nje daje isti kontrast
-     kakav crni znak ima na beloj karti. */
-  .opt-suit-icon.black { background: #eceff1; color: #1a1a1a; border-radius: 5px; padding: 0 4px; text-shadow: none; }
-  .opt-suit-icon.red { color: #ff5252; }
+  /* Dugmad izbora igre (posle odbacivanja talona / Igra tiebreak) — korisnikov
+     zahtev, ponovljen 4 puta dok nije tacno pogodjeno: dugme podeljeno na
+     POLA, leva polovina ime na zelenoj pozadini, desna polovina PUNA boja
+     (crna za pik/tref, crvena za herc/karo) sa samim znakom. .bid-btn
+     default (padding+pozadina) se ovde iskljucuje — dva child-a POPUNE
+     kompletno dugme, overflow:hidden ih seče na postojeci border-radius. */
+  .bid-btn.opt-suit {
+    display: flex; padding: 0; overflow: hidden;
+    background: none; border: 1px solid rgba(var(--gold-rgb),0.55);
+  }
+  .opt-half-name {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(180deg, #4caf50 0%, #388e3c 100%);
+    color: #fff; padding: 7px 6px; font-weight: 700;
+  }
+  .opt-half-suit {
+    flex: 0 0 38%; display: flex; align-items: center; justify-content: center;
+    font-size: 1.35em; font-weight: 800;
+  }
+  .opt-half-suit.black { background: #262626; color: #f5f5f5; }
+  .opt-half-suit.red { background: #b71c1c; color: #fff; }
   .bid-btn.opt-sans { background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 100%); border-color: var(--gold-bright); color: #1b1b1b; }
   .bid-btn.opt-sans:hover { background: linear-gradient(180deg, #ddbc47 0%, #b39227 100%); }
   .bid-btn.opt-betl { background: linear-gradient(180deg, #8e44ad 0%, #6c3483 100%); border-color: #ba68c8; }
@@ -654,20 +676,6 @@
   .card.small .rank { font-size: 1.25em; }
   .card.small .suit { font-size: 1.55em; }
 
-  /* Mali indeks u gornjem levom uglu (korisnikov zahtev — "klasican
-     izgled") — pravi karte citljive i "kao prave karte" pri preklapanju
-     lepezasto u ruci (samo taj ugao ostaje vidljiv od skrivene karte iza),
-     ne samo kad je karta sama i potpuno vidljiva. em jedinice prate isto
-     skaliranje kao veliki centralni rank/suit (nasledjuju font-size od
-     .card, koji vec raste na sirim ekranima preko body{font-size}). */
-  .corner-index {
-    position: absolute; top: 3px; left: 4px;
-    display: flex; flex-direction: column; align-items: center; line-height: 1;
-  }
-  .corner-index .corner-rank { font-size: 0.62em; }
-  .corner-index .corner-suit { font-size: 0.72em; margin-top: 1px; }
-  .card.tiny .corner-index { display: none; }
-
   /* === MODAL === */
   .screen {
     position: fixed; inset: 0;
@@ -691,6 +699,18 @@
      koji setupScreen vec uspesno koristi). Vertikalno centriranje vraceno. */
   .screen.full-page {
     background: radial-gradient(ellipse at center, #1e3320 0%, #10201a 60%, #0a0b0c 100%);
+    /* Korisnikov zahtev (vise puta prijavljeno): "ne vidi se vrh modala".
+       Pravi uzrok — .screen.full-page je i dalje inset:0 (od baznog
+       .screen), a fiksni .full-page-header (z-index:210, VISI od ovog
+       ekrana na z-index:200) sedi PREKO gornjih ~50px. Kad se kutija
+       centrira unutar CELE visine (racunajuci i taj gornji pojas iza
+       headera), njen vrh moze zavrsiti bas ispod/iza headera — nevidljiv,
+       ne "isecen" nego doslovno pokriven. top:56px svodi centriranje SAMO
+       na prostor ISPOD headera, umesto da top ostane fiksno menjan svaki
+       put (raniji pokusaj sa align-items:flex-start je davao ogromnu
+       praznu povrsinu za KRATAK sadrzaj — ovo resava oba slucaja jer i
+       dalje centrira, samo unutar manje visine). */
+    top: 56px;
   }
   .screen.full-page .box { max-width: 480px; }
   /* Fiksni brend-red na vrhu (isti obrazac kao .top-bar za vreme igre) —
@@ -912,6 +932,13 @@
     overflow: hidden;
   }
   .chat-panel.open { display: flex; }
+  /* Korisnikov zahtev (telefon): otvoren chat prekriva karte u ruci —
+     minimize sklanja log+input, ostavlja samo tanku traku (naslov + dugmad)
+     da se ne mora potpuno zatvoriti (i time izgubiti "otvoreno" osecaj) da
+     bi se videle karte ispod. */
+  .chat-panel.minimized { max-height: unset; }
+  .chat-panel.minimized .chat-log,
+  .chat-panel.minimized .chat-input-row { display: none; }
   .chat-panel-header {
     display: flex; align-items: center; justify-content: space-between;
     font-weight: 700; font-size: 0.8em; opacity: 0.85;
@@ -1015,11 +1042,17 @@
 
   .score-box { max-width: 640px; }
   .score-section-title { font-size: 0.85em; opacity: 0.7; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  /* Korisnikov zahtev: modal mnogo siri (kolone su se lomile u uskom
+     460px), i "razbiti" monotonu braon boju zebra-prugama. */
+  .score-box { max-width: min(94vw, 920px); }
   .score-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
-  .score-table th, .score-table td { padding: 5px 6px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .score-table th, .score-table td { padding: 7px 8px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
   .score-table th { opacity: 0.7; font-weight: 600; font-size: 0.85em; }
   .score-table td:first-child, .score-table th:first-child { text-align: left; }
-  .score-table tbody tr:hover { background: rgba(255,255,255,0.05); }
+  .score-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.045); }
+  .score-table tbody tr:hover { background: rgba(255,255,255,0.09); }
+  .score-table .follow-line { display: block; font-size: 0.92em; }
+  .score-table .follow-line + .follow-line { margin-top: 2px; }
   .score-empty { opacity: 0.5; font-style: italic; font-size: 0.9em; padding: 8px 0; }
   .score-triple-side { font-weight: 700; font-size: 0.85em; opacity: 0.55; text-align: center; min-width: 1.6em; }
   .score-triple-side.positive { color: #a5d6a7; opacity: 1; }
@@ -1612,7 +1645,10 @@
 <div class="chat-panel" id="chatScreen">
   <div class="chat-panel-header">
     <span>💬 Chat</span>
-    <button class="icon-btn" onclick="toggleChat()" title="Sakrij">✕</button>
+    <span style="display:flex;gap:2px">
+      <button class="icon-btn" onclick="toggleChatMinimize()" id="chatMinimizeBtn" title="Minimizuj">▁</button>
+      <button class="icon-btn" onclick="toggleChat()" title="Sakrij">✕</button>
+    </span>
   </div>
   <div id="chatLog" class="chat-log"></div>
   <div class="chat-input-row">
