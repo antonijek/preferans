@@ -57,6 +57,11 @@ function buildClientState(room: RoomState, viewer: Viewer) {
     players,
     expectedKontraPlayer: room.game.expectedKontraPlayerPublic(),
     legalCards,
+    // Korisnikov zahtev: kad neko napusti partiju, ostali nisu imali NIKAKAV
+    // signal da AI sad igra za njega — izgledalo je kao da ta osoba i dalje
+    // stvarno licitira/igra ("izgleda da je on licitirao Mogu 4"). Klijent
+    // ovo koristi da doda "(AI)" pored imena i da jednom prikaze banner.
+    abandonedSeat: room.abandonedSeat,
   };
 }
 
@@ -95,9 +100,17 @@ const NEXT_HAND_DELAY_MS = 9000;
 // parametar bez argumenta bi ponovo koristio ISTOG dilera).
 function dealNextHand(room: RoomState): void {
   room.autoAdvancePaused = false;
+  room.dealNextReady = new Set();
   room.game.state.round++;
   room.game.newHand(((room.game.state.dealer + 1) % 3) as Position);
   broadcastRoomState(room);
+}
+
+// Sedista koja MORAJU kliknuti "Deli" pre nego sto se prevremeno (pre
+// isteka auto-tajmera) predje na sledecu rundu — napusteno sediste (AI
+// preuzeo) ne moze kliknuti nista, pa se ne racuna.
+function activeSeatsForRoom(room: RoomState): Position[] {
+  return ([0, 1, 2] as Position[]).filter((s) => s !== room.abandonedSeat);
 }
 
 function maybeAutoAdvanceHand(room: RoomState): void {
@@ -378,21 +391,35 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     ack?.({ ok: true });
   });
 
-  // Rucni nastavak — jedini nacin da se predje na sledecu rundu posle
-  // game:viewCards (autoAdvancePaused), ali radi i pre toga (samo preskace
-  // preostalo cekanje tajmera).
+  // Rucni nastavak — korisnikov zahtev: JEDAN igrac ranije je ovim klikom
+  // odmah delio sledecu rundu ZA SVE, sto je bilo neprijatno iznenadjenje za
+  // ostale ("deli ako samo jedan klikne, to nije dobro"). Sad samo OZNACAVA
+  // to sediste kao spremno — stvarno deljenje ceka da SVI aktivni (ne
+  // napusteni) igraci kliknu, ili da istekne auto-tajmer (postojeci
+  // fallback, NEXT_HAND_DELAY_MS) kao i do sad.
   socket.on('game:dealNext', (_payload: unknown, ack?: Ack) => {
     const room = currentRoom();
     if (!room || room.game.state.phase !== 'GAME_OVER') {
       ack?.({ error: 'Nema zavrsene ruke za nastavak' });
       return;
     }
-    if (room.nextHandTimeout) {
-      clearTimeout(room.nextHandTimeout);
-      room.nextHandTimeout = null;
+    const loc = getUserLocation(userId);
+    if (!loc || loc.role !== 'player' || loc.seat === null) {
+      ack?.({ error: 'Samo igraci mogu potvrditi sledecu rundu' });
+      return;
     }
-    room.nextHandScheduled = false;
-    dealNextHand(room);
+    room.dealNextReady.add(loc.seat);
+    const active = activeSeatsForRoom(room);
+    if (active.every((s) => room.dealNextReady.has(s))) {
+      if (room.nextHandTimeout) {
+        clearTimeout(room.nextHandTimeout);
+        room.nextHandTimeout = null;
+      }
+      room.nextHandScheduled = false;
+      dealNextHand(room);
+    } else {
+      io.to(room.code).emit('game:dealNextStatus', { ready: Array.from(room.dealNextReady) });
+    }
     ack?.({ ok: true });
   });
 

@@ -52,14 +52,18 @@
   }
 
   /* === TOP BAR === */
+  /* "Klasicna kockarnica" pravac (korisnikov izbor) — toplo drvo/mahagoni
+     umesto crne/sive na bocnim/gornjim/donjim panelima, zlatni trim umesto
+     zelenog svuda OSIM na samom stolu (koji ostaje zeleno platno — vidi
+     .table-felt, nedirano). */
   .top-bar {
-    background: rgba(0,0,0,0.55);
+    background: linear-gradient(180deg, #3a2a1a 0%, #241a10 100%);
     padding: 6px 10px;
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 2px solid #4caf50;
+    border-bottom: 2px solid #b8860b;
     flex-shrink: 0;
   }
   .top-bar h1 { font-family: 'Cinzel', serif; font-size: 1.1em; font-weight: 700; letter-spacing: 0.5px; }
@@ -185,7 +189,8 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    background: rgba(0,0,0,0.22);
+    background: linear-gradient(180deg, rgba(74,54,34,0.75) 0%, rgba(38,27,16,0.8) 100%);
+    border: 1px solid rgba(184,134,11,0.35);
     border-radius: 14px;
     padding: 10px;
   }
@@ -205,7 +210,7 @@
       repeating-linear-gradient(-45deg, rgba(0,0,0,0.03) 0px, rgba(0,0,0,0.03) 1px, transparent 1px, transparent 5px),
       radial-gradient(ellipse at center, #2e7d32 0%, #1b5e20 100%);
     border: 3px solid #4caf50;
-    border-radius: 28px;
+    border-radius: 46px;
     box-shadow: inset 0 0 60px rgba(0,0,0,0.4);
     position: relative;
     z-index: 0;
@@ -264,18 +269,37 @@
      sedenja ispod) — korisnikov zahtev da se ove kutije smanje da bi stale.
      Manji padding/min-width/fontovi drze isti sadrzaj (ime, bula, stihovi)
      ali u kompaktnijem obliku. */
+  /* "Plaketa" izgled (korisnikov utisak i posle prve prepravke: "i dalje
+     bas ruzan") — ime sad sedi u sopstvenoj tamnijoj traci-zaglavlju
+     (odvojenoj tankom zlatnom linijom) umesto da sve bude nabijeno u jednu
+     ravnu povrsinu, bula dobija toplu zlatnu boju sa senkom da izgleda kao
+     istaknuta cifra na tabli, ne obican tekst. */
   .player-seat {
     position: absolute;
-    background: linear-gradient(180deg, rgba(30,30,30,0.6) 0%, rgba(0,0,0,0.55) 100%);
-    border-radius: 12px;
-    padding: 5px 8px;
+    background: linear-gradient(180deg, rgba(42,34,20,0.78) 0%, rgba(14,12,9,0.8) 100%);
+    border-radius: 14px;
+    padding: 0 0 6px;
     text-align: center;
-    border: 2px solid rgba(255,255,255,0.14);
-    box-shadow: 0 3px 8px rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,213,110,0.22);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);
     transition: border 0.2s, transform 0.2s, box-shadow 0.2s;
-    min-width: 72px;
+    min-width: 76px;
+    overflow: hidden;
   }
-  .player-seat.you { border-color: rgba(76,175,80,0.55); }
+  .player-name {
+    background: rgba(0,0,0,0.3);
+    border-bottom: 1px solid rgba(255,213,110,0.22);
+    padding: 4px 8px 3px;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: rgba(255,255,255,0.75);
+  }
+  .player-seat.you .player-name {
+    background: rgba(76,175,80,0.22);
+    border-bottom-color: rgba(129,199,132,0.4);
+    color: #c8e6c9;
+  }
   /* Naglasenije "na potezu" isticanje (korisnikov utisak: "sad je lose
      naglaseno") — deblja zuta ivica + blagi puls umesto staticnog sjaja,
      da privuce pogled i na periferiji ekrana. */
@@ -302,10 +326,10 @@
     box-shadow: 0 2px 5px rgba(0,0,0,0.5);
     border: 1px solid rgba(0,0,0,0.3);
   }
-  .player-name { font-weight: 700; font-size: 0.8em; white-space: nowrap; }
+  .player-name { font-weight: 700; font-size: 0.68em; white-space: nowrap; }
   .player-seat.active .player-name { color: #ffeb3b; }
-  .player-bule { font-family: 'Oswald', sans-serif; font-size: 1.05em; font-weight: 700; letter-spacing: 0.3px; color: #ffeb3b; margin-top: 1px; }
-  .player-tricks { font-size: 0.65em; opacity: 0.85; white-space: nowrap; }
+  .player-bule { font-family: 'Oswald', sans-serif; font-size: 1.2em; font-weight: 800; letter-spacing: 0.3px; color: #ffd54f; text-shadow: 0 1px 4px rgba(0,0,0,0.6); margin-top: 1px; }
+  .player-tricks { font-size: 0.65em; opacity: 0.85; white-space: nowrap; margin-top: 2px; }
   .player-hand-count { font-size: 0.75em; opacity: 0.7; }
 
   /* Pozicije sedenja — korisnikov zahtev: klasican trougao (2 igraca na
@@ -341,7 +365,6 @@
     height: 92px;
   }
   .trick-slot.has-card { border-color: rgba(255,255,255,0.5); box-shadow: 0 2px 6px rgba(0,0,0,0.35); }
-  .trick-slot.current-turn { border-color: #ffeb3b; box-shadow: 0 0 10px rgba(255,235,59,0.6); }
   .trick-slot.led { background: rgba(76,175,80,0.3); }
   /* Blaga nasumicna (ali stabilna, vidi cardRotationDeg u app.js) rotacija
      odigrane karte — korisnikov zahtev, prirodniji izgled "bacanja". */
@@ -376,9 +399,9 @@
      panel (vidi .side-panel/#rightSidePanel) — donji panel sad drzi SAMO
      ruku karata, pa moze da bude veci/prostraniji. */
   .bottom-panel {
-    background: rgba(0,0,0,0.4);
+    background: linear-gradient(180deg, #2c2013 0%, #1a130b 100%);
     padding: 8px;
-    border-top: 2px solid #4caf50;
+    border-top: 2px solid #b8860b;
     flex-shrink: 0;
     max-height: 82vh;
     overflow-y: auto;
@@ -482,12 +505,14 @@
      brojeva) — korisnikov utisak "veliki nezgrapan blok". */
   .bid-btn.igra { background: rgba(255,152,0,0.3); border-color: #ff9800; max-width: 140px; line-height: 1.3; }
 
-  /* Dugmad izbora igre (posle odbacivanja talona / Igra tiebreak) — boja
-     prati boju karte umesto podrazumevanog sivog .bid-btn izgleda. */
-  .bid-btn.opt-black { background: linear-gradient(180deg, #4a4a4a 0%, #262626 100%); border-color: #6b6b6b; }
-  .bid-btn.opt-black:hover { background: linear-gradient(180deg, #565656 0%, #303030 100%); }
-  .bid-btn.opt-red { background: linear-gradient(180deg, #c14b4b 0%, #922f2f 100%); border-color: #e57373; }
-  .bid-btn.opt-red:hover { background: linear-gradient(180deg, #cc5757 0%, #9d3838 100%); }
+  /* Dugmad izbora igre (posle odbacivanja talona / Igra tiebreak) — Pik/
+     Herc/Karo/Tref ostaju neutralno .bid-btn dugme (korisnikov zahtev posle
+     prve verzije: puna crna/crvena pozadina "nije lepa"), boja karte se
+     vidi SAMO kroz malu obojenu ikonicu ispred imena. Sans/Betl (nemaju
+     boju karte) zadrzavaju sopstveni akcenat. */
+  .opt-suit-icon { font-size: 1.15em; }
+  .opt-suit-icon.black { color: #eceff1; text-shadow: 0 0 3px rgba(0,0,0,0.8); }
+  .opt-suit-icon.red { color: #ff5252; }
   .bid-btn.opt-sans { background: linear-gradient(180deg, #d4b13a 0%, #a8871e 100%); border-color: #ffd54f; color: #1b1b1b; }
   .bid-btn.opt-sans:hover { background: linear-gradient(180deg, #ddbc47 0%, #b39227 100%); }
   .bid-btn.opt-betl { background: linear-gradient(180deg, #8e44ad 0%, #6c3483 100%); border-color: #ba68c8; }
@@ -806,8 +831,11 @@
        porukama") — visina panela povecana, dok su header/input dole svedeni
        na minimum, pa skoro cela ova visina ide .chat-log-u. */
     max-height: min(440px, 70vh);
-    background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
-    border: 2px solid rgba(255,255,255,0.25);
+    /* Korisnikov zahtev: "sav zelen" — panel sad drvo/mahagoni ton (isti
+       "klasicna kockarnica" pravac kao ostali paneli), zeleno ostaje SAMO
+       na samom stolu. Zlatna ivica umesto zelene. */
+    background: linear-gradient(180deg, #2c2013 0%, #1a130b 100%);
+    border: 2px solid rgba(184,134,11,0.4);
     border-radius: 12px;
     padding: 6px 8px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.5);
@@ -826,10 +854,13 @@
   }
   .chat-panel-header .icon-btn:hover { background: rgba(255,255,255,0.15); }
   .chat-panel input[type="text"] {
-    background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2);
+    /* Vidno drugaciji ton od tamnog panela (korisnikov zahtev) — svetlije,
+       da se jasno cita kao "polje za kucanje", ne kao deo pozadine. */
+    background: rgba(255,255,255,0.16); border: 2px solid rgba(255,255,255,0.28);
     border-radius: 8px; color: white; padding: 6px 9px; flex: 1;
     font-size: 0.9em; min-width: 0;
   }
+  .chat-panel input[type="text"]:focus { outline: none; border-color: #d4af37; background: rgba(255,255,255,0.22); }
   .chat-panel input[type="text"]::placeholder { color: rgba(255,255,255,0.3); }
   /* "Posalji" je delio .mode-btn sa setup-ekranom (padding:14px/min-height:56px)
      — ogroman u malom chat-redu (korisnikov zahtev "sto manje na... posalji").
@@ -851,6 +882,14 @@
      forsiralo horizontalni scroll (korisnikov zahtev: "nek predje u drugi
      red"). overflow-wrap prelama i unutar "reci" kad nema drugog izbora. */
   .chat-log div { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.08); overflow-wrap: break-word; word-break: break-word; }
+  /* Ime posiljaoca obojeno po sedistu (isti kod boja kao licitacija —
+     .bid-entry.p0/p1/p2) — korisnikov zahtev: poruke razlicitih igraca
+     treba razlikovati bojama. */
+  .chat-msg-name { font-weight: 700; }
+  .chat-msg.p0 .chat-msg-name { color: #4fc3f7; }
+  .chat-msg.p1 .chat-msg-name { color: #ff8a80; }
+  .chat-msg.p2 .chat-msg-name { color: #ffe082; }
+  .chat-msg.spectator .chat-msg-name { color: rgba(255,255,255,0.55); font-style: italic; }
   /* Tanja scroll traka (korisnikov utisak "presiroke, ne uklapaju se") —
      Chrome/Edge/Safari (::-webkit-*) + Firefox (scrollbar-width/-color). */
   .chat-log { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.35) transparent; }
@@ -936,6 +975,29 @@
   .refe-dot.pending { background: #ffd54f; border-color: #ffd54f; box-shadow: 0 0 4px rgba(255,213,79,0.7); }
   .refe-dot.used { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.25); }
   .refe-dot.used::after { content: ''; position: absolute; top: 50%; left: -2px; right: -2px; height: 1.5px; background: #ff8a80; transform: rotate(45deg); }
+
+  /* === REZULTAT RUNDE (redizajn) === korisnikov zahtev: "sve pise na isti
+     nacin i istim bojama" — .box je inace zelen svuda (setup/login/itd, ne
+     diramo taj deljeni izgled), pa je SAMO #resultBox ovde tamniji da
+     obojeni bedzevi/pilule ispod stvarno iskoce umesto da se izgube u
+     istoj zelenoj podlozi. */
+  #resultBox { background: linear-gradient(180deg, #232a20 0%, #12140f 100%); }
+  #resultBox.match-over { background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%); }
+  .result-contract { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .result-declarer { font-weight: 700; }
+  .result-game-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 14px; font-weight: 700; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); }
+  .result-kontra-badge { padding: 4px 12px; border-radius: 14px; background: rgba(239,83,80,0.22); color: #ff8a80; font-weight: 700; font-size: 0.85em; border: 1px solid rgba(239,83,80,0.35); }
+  .result-outcome { text-align: center; font-size: 1.25em; font-weight: 800; padding: 8px; border-radius: 10px; margin-bottom: 12px; letter-spacing: 0.5px; }
+  .result-outcome.pass { background: rgba(76,175,80,0.28); color: #a5d6a7; border: 1px solid rgba(76,175,80,0.5); }
+  .result-outcome.fail { background: rgba(239,83,80,0.22); color: #ff8a80; border: 1px solid rgba(239,83,80,0.4); }
+  .result-line { text-align: center; opacity: 0.85; margin-bottom: 8px; font-size: 0.9em; }
+  .result-supe-row { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .result-supe-chip { background: rgba(76,175,80,0.22); color: #a5d6a7; padding: 3px 10px; border-radius: 12px; font-size: 0.8em; font-weight: 700; border: 1px solid rgba(76,175,80,0.35); }
+  .result-scoreboard { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+  .result-mini-card { background: rgba(0,0,0,0.32); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 7px 12px; min-width: 72px; text-align: center; }
+  .result-mini-name { font-size: 0.68em; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.5px; }
+  .result-mini-bula { font-family: 'Oswald', sans-serif; font-weight: 800; font-size: 1.2em; color: #ffd54f; margin-top: 1px; }
+  .result-mini-tricks { font-size: 0.68em; opacity: 0.7; margin-top: 2px; }
 
   /* "Trenutne bule" — JEDNA fokalna kartica nalik tradicionalnom papirnom
      listu za bulu (ime suseda IZNAD njegove supe, levo i desno), sa
@@ -1035,14 +1097,18 @@
       justify-content: center;
       gap: 3px;
       overflow: hidden;
-      padding: 2px 8px;
+      padding: 10px 8px;
     }
     /* Sto veci na siroko/visokim ekranima (korisnikov utisak: "previse
        prazng prostora gore/dole oko stola") — bazni min(54vh,480px) cuva
        telefon-portret proporciju, ovde na desktopu ima dovoljno visine da
        sto stvarno iskoristi vise prostora umesto da ostane malen usred
-       velike prazne .table-area kolone. */
-    .table-felt { height: min(72vh, 640px); }
+       velike prazne .table-area kolone. NAPOMENA: 72vh je bilo PREVISE —
+       na uobicajenim laptop prozorima (manje visine nego pun ekran) je to
+       preslo visinu .table-area 1fr reda, pa je overflow:hidden gore
+       secao DONJU ivicu stola (uzivo prijavljeno). 62vh/560px ostaje
+       bezbedno ispod tipicne dostupne visine uz padding gore. */
+    .table-felt { height: min(62vh, 560px); }
     .side-panel {
       grid-row: 1;
       align-self: center;
@@ -1107,30 +1173,38 @@
        dovoljno SIRINE (obrnuto od portreta) da ovo stane pored stola. */
     .top-bar h1, .top-bar .top-info { display: none; }
     .top-bar { padding: 0; min-height: 0; border: none; }
+    /* Korisnikov zahtev, 2. runda: uspravna traka na desnoj strani sredine
+       ekrana se i dalje sudarala sa licitacijom u desnom bocnom panelu —
+       spustena je u DONJI DESNI ugao, pored ruke karata (tamo ima slobodnog
+       prostora jer red karata ne popunjava celu sirinu, vidi .hand-area
+       justify-content:center), u RED (ne koloni) jer je taj prostor plitak
+       ali sirok. */
     .top-actions {
-      position: fixed; top: 50%; right: 4px; transform: translateY(-50%);
-      flex-direction: column; gap: 6px; z-index: 90;
-      background: rgba(0,0,0,0.4); padding: 6px 4px; border-radius: 10px;
+      position: fixed; bottom: 4px; right: 4px;
+      flex-direction: row; gap: 4px; z-index: 90;
+      background: rgba(0,0,0,0.4); padding: 4px; border-radius: 10px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.4);
     }
+    .top-actions .icon-btn { min-width: 30px; min-height: 30px; padding: 4px 6px; font-size: 0.9em; }
     .table-area {
       display: grid;
       grid-template-columns: minmax(0, 120px) minmax(0, 1fr) minmax(0, 120px);
       grid-template-rows: 1fr;
       gap: 4px;
-      /* padding-right rezervise mesto za fiksnu ikon-traku (.top-actions,
-         right:4px, ~40px siroka dugmad) — bez ovoga ona PREKLAPA sadrzaj
-         desnog bocnog panela (uzivo/screenshot-om otkriveno: tekst
-         licitacije sece se ispod dugmadi). */
-      padding: 4px 52px 4px 4px;
+      padding: 4px;
       overflow: hidden;
     }
-    #leftSidePanel, #rightSidePanel { grid-row: 1; max-height: 100%; overflow-y: auto; align-self: center; }
+    #leftSidePanel, #rightSidePanel { grid-row: 1; max-height: 100%; overflow-y: auto; align-self: center; padding: 4px 3px; }
     #leftSidePanel { grid-column: 1; }
     #rightSidePanel { grid-column: 3; }
-    #rightSidePanel .bid-log { flex-direction: column; align-items: stretch; width: 100%; margin: 0; }
+    #rightSidePanel .bid-log { flex-direction: column; align-items: stretch; width: 100%; margin: 0; padding: 3px 2px; }
     #rightSidePanel .bid-controls { flex-direction: column; align-items: stretch; }
     #rightSidePanel .bid-btn { width: 100%; max-width: none; flex: none; }
+    /* Manje horizontalnog paddinga u samoj bid-entry "pilulici" — korisnikov
+       zahtev: "tekst uzak, ima mnogo padinga sa leve i desne strane, ne
+       treba uopste" — u koloni siroj 120px svaki px racuna. */
+    .side-panel .bid-entry { padding: 2px 4px; }
+    .side-panel .defense-info, .side-panel .last-trick-info { padding: 6px 4px; }
   }
 
   /* Portret uzan telefon: sto sto sire (skoro do ivica ekrana — korisnikov
@@ -1448,6 +1522,7 @@
     <div id="resultMsg"></div>
     <button class="mode-btn" id="viewCardsBtn" style="display:none;margin-bottom:8px" onclick="viewCards()">👀 Pogledaj karte</button>
     <button class="mode-btn primary" style="min-height:48px" id="nextRoundBtn" onclick="resultAction()">Igraj</button>
+    <div id="dealNextStatus" style="display:none;margin-top:8px;font-size:0.85em;opacity:0.75"></div>
   </div>
 </div>
 

@@ -45,6 +45,12 @@ export interface RoomState {
   // toga SAMO rucni "Deli" klik nastavlja). Resetuje se na false cim
   // sledeca ruka stvarno pocne.
   autoAdvancePaused: boolean;
+  // Koja sedista su vec kliknula "Deli" za OVU zavrsenu ruku — korisnikov
+  // zahtev: jedan igrac vise NE SME sam da forsira sledecu rundu za sve
+  // (ranije je game:dealNext delio odmah na PRVI klik). Sad ceka da SVI
+  // aktivni (ne napusteni) igraci kliknu, ili istekne auto-tajmer. Resetuje
+  // se u dealNextHand() cim sledeca ruka stvarno pocne.
+  dealNextReady: Set<Position>;
 }
 
 export interface RoomOptions {
@@ -68,5 +74,6 @@ export function createRoomState(code: string, options: RoomOptions = {}): RoomSt
     nextHandScheduled: false,
     nextHandTimeout: null,
     autoAdvancePaused: false,
+    dealNextReady: new Set(),
   };
 }

@@ -24,18 +24,27 @@ window.setSearchAiEnabled = (on) => { try { localStorage.setItem('prefSearchAI',
 
 // CSS klasa za dugmad izbora igre (posle odbacivanja talona/Igra tiebreak) —
 // dosad su sva bila identicna siva .bid-btn, korisnikov utisak "ruzno,
-// nerazlikuju se". Boja prati boju karte (crno za pik/tref, crveno za
-// herc/karo), Sans/Betl dobijaju sopstveni akcenat.
+// nerazlikuju se". Sans/Betl dobijaju sopstveni akcenat (nemaju boju
+// karte); Pik/Herc/Karo/Tref ostaju NEUTRALNO dugme (korisnikov zahtev
+// posle prve verzije — puna crna/crvena pozadina "nije lepa") sa oznakom
+// boje karte kao OBOJENA ikonica unutar dugmeta (vidi gameOptionLabel).
 const GAME_OPTION_ACCENT = {
-  'Pik': 'opt-black', 'Tref': 'opt-black',
-  'Herc': 'opt-red', 'Karo': 'opt-red',
-  'Igra-Pik': 'opt-black', 'Igra-Tref': 'opt-black',
-  'Igra-Herc': 'opt-red', 'Igra-Karo': 'opt-red',
   'Sans': 'opt-sans', 'Igra-Sans': 'opt-sans',
   'Betl': 'opt-betl', 'Igra-Betl': 'opt-betl',
 };
 function gameOptionAccentClass(g) {
   return GAME_OPTION_ACCENT[g] ?? '';
+}
+const SUIT_OPTION_ICON = {
+  'Pik': ['♠', 'black'], 'Tref': ['♣', 'black'],
+  'Herc': ['♥', 'red'], 'Karo': ['♦', 'red'],
+};
+// Labela dugmeta kao HTML (bezbedno — g je uvek iz fiksnog GAME enum-a, nikad
+// korisnikov unos): boja karte kao obojena ikonica ispred imena.
+function gameOptionLabel(g) {
+  const base = g.replace('Igra-', '');
+  const icon = SUIT_OPTION_ICON[base];
+  return icon ? `<span class="opt-suit-icon ${icon[1]}">${icon[0]}</span> ${base}` : base;
 }
 
 // Debug: ?seed=NNNN u URL-u forsira deljenje na poznat seed umesto
@@ -226,7 +235,8 @@ const POS_LABELS = new Proxy(POS_LABELS_LOCAL, {
     const idx = typeof prop === 'string' ? Number(prop) : NaN;
     if (Number.isInteger(idx) && idx >= 0 && idx <= 2) {
       const raw = mode === 'online' ? (game.state?.players?.[idx]?.name || target[idx]) : target[idx];
-      return escapeHtml(raw);
+      const isAbandoned = mode === 'online' && game.state?.abandonedSeat === idx;
+      return escapeHtml(raw) + (isAbandoned ? ' (AI)' : '');
     }
     return target[prop];
   },
@@ -784,7 +794,7 @@ function renderTrick() {
   for (const seat of ['west', 'east', 'south']) {
     const slot = $(`slot-${seat}`);
     slot.innerHTML = '';
-    slot.classList.remove('has-card', 'current-turn', 'led');
+    slot.classList.remove('has-card', 'led');
   }
 
   // Dodaj karte iz currentTrick
@@ -805,12 +815,6 @@ function renderTrick() {
     });
   }
   _prevTrickLen = s.currentTrick.length;
-
-  // Highlight za trenutnog igrača
-  if (s.phase === 'PLAYING' && s.currentTrick.length < 3) {
-    const seat = seatOf(s.currentPlayer);
-    $(`slot-${seat}`).classList.add('current-turn');
-  }
 }
 
 // Suptilan watermark u sredini stola sakriva se čim ima BILO KOG stvarnog
@@ -1030,7 +1034,7 @@ function renderDeclaring() {
     ctrl.appendChild(el('div', 'section-label', mode === '3human' ? `POTEZ: ${POS_LABELS[player]} — IGRA` : 'IGRA'));
     const games = IGRA_GAMES.filter(g => GAME_VALUES[g] >= s.currentBid);
     for (const g of games) {
-      const btn = el('button', `bid-btn ${gameOptionAccentClass(g)}`, g.replace('Igra-', ''));
+      const btn = el('button', `bid-btn ${gameOptionAccentClass(g)}`, gameOptionLabel(g));
       btn.onclick = (e) => {
         logTrustedAction(`userDeclareIgraTiebreak game=${g} player=${player}`, e);
         game.declareIgra(player, g);
@@ -1090,8 +1094,7 @@ function renderDeclaring() {
     : STANDARD_GAMES.filter(g => GAME_VALUES[g] >= s.currentBid);
 
   for (const g of games) {
-    const displayName = isIgra ? g.replace('Igra-', '') : g;
-    const btn = el('button', `bid-btn ${gameOptionAccentClass(g)}`, displayName);
+    const btn = el('button', `bid-btn ${gameOptionAccentClass(g)}`, gameOptionLabel(g));
     btn.onclick = (e) => {
       logTrustedAction(`userDeclare game=${g} isIgra=${isIgra}`, e);
       if (isIgra) game.declareIgra(winner, g);
@@ -1586,6 +1589,12 @@ function aiPlayCard(player) {
 
 // === RESULT ===
 
+// Koja sedista su vec kliknula "Deli" za rundu koja je bas zavrsena (online
+// mod) — korisnikov zahtev: jedan igrac ne sme sam da forsira sledecu rundu,
+// pa server sad ceka da SVI aktivni igraci kliknu (ili istekne auto-tajmer).
+// Ovo samo prikazuje status, server je izvor istine.
+let dealNextReadySeats = [];
+
 function renderResult() {
   const s = game.state;
   if (!TERMINAL_PHASES.includes(s.phase)) return;
@@ -1607,6 +1616,31 @@ function renderResult() {
   // sebe. "Deli" bolje opisuje "preskoci cekanje / potvrdi odmah".
   if (s.phase !== 'MATCH_OVER') {
     $('nextRoundBtn').textContent = mode === 'online' ? 'Deli' : 'Igraj';
+  }
+  // Status "ko je vec spreman" (samo online, samo GAME_OVER — ne MATCH_OVER,
+  // gde dugme vodi na pocetni ekran umesto da deli sledecu rundu).
+  const dealStatusEl = $('dealNextStatus');
+  if (mode === 'online' && s.phase === 'GAME_OVER') {
+    const ready = dealNextReadySeats;
+    dealStatusEl.style.display = '';
+    if (ready.includes(mySeat)) {
+      // Napusteno (AI-preuzeto) sediste nije vidljivo klijentu kao takvo —
+      // server ga vec izuzima iz stvarnog cekanja (activeSeatsForRoom), ovo
+      // je samo prikaz pa moze retko da "ceka" nekog ko se ustvari ne racuna.
+      const waitingFor = [0, 1, 2].filter((p) => !ready.includes(p));
+      dealStatusEl.textContent = waitingFor.length > 0
+        ? `Čeka se: ${waitingFor.map((p) => seatDisplayName(p)).join(', ')}...`
+        : '';
+      $('nextRoundBtn').disabled = true;
+    } else {
+      dealStatusEl.textContent = ready.length > 0
+        ? `Spremni: ${ready.map((p) => seatDisplayName(p)).join(', ')}`
+        : '';
+      $('nextRoundBtn').disabled = false;
+    }
+  } else {
+    dealStatusEl.style.display = 'none';
+    $('nextRoundBtn').disabled = false;
   }
 
   if (s.phase === 'MATCH_OVER') {
@@ -1635,39 +1669,45 @@ function renderResult() {
     return;
   }
 
-  let msg = '';
+  // Redizajnirano (korisnikov zahtev: "sve pise na isti nacin i istim
+  // bojama") — strukturirane kartice/bedzevi umesto jednog bloka teksta sa
+  // <br>-ovima, jasna vizuelna hijerarhija (ugovor → prosao/pao → detalji →
+  // mini-tabela bula/stihova po igracu).
+  let html = '';
   if (s.declaredGame && s.lastHandResult) {
     // Koristi engine-ov lastHandResult kao izvor istine — pokriva i slucajeve
     // kad se nije igralo (RULES 5.4 "niko ne prati", RULES 7.1.1 "Pik bez kontre")
-    const declarer = POS_LABELS[s.winner];
-    msg = `<strong>${declarer}</strong> je igrao <strong>${s.declaredGame}</strong>`;
-    // Kontra nivo — uzivo prijavljen propust: modal je prikazivao rezultat
-    // bez ikakvog pomena da je kontra data, iako je bitno menjala racun.
     const kontraLabel = { KONTRA: 'Kontra ×2', REKONTRA: 'Rekontra ×4', SUBKONTRA: 'Subkontra ×8', MORTKONTRA: 'Mortkontra ×16' };
-    if (s.kontraLevel) {
-      msg += ` <span style="color:#ff8a80">${kontraLabel[s.kontraLevel]}</span> (dao: ${POS_LABELS[s.kontraPlayer]})`;
-    }
-    msg += `<br>`;
-    msg += s.lastHandResult.passed ? '✓ <strong style="color:#a5d6a7">PROŠAO</strong>' : '✗ <strong style="color:#ff8a80">PAO</strong>';
-    msg += `<br>`;
+    html += `<div class="result-contract">
+      <span class="result-declarer">${POS_LABELS[s.winner]}</span>
+      <span class="result-game-badge ${gameOptionAccentClass(s.declaredGame)}">${gameOptionLabel(s.declaredGame)}</span>
+      ${s.kontraLevel ? `<span class="result-kontra-badge">${kontraLabel[s.kontraLevel]} (${POS_LABELS[s.kontraPlayer]})</span>` : ''}
+    </div>`;
+    html += `<div class="result-outcome ${s.lastHandResult.passed ? 'pass' : 'fail'}">${s.lastHandResult.passed ? '✓ PROŠAO' : '✗ PAO'}</div>`;
     // Ko je dosao/zvao (isti rezime kao u statusnoj traci tokom igre) —
     // korisnikov zahtev: modal ne sme da preskoci ovaj podatak.
     const defenseTxt = defenseSummaryText(s);
-    if (defenseTxt) msg += `${defenseTxt}<br>`;
+    if (defenseTxt) html += `<div class="result-line">${defenseTxt}</div>`;
     // Supe zaradjene OVOM rukom, po igracu — direktno objasnjava zasto neko
     // (npr. ne-kontras pratilac) ne dobija nista uprkos odigranim stihovima.
     const supeParts = [0, 1, 2]
       .map(p => ({ p, v: s.lastHandResult.supeDelta[p] }))
       .filter(x => x.v > 0)
-      .map(x => `${POS_LABELS[x.p]}: +${x.v}`);
-    if (supeParts.length > 0) msg += `Supe ove runde: ${supeParts.join(' · ')}<br>`;
-    msg += `<br>`;
+      .map(x => `<span class="result-supe-chip">${POS_LABELS[x.p]} +${x.v}</span>`);
+    if (supeParts.length > 0) html += `<div class="result-supe-row">${supeParts.join('')}</div>`;
   } else {
-    msg = 'Svi su rekli dalje.<br><br>';
+    html += `<div class="result-line" style="font-size:1.05em;margin:10px 0">Svi su rekli dalje.</div>`;
   }
-  msg += `<strong>Bule:</strong> ${s.bulas[0]} / ${s.bulas[1]} / ${s.bulas[2]}<br>`;
-  msg += `<strong>Štihovi:</strong> ${POS_LABELS[0]}: ${s.players[0].tricksWon} · ${POS_LABELS[1]}: ${s.players[1].tricksWon} · ${POS_LABELS[2]}: ${s.players[2].tricksWon}`;
-  $('resultMsg').innerHTML = msg;
+  html += `<div class="result-scoreboard">`;
+  for (const p of [0, 1, 2]) {
+    html += `<div class="result-mini-card">
+      <div class="result-mini-name">${POS_LABELS[p]}</div>
+      <div class="result-mini-bula">${s.bulas[p]}</div>
+      <div class="result-mini-tricks">🎴 ${s.players[p].tricksWon}</div>
+    </div>`;
+  }
+  html += `</div>`;
+  $('resultMsg').innerHTML = html;
 }
 
 // === TABELA (bule / supe / refe / istorija) ===
@@ -2035,7 +2075,22 @@ async function connectOnlineSocket() {
     }
   });
   onlineSocket.on('game:state', (state) => {
+    // Obavesti ostale kad neko NAPUSTI (abandonedSeat null → sediste) ili se
+    // VRATI (sediste → null) — ranije nije postojao NIKAKAV signal, pa je
+    // AI koji je preuzeo delovao kao da je stvarno TAJ igrac ("izgleda da
+    // je on licitirao Mogu 4"). Samo za sedista koja nisu MOJE — meni je
+    // vec jasno da sam ja otisao/vratio se.
+    if (state.abandonedSeat !== game.state?.abandonedSeat) {
+      if (state.abandonedSeat !== null && state.abandonedSeat !== mySeat) {
+        showAppToast(`🏳️ ${escapeHtml(state.players[state.abandonedSeat]?.name ?? '')} je napustio partiju — AI igra umesto njega`);
+      } else if (state.abandonedSeat === null && game.state?.abandonedSeat !== null && game.state?.abandonedSeat !== mySeat) {
+        showAppToast(`↩️ ${escapeHtml(state.players[game.state.abandonedSeat]?.name ?? '')} se vratio za sto`);
+      }
+    }
     game.state = state;
+    // Nova ruka je stvarno pocela (faza vise nije GAME_OVER) — status "ko je
+    // sve kliknuo Deli" vazi SAMO za rundu koja je bas zavrsila, ocisti ga.
+    if (state.phase !== 'GAME_OVER') dealNextReadySeats = [];
     // NE prelazi na sto dok partija stvarno ne pocne (phase !== WAITING) —
     // bez ove provere, i sam refresh stranice dok se ceka 2./3. igrac (server
     // odmah gurne trenutno, i dalje WAITING, stanje pri reconnect-u) bi
@@ -2069,6 +2124,10 @@ async function connectOnlineSocket() {
   });
   onlineSocket.on('kibic:incoming-request', (p) => {
     showKibicRequestBanner(p.spectatorUserId, p.name);
+  });
+  onlineSocket.on('game:dealNextStatus', (p) => {
+    dealNextReadySeats = p?.ready ?? [];
+    renderResult();
   });
   onlineSocket.on('chat:backlog', (msgs) => {
     $('chatLog').innerHTML = '';
@@ -2382,11 +2441,20 @@ function sendChatOnline() {
 
 function appendChatMessageOnline(m, isLive = true) {
   // textContent (ne innerHTML) — m.text/m.name su tudji unos (chat poruka,
-  // email drugog igraca), nikad ih ne tretirati kao HTML.
+  // email drugog igraca), nikad ih ne tretirati kao HTML. Ime i tekst idu u
+  // ODVOJENE cvorove (oba i dalje preko textContent/createTextNode, ne
+  // interpolacija u HTML) da ime moze dobiti svoju boju po igracu —
+  // korisnikov zahtev: "razdvojiti poruke od razlicitih igraca bojama".
   const log = $('chatLog');
-  const who = m.role === 'player' ? POS_LABELS[m.seat] : `${m.name} (kibicer)`;
+  const isPlayer = m.role === 'player';
+  const who = isPlayer ? POS_LABELS[m.seat] : `${m.name} (kibicer)`;
   const div = document.createElement('div');
-  div.textContent = `${who}: ${m.text}`;
+  div.className = 'chat-msg' + (isPlayer ? ` p${m.seat}` : ' spectator');
+  const nameSpan = document.createElement('span');
+  nameSpan.className = 'chat-msg-name';
+  nameSpan.textContent = `${who}: `;
+  div.appendChild(nameSpan);
+  div.appendChild(document.createTextNode(m.text));
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;
   // Korisnikov zahtev: poruke su stizale nevidljivo dok je chat zatvoren, i
