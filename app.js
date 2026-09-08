@@ -296,6 +296,11 @@ let mode = '1v2';
 // mySeat: koje sedište (0/1/2) KONTROLIŠE ovaj klijent — dodeljuje ga server
 // pri room:create/room:join, ostaje null dok se ne pridruzimo sobi.
 let mySeat = null;
+// Korisnikov zahtev: "nema mogucnost da neko izadje na home page pa se
+// vrati" — SVESNI izlazak na pocetnu dok se sediste i dalje drzi (razlika
+// od "napusti partiju", koje predaje AI-ju). Dok je true, dolazni
+// game:state NE forsira nazad na sto (vidi 'online-in-game' provera).
+let awayFromTable = false;
 // Koju sobu JA trenutno drzim (server je poslednji izvor istine preko
 // room:info/game:state, ovo je samo za "Pridruzi se" dugme u listi otvorenih
 // soba — korisnikov zahtev: ne nudi ponovno pridruzivanje sopstvenoj sobi).
@@ -423,6 +428,14 @@ function recordHandIfNew() {
     // wasPlayed razlikuje ova dva slucaja za prikaz (vidi renderScoreContent).
     wasPlayed: game.state.tricks.length > 0,
   });
+  // PRIVREMENO dijagnosticko logovanje (uzivo prijavljeno: "dosao sam na
+  // tref, uzeo 4 stiha, tabela pokazuje niti ko je dosao niti koliko je ko
+  // uhvatio" — nisam uspeo da reprodukujem lokalno, isti scenario preko
+  // cistog engine poziva daje ispravne podatke). Ukloniti posle potvrde
+  // uzroka sledeci put kad se ovo desi (proveriti F12 konzolu).
+  console.log('[TABELA DEBUG]', JSON.stringify(handHistory[handHistory.length - 1]),
+    'followChoices=', JSON.stringify(game.state.followChoices),
+    'caller=', game.state.caller, 'callee=', game.state.callee);
   if (result.winner !== null) {
     for (let p = 0; p < 3; p++) {
       if (p !== result.winner && result.supeDelta[p] > 0) {
@@ -2187,7 +2200,12 @@ async function connectOnlineSocket() {
     // odmah gurne trenutno, i dalje WAITING, stanje pri reconnect-u) bi
     // pogresno "preskocio" na prazan sto bez ikakvog puta nazad do koda
     // sobe (uzivo prijavljen bag).
-    if (state.phase !== 'WAITING' && !document.body.classList.contains('online-in-game')) {
+    // awayFromTable: korisnik je SVESNO otisao na pocetnu (peekHomeScreen)
+    // dok je i dalje seo za stolom — bez ovog uslova bi SVAKI naredni
+    // game:state (bilo koja tudja akcija) odmah nasilno vratio na sto,
+    // ponistavajuci klik na 🏠 (korisnikov zahtev: "izadje na home page pa
+    // da se vrati" — mora ostati na pocetnoj dok SAM ne klikne nazad).
+    if (state.phase !== 'WAITING' && !document.body.classList.contains('online-in-game') && !awayFromTable) {
       document.body.classList.add('online-in-game');
       $('loginScreen').classList.remove('active');
       $('homeScreen').classList.remove('active');
@@ -2195,6 +2213,7 @@ async function connectOnlineSocket() {
       $('setupScreen').classList.remove('active');
       $('chatToggleBtn').style.display = '';
       $('leaveMatchBtn').style.display = '';
+      $('peekHomeBtn').style.display = '';
       document.querySelector('.top-actions [onclick="restart()"]')?.style.setProperty('display', 'none');
       stopRoomListPolling();
       renderSeats();
@@ -2222,6 +2241,14 @@ async function connectOnlineSocket() {
   onlineSocket.on('room:invited', (p) => {
     showInviteBanner(p.code, p.fromName);
   });
+  onlineSocket.on('room:playerDisconnected', (p) => {
+    if (p.seat === mySeat) return;
+    showAppToast(`📵 ${escapeHtml(p.name)} je ispao sa mreže — čeka se povratak...`);
+  });
+  onlineSocket.on('room:playerReconnected', (p) => {
+    if (p.seat === mySeat) return;
+    showAppToast(`✅ ${escapeHtml(p.name)} se vratio`);
+  });
   onlineSocket.on('game:dealNextStatus', (p) => {
     dealNextReadySeats = p?.ready ?? [];
     renderResult();
@@ -2240,12 +2267,15 @@ function backToSetup() {
   mode = '1v2';
   mySeat = null;
   myRoomCode = null;
+  awayFromTable = false;
   $('loginScreen').classList.remove('active');
   $('homeScreen').classList.remove('active');
   $('roomScreen').classList.remove('active');
   $('chatScreen').classList.remove('open');
   $('chatToggleBtn').style.display = 'none';
   $('leaveMatchBtn').style.display = 'none';
+  $('peekHomeBtn').style.display = 'none';
+  $('backToTableBtn').style.display = 'none';
   $('kibicRequestPanel').style.display = 'none';
   $('setupScreen').classList.add('active');
 }
@@ -2259,6 +2289,30 @@ function goToHomeScreen() {
   $('roomScreen').classList.remove('active');
   $('homeScreen').classList.add('active');
 }
+
+// "Ustani od stola" bez napustanja partije — soket/sediste ostaju netaknuti
+// (za razliku od leaveMatch(), koja predaje AI-ju), samo se PRIKAZ prebaci
+// na pocetnu. Tudje akcije (bidding/igranje) i dalje stizu u pozadini, samo
+// se ne prikazuju dok se korisnik sam ne vrati.
+function peekHomeScreen() {
+  if (mode !== 'online') return;
+  awayFromTable = true;
+  document.body.classList.remove('online-in-game');
+  $('roomScreen').classList.remove('active');
+  $('setupScreen').classList.remove('active');
+  $('homeScreen').classList.add('active');
+  $('backToTableBtn').style.display = '';
+}
+window.peekHomeScreen = peekHomeScreen;
+
+function backToTable() {
+  awayFromTable = false;
+  $('backToTableBtn').style.display = 'none';
+  document.body.classList.add('online-in-game');
+  $('homeScreen').classList.remove('active');
+  render();
+}
+window.backToTable = backToTable;
 
 // Bez ovoga nema naina da se udje pod DRUGIM nalogom — onlineToken ostaje
 // sacuvan u localStorage i svaki naredni "Igraj online" (pa i sam refresh
@@ -2274,11 +2328,14 @@ function logoutOnline() {
   mode = '1v2';
   mySeat = null;
   myRoomCode = null;
+  awayFromTable = false;
   $('homeScreen').classList.remove('active');
   $('roomScreen').classList.remove('active');
   $('chatScreen').classList.remove('open');
   $('chatToggleBtn').style.display = 'none';
   $('leaveMatchBtn').style.display = 'none';
+  $('peekHomeBtn').style.display = 'none';
+  $('backToTableBtn').style.display = 'none';
   $('kibicRequestPanel').style.display = 'none';
   $('loginEmail').value = '';
   $('loginName').value = '';
@@ -2572,9 +2629,12 @@ function doLeaveMatch() {
     if (res?.error) { console.warn('[online] game:leave odbijen:', res.error); return; }
     document.body.classList.remove('online-in-game');
     $('leaveMatchBtn').style.display = 'none';
+    $('peekHomeBtn').style.display = 'none';
+    $('backToTableBtn').style.display = 'none';
     $('chatToggleBtn').style.display = 'none';
     $('chatScreen').classList.remove('open');
     mySeat = null;
+    awayFromTable = false;
     goToHomeScreen();
     showAppToast(`Napustio si partiju na buli ${res.frozenBula}.`);
   });

@@ -1068,8 +1068,13 @@
   /* Korisnikov zahtev: modal mnogo siri (kolone su se lomile u uskom
      460px), i "razbiti" monotonu braon boju zebra-prugama. */
   .score-box { max-width: min(94vw, 920px); }
-  .score-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
-  .score-table th, .score-table td { padding: 7px 8px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  /* Korisnikov zahtev: "ima horizontalni scroll, nema potrebe prosiri
+     modal" — table-layout:fixed prisiljava kolone da UVEK staju u 100%
+     sirine (auto layout inace pusti tabelu da preraste kontejner kad
+     sadrzaj — npr. duze ime u "Pratnja" — trazi vise mesta). overflow-wrap
+     prelama takav sadrzaj u novi red UMESTO da gura tabelu sire. */
+  .score-table { width: 100%; border-collapse: collapse; font-size: 0.9em; table-layout: fixed; }
+  .score-table th, .score-table td { padding: 6px 5px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); overflow-wrap: break-word; }
   .score-table th { opacity: 0.7; font-weight: 600; font-size: 0.85em; }
   .score-table td:first-child, .score-table th:first-child { text-align: left; }
   .score-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.045); }
@@ -1268,8 +1273,15 @@
     #leftSidePanel { grid-column: 1; }
     #rightSidePanel { grid-column: 3; }
     /* Dugmad/log u koloni umesto redu — u uskoj bocnoj koloni izgledaju
-       bolje jedno-ispod-drugog nego zbijeni u red koji stalno lomi red. */
-    #rightSidePanel .bid-log { flex-direction: column; align-items: stretch; width: 100%; margin: 0; }
+       bolje jedno-ispod-drugog nego zbijeni u red koji stalno lomi red.
+       flex-wrap:nowrap je OBAVEZAN ovde, ne kozmetika — .bid-log nasledjuje
+       flex-wrap:wrap iz bazicnog pravila, sto u flex-direction:column
+       kontekstu prelama SADRZAJ u NOVE (horizontalne) kolone kad ponestane
+       vertikalnog prostora, umesto da legitimno preraste visinu i omoguci
+       vertikalni scroll — te "dodatne kolone" ostaju NEVIDLJIVE (panel ima
+       overflow-x:hidden) i scrollHeight==clientHeight (nema sta da se
+       skroluje, uzivo prijavljeno "ne radi vert. scroll"). */
+    #rightSidePanel .bid-log { flex-direction: column; flex-wrap: nowrap; align-items: stretch; width: 100%; margin: 0; }
     #rightSidePanel .bid-entry { justify-content: center; }
     #rightSidePanel .bid-controls { flex-direction: column; align-items: stretch; }
     #rightSidePanel .bid-controls .section-label { text-align: center; }
@@ -1363,7 +1375,7 @@
     #leftSidePanel, #rightSidePanel { grid-row: 1; height: 100%; min-height: 0; overflow-y: auto; overflow-x: hidden; align-self: stretch; padding: 4px 3px; }
     #leftSidePanel { grid-column: 1; }
     #rightSidePanel { grid-column: 3; }
-    #rightSidePanel .bid-log { flex-direction: column; align-items: stretch; width: 100%; margin: 0; padding: 3px 2px; }
+    #rightSidePanel .bid-log { flex-direction: column; flex-wrap: nowrap; align-items: stretch; width: 100%; margin: 0; padding: 3px 2px; }
     #rightSidePanel .bid-controls { flex-direction: column; align-items: stretch; }
     #rightSidePanel .bid-btn { width: 100%; max-width: none; flex: none; }
     /* Manje horizontalnog paddinga u samoj bid-entry "pilulici" — korisnikov
@@ -1413,6 +1425,7 @@
   <div class="top-actions">
     <button class="icon-btn" id="chatToggleBtn" onclick="toggleChat()" style="display:none;position:relative">💬<span id="chatUnreadBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#e53935;color:#fff;border-radius:50%;min-width:18px;height:18px;font-size:0.65em;line-height:18px;text-align:center;font-weight:700;padding:0 3px"></span></button>
     <button class="icon-btn" id="leaveMatchBtn" onclick="leaveMatch()" style="display:none" title="Napusti partiju">🏳️</button>
+    <button class="icon-btn" id="peekHomeBtn" onclick="peekHomeScreen()" style="display:none" title="Nazad na početnu (ostaješ za stolom)">🏠</button>
     <button class="icon-btn" onclick="toggleScore()">📊</button>
     <button class="icon-btn" id="soundToggleBtn" onclick="toggleSound()" title="Zvuk uklj/isklj">🔊</button>
     <button class="icon-btn" onclick="restart()">🔄</button>
@@ -1569,16 +1582,16 @@
       <div class="home-stat-pill" id="homeRoomCount">🃏 učitavanje...</div>
     </div>
     <button class="mode-btn primary home-cta" onclick="goToRoomScreen()">🎮 Sobe — napravi ili se pridruži</button>
+    <!-- Korisnikov zahtev: "nema mogucnost da neko izadje na home page pa
+         da se vrati" — vidljivo SAMO dok je igrac usred aktivne partije i
+         privremeno "izasao" da pogleda pocetnu (peekHomeScreen ispod), ne
+         gubeci sediste. -->
+    <button class="mode-btn home-cta" id="backToTableBtn" onclick="backToTable()" style="display:none;margin-top:10px">↩️ Nazad za sto</button>
   </section>
 
   <section class="home-section">
     <h2 class="section-title">Šta možeš ovde</h2>
     <div class="home-features-grid">
-      <div class="feature-card">
-        <div class="feature-icon">🃏</div>
-        <h3>Prava pravila</h3>
-        <p>Licitacija, refe, kontra, Betl, Sans — sve po srpskim pravilima preferansa, isti engine koji je testiran 184 puta.</p>
-      </div>
       <div class="feature-card">
         <div class="feature-icon">👀</div>
         <h3>Kibicuj partije</h3>

@@ -226,6 +226,12 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
           socket.emit('game:state', buildClientState(room, { type: 'player', seat }));
           sendChatBacklog(socket, room);
           resumed = true;
+          // Korisnikov zahtev: ostali nisu imali NIKAKAV signal da je neko
+          // ispao pa se vratio — samo bi im se soba/dugmad "sama" ispravila
+          // na sledecem game:state, bez objasnjenja sta se desilo.
+          if (room.game.state.phase !== 'WAITING') {
+            io.to(room.code).emit('room:playerReconnected', { seat, name });
+          }
         }
       } else {
         const spectator = room.spectators.get(userId);
@@ -538,7 +544,18 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     const room = getRoomByCode(loc.code);
     if (!room) return;
     if (loc.role === 'player') {
-      if (room.sockets[loc.seat] === socket) room.sockets[loc.seat] = null;
+      if (room.sockets[loc.seat] === socket) {
+        room.sockets[loc.seat] = null;
+        // Korisnikov zahtev: "nema notifikacije kad neko ispadne sa mreze
+        // ili greskom zatvori browser" — dosad je SAMO eksplicitno "napusti
+        // partiju" obavestavalo ikoga. Seat ostaje rezervisan (M6 reconnect
+        // ceka ih neogranicano, namerno — ne postaje abandonedSeat/AI ovde),
+        // ali ostali makar znaju STA se desilo umesto da samo vide da neko
+        // "cuti".
+        if (room.game.state.phase !== 'WAITING') {
+          io.to(room.code).emit('room:playerDisconnected', { seat: loc.seat, name });
+        }
+      }
     } else {
       const spectator = room.spectators.get(userId);
       if (spectator?.socket === socket) spectator.socket = null;
