@@ -252,7 +252,10 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
   });
 
   socket.on('presence:list', (_payload: unknown, ack?: Ack) => {
-    ack?.({ users: listOnlineUsers() });
+    // Korisnikov zahtev: "dugme Pozovi pored svog imena je preglupo" — "ko
+    // je online" znaci ko je DRUGI online, sopstveni unos se filtrira ovde
+    // (jedno mesto, pokriva i buducu upotrebu ove liste, ne samo sobu).
+    ack?.({ users: listOnlineUsers().filter((u) => u.userId !== userId) });
   });
 
   // "Pozovi igraca" — korisnikov zahtev: umesto da se kod sobe deli rucno
