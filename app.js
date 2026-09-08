@@ -505,7 +505,10 @@ const cardEl = (c, opts = {}) => {
   if (opts.disabled) klass.push('disabled');
   if (opts.selected) klass.push('selected');
   const node = el('div', klass.join(' '));
-  node.innerHTML = `<div class="rank">${c.rank}</div><div class="suit">${c.suit}</div>`;
+  // corner-index = mali indeks u gornjem levom uglu (korisnikov zahtev —
+  // "klasican izgled kao prave karte"), pored postojeceg velikog centralnog
+  // rank+suit (drzan zbog citljivosti u igri na daljinu, ne zamenjen).
+  node.innerHTML = `<div class="corner-index"><span class="corner-rank">${c.rank}</span><span class="corner-suit">${c.suit}</span></div><div class="rank">${c.rank}</div><div class="suit">${c.suit}</div>`;
   return node;
 };
 
