@@ -75,23 +75,6 @@ function broadcastRoomState(room: RoomState): void {
     `[JOIN DEBUG] broadcastRoomState room=${room.code} phase=${room.game.state.phase} ` +
     `seats=${room.sockets.map((s, i) => `${i}:${room.seatUserIds[i] ?? '-'}:${s ? (s.connected ? 'live' : 'dead') : 'empty'}`).join(',')}`
   );
-  // PRIVREMENO dijagnosticko logovanje (uzivo prijavljeno VISE puta: tabela
-  // "Pratnja" kolona prazna na rukama gde je stvarno bilo pratilaca) —
-  // ukloniti posle potvrde uzroka. Belezi TACNO stanje koje SERVER salje
-  // klijentu na svaki GAME_OVER broadcast — ako OVDE followChoices/caller/
-  // tricksWon vec izgledaju pogresno, bag je server-side (ili u samom
-  // engine-u); ako izgledaju ISPRAVNO ovde a klijent i dalje prikazuje
-  // prazno, bag je sigurno u app.js-u (recordHandIfNew/computeFollowSeats).
-  if (room.game.state.phase === 'GAME_OVER') {
-    const s = room.game.state;
-    console.log(
-      `[TABELA DEBUG] room=${room.code} round=${s.round} winner=${s.winner} ` +
-      `declaredGame=${s.declaredGame} followChoices=${JSON.stringify(s.followChoices)} ` +
-      `caller=${s.caller} callee=${s.callee} tricksLen=${s.tricks.length} ` +
-      `tricksWon=${JSON.stringify(s.players.map(p => p.tricksWon))} ` +
-      `lastHandResult.passed=${s.lastHandResult?.passed}`
-    );
-  }
   room.sockets.forEach((socket, seat) => {
     socket?.emit('game:state', buildClientState(room, { type: 'player', seat: seat as Position }));
   });

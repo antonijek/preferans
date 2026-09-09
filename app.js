@@ -385,6 +385,25 @@ let lastRecordedRound = null;
 let lastRefeSum = 0;
 let lastRefePendingSum = 0;
 
+// BAG (uzivo prijavljen 2026-09-08/09): tabela je prikazivala "duh" red iz
+// PRETHODNE partije (npr. "Krug 2" na tabli iako je odigrana samo 1 ruka).
+// Uzrok: handHistory je modul-nivo niz koji je zivot vezan za CEO zivotni
+// vek stranice (tab), a ne za pojedinacnu sobu/partiju — kod restart-a
+// servera ili ulaska u NOVU sobu bez reload-a stranice, stari zapisi iz
+// prethodne partije ostajali su zauvek u nizu. Server-side dijagnostika
+// (TABELA DEBUG log) je potvrdila: server je poslao GAME_OVER SAMO za
+// krug=1, a "krug 2" red u tabeli nije nikad postojao server-side u toj
+// sesiji — cisto stara klijentska memorija. Zovi ovo pri svakom SVESNOM
+// ulasku u sobu (create/join/spectate), ne pri automatskom reconnect-u na
+// ISTU sobu (taj put ne prolazi kroz ove funkcije).
+function resetHandHistoryForNewRoom() {
+  handHistory = [];
+  debtMatrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  lastRecordedRound = null;
+  lastRefeSum = 0;
+  lastRefePendingSum = 0;
+}
+
 // Kumulativni neto odnos izmedju DVA igraca: pozitivno = "other" duguje
 // "me"-u, negativno = "me" duguje "other"-u (korisnikov format: "20" = meni
 // duguje 20, "-30" = ja dugujem 30).
@@ -455,14 +474,6 @@ function recordHandIfNew() {
     // wasPlayed razlikuje ova dva slucaja za prikaz (vidi renderScoreContent).
     wasPlayed: game.state.tricks.length > 0,
   });
-  // PRIVREMENO dijagnosticko logovanje (uzivo prijavljeno: "dosao sam na
-  // tref, uzeo 4 stiha, tabela pokazuje niti ko je dosao niti koliko je ko
-  // uhvatio" — nisam uspeo da reprodukujem lokalno, isti scenario preko
-  // cistog engine poziva daje ispravne podatke). Ukloniti posle potvrde
-  // uzroka sledeci put kad se ovo desi (proveriti F12 konzolu).
-  console.log('[TABELA DEBUG]', JSON.stringify(handHistory[handHistory.length - 1]),
-    'followChoices=', JSON.stringify(game.state.followChoices),
-    'caller=', game.state.caller, 'callee=', game.state.callee);
   if (result.winner !== null) {
     for (let p = 0; p < 3; p++) {
       if (p !== result.winner && result.supeDelta[p] > 0) {
@@ -2604,6 +2615,7 @@ function createRoomOnline() {
     if (res.error) { $('roomError').textContent = res.error; return; }
     mySeat = res.seat;
     myRoomCode = res.code;
+    resetHandHistoryForNewRoom();
     $('roomCodeInput').value = res.code;
     $('roomStatus').innerHTML = `Kod sobe: <b style="font-size:1.3em">${res.code}</b> — podeli ga sa drugarima. Čeka se još igrača...`;
   });
@@ -2616,6 +2628,7 @@ function joinRoomOnline() {
     if (res.error) { $('roomError').textContent = res.error; return; }
     mySeat = res.seat;
     myRoomCode = res.code;
+    resetHandHistoryForNewRoom();
     $('roomStatus').textContent = `Pridružen sobi ${res.code}, čeka se početak...`;
   });
 }
@@ -2627,6 +2640,7 @@ function joinAsSpectatorOnline() {
     if (res.error) { $('roomError').textContent = res.error; return; }
     mySeat = null;
     myRoomCode = res.code;
+    resetHandHistoryForNewRoom();
     $('roomStatus').textContent = `Kibiciraš sobu ${res.code}.`;
     $('kibicRequestPanel').style.display = '';
   });
