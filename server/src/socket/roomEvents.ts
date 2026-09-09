@@ -255,6 +255,24 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     ack?.({ rooms: listOpenRooms() });
   });
 
+  // Korisnikov zahtev: "ustani od stola" (peekHomeScreen, klijent) treba da
+  // se vidi ostalima ISTO kao pravi disconnect — sediste se prazni dok se
+  // korisnik sam ne vrati. Ovo NE menja server-side stanje (soket ostaje
+  // ziv, sediste ostaje njihovo) — samo relejuje isti vizuelni signal koji
+  // pravi disconnect/reconnect vec koriste.
+  socket.on('room:setAway', (_payload: unknown) => {
+    const room = currentRoom();
+    const loc = getUserLocation(userId);
+    if (!room || loc?.role !== 'player') return;
+    io.to(room.code).emit('room:playerDisconnected', { seat: loc.seat, name });
+  });
+  socket.on('room:setBack', (_payload: unknown) => {
+    const room = currentRoom();
+    const loc = getUserLocation(userId);
+    if (!room || loc?.role !== 'player') return;
+    io.to(room.code).emit('room:playerReconnected', { seat: loc.seat, name });
+  });
+
   socket.on('presence:list', (_payload: unknown, ack?: Ack) => {
     // Korisnikov zahtev: "dugme Pozovi pored svog imena je preglupo" — "ko
     // je online" znaci ko je DRUGI online, sopstveni unos se filtrira ovde

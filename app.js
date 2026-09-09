@@ -419,6 +419,12 @@ function recordHandIfNew() {
     // cim krene sledeca, a istorija se renderuje mnogo kasnije).
     followSeats: computeFollowSeats(game.state),
     tricksWon: [game.state.players[0].tricksWon, game.state.players[1].tricksWon, game.state.players[2].tricksWon],
+    // Korisnikov zahtev (potvrdjeno u engine kodu — game.ts endHand() racuna
+    // "combinedTricks = caller.tricksWon + callee.tricksWon" za SUPU kad
+    // nosilac padne): kad je neko POZVAN, njegovi stihovi idu ZAJEDNO sa
+    // zvaocem, ne prikazuju se odvojeno/izostavljeno. caller/callee ovde da
+    // render zna da sabere umesto da prikaze samo zvaocev pojedinacni broj.
+    caller: game.state.caller, callee: game.state.callee,
     // Korisnikov zahtev: tabela je pokazivala "prošao (0)" za "niko ne
     // prati" ruke, sto izgleda kao bag. NIJE — engine (handleNoOneFollows,
     // RULES 5.4) racuna bule/supe direktno preko formule za ove "neodigrane"
@@ -599,12 +605,23 @@ function escapeHtml(str) {
 
 // === RENDER: STO & SEDENJA ===
 
+// Korisnikov zahtev: "cim korisnik ispadne sa mreze... mora odmah da se
+// makne sa stola, da ne pise njegovo ime". Ovo je ODVOJENO od abandonedSeat
+// (koje se postavlja SAMO na eksplicitno "napusti partiju" — genuine
+// disconnect NAMERNO ne postaje abandonedSeat, M6 reconnect ceka
+// neograniceno) — cisto vizuelni, per-viewer signal iz room:playerDisconnected/
+// room:playerReconnected, ne menja server-side stanje.
+let disconnectedSeats = new Set();
+
 function renderSeats() {
   // Postavi (ili osvezi, u online modu se imena saznaju tek posle
   // pridruzivanja/svakog novog stanja) imena sedista
-  $(`name-${seatOf(0)}`).textContent = seatDisplayName(0);
-  $(`name-${seatOf(1)}`).textContent = seatDisplayName(1);
-  $(`name-${seatOf(2)}`).textContent = seatDisplayName(2);
+  for (const pos of [0, 1, 2]) {
+    // Kratko — .player-name kutija je uska (104px) i uppercase+bold, duzi
+    // tekst ("nema veze") se sece "...".
+    $(`name-${seatOf(pos)}`).textContent = disconnectedSeats.has(pos) ? 'nije tu' : seatDisplayName(pos);
+    $(`seat-${seatOf(pos)}`).classList.toggle('disconnected', disconnectedSeats.has(pos));
+  }
 
   // Update bule / tricks / cards
   for (let pos = 0; pos < 3; pos++) {
@@ -1840,8 +1857,17 @@ function renderScoreContent() {
       // ostaje 0 za sve (nikad se stvarno ne igra), pa bi "(0)" izgledalo kao
       // bag ("nosilac prosao a nije uhvatio nijedan stih"). Bez broja u tom
       // slucaju je tacnije nego pogresno "(0)".
+      // Korisnikov zahtev (potvrdjeno u engine game.ts endHand() — "combinedTricks"
+      // za supu kad nosilac padne): kad postoji poziv, POZVANI (callee) se ne
+      // prikazuje odvojeno — njegovi stihovi se DODAJU zvaocu, jer zajedno
+      // igraju kao jedna strana. Bez ovoga je izgledalo kao da nedostaju
+      // stihovi (npr. zvaoc 2, pozvani 3 stvarno uhvacena — prikazivano je
+      // samo "2", "falili" 3).
       const followTxt = h.wasPlayed && h.followSeats && h.followSeats.length > 0
-        ? h.followSeats.map(p => `<span class="follow-line">${POS_LABELS[p]}: ${h.tricksWon[p]}</span>`).join('')
+        ? h.followSeats.map(p => {
+            const combined = (h.caller === p && h.callee !== null) ? h.tricksWon[p] + h.tricksWon[h.callee] : h.tricksWon[p];
+            return `<span class="follow-line">${POS_LABELS[p]}: ${combined}</span>`;
+          }).join('')
         : '—';
       const winnerTricks = h.wasPlayed && h.winner !== null && h.tricksWon ? h.tricksWon[h.winner] : null;
       const resultTxt = h.passed
@@ -2243,9 +2269,15 @@ async function connectOnlineSocket() {
   });
   onlineSocket.on('room:playerDisconnected', (p) => {
     if (p.seat === mySeat) return;
+    // Korisnikov zahtev: ne samo obavestenje — sediste se ODMAH vizuelno
+    // "isprazni" (ime uklonjeno) dok se ta osoba ne vrati.
+    disconnectedSeats.add(p.seat);
+    renderSeats();
     showAppToast(`📵 ${escapeHtml(p.name)} je ispao sa mreže — čeka se povratak...`);
   });
   onlineSocket.on('room:playerReconnected', (p) => {
+    disconnectedSeats.delete(p.seat);
+    renderSeats();
     if (p.seat === mySeat) return;
     showAppToast(`✅ ${escapeHtml(p.name)} se vratio`);
   });
@@ -2268,6 +2300,7 @@ function backToSetup() {
   mySeat = null;
   myRoomCode = null;
   awayFromTable = false;
+  disconnectedSeats.clear();
   $('loginScreen').classList.remove('active');
   $('homeScreen').classList.remove('active');
   $('roomScreen').classList.remove('active');
@@ -2297,6 +2330,7 @@ function goToHomeScreen() {
 function peekHomeScreen() {
   if (mode !== 'online') return;
   awayFromTable = true;
+  onlineSocket?.emit('room:setAway', {});
   document.body.classList.remove('online-in-game');
   $('roomScreen').classList.remove('active');
   $('setupScreen').classList.remove('active');
@@ -2307,7 +2341,8 @@ window.peekHomeScreen = peekHomeScreen;
 
 function backToTable() {
   awayFromTable = false;
-  $('backToTableBtn').style.display = 'none';
+  onlineSocket?.emit('room:setBack', {});
+  disconnectedSeats.clear();
   document.body.classList.add('online-in-game');
   $('homeScreen').classList.remove('active');
   render();
@@ -2329,6 +2364,7 @@ function logoutOnline() {
   mySeat = null;
   myRoomCode = null;
   awayFromTable = false;
+  disconnectedSeats.clear();
   $('homeScreen').classList.remove('active');
   $('roomScreen').classList.remove('active');
   $('chatScreen').classList.remove('open');
@@ -2390,13 +2426,25 @@ window.inviteOnlineUser = inviteOnlineUser;
 
 // Banner za primljenu pozivnicu — isti obrazac kao kibic-zahtev banner
 // (textContent svuda, fromName je tudji unos).
+// Korisnikov zahtev (ponovljen): ranije je delio .kibic-request-banner CSS
+// (jedan red, tekst+dugmad zbijeni) sa kibic-zahtevom, sto je za DUZI tekst
+// poziva ("Ime te poziva u sobu KOD.") delovalo zbijeno/neuredno. Sopstvena
+// klasa (.invite-banner) — tekst u SVOM redu, dugmad ispod u redu, jasno
+// obojena (zeleno = potvrdi, neutralno = odbaci), kao .leave-confirm-banner
+// obrazac koji vec dobro izgleda.
 function showInviteBanner(code, fromName) {
   const banner = document.createElement('div');
-  banner.className = 'kibic-request-banner';
-  const span = document.createElement('span');
-  span.textContent = `${fromName} te poziva u sobu ${code}.`;
-  banner.appendChild(span);
+  banner.className = 'invite-banner';
+  const icon = document.createElement('div');
+  icon.className = 'invite-banner-icon';
+  icon.textContent = '📞';
+  const text = document.createElement('div');
+  text.className = 'invite-banner-text';
+  text.textContent = `${fromName} te poziva u sobu ${code}`;
+  const actions = document.createElement('div');
+  actions.className = 'invite-banner-actions';
   const join = document.createElement('button');
+  join.className = 'bid-btn primary';
   join.textContent = 'Pridruži se';
   join.onclick = () => {
     banner.remove();
@@ -2405,10 +2453,14 @@ function showInviteBanner(code, fromName) {
     joinRoomOnline();
   };
   const dismiss = document.createElement('button');
+  dismiss.className = 'bid-btn';
   dismiss.textContent = 'Zatvori';
   dismiss.onclick = () => banner.remove();
-  banner.appendChild(join);
-  banner.appendChild(dismiss);
+  actions.appendChild(join);
+  actions.appendChild(dismiss);
+  banner.appendChild(icon);
+  banner.appendChild(text);
+  banner.appendChild(actions);
   $('kibicBanners').appendChild(banner);
 }
 
@@ -2635,6 +2687,7 @@ function doLeaveMatch() {
     $('chatScreen').classList.remove('open');
     mySeat = null;
     awayFromTable = false;
+    disconnectedSeats.clear();
     goToHomeScreen();
     showAppToast(`Napustio si partiju na buli ${res.frozenBula}.`);
   });

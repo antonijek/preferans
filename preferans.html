@@ -338,6 +338,11 @@
     border-bottom-color: rgba(129,199,132,0.4);
     color: #c8e6c9;
   }
+  /* Korisnikov zahtev: sediste nekog ko je ispao sa mreze treba ODMAH
+     vizuelno da se "isprazni" (ne samo obavestenje) — ugaseno/sivo dok se
+     ne vrati. Ime samo (renderSeats()) se menja na "— nema veze —". */
+  .player-seat.disconnected { opacity: 0.45; filter: grayscale(0.7); }
+  .player-seat.disconnected .player-name { font-style: italic; }
   /* Naglasenije "na potezu" isticanje (korisnikov utisak: "sad je lose
      naglaseno") — deblja zuta ivica + blagi puls umesto staticnog sjaja,
      da privuce pogled i na periferiji ekrana. */
@@ -1055,6 +1060,24 @@
   .leave-confirm-banner .leave-confirm-actions { display: flex; gap: 10px; justify-content: center; }
   .leave-confirm-banner button { width: auto; margin: 0; padding: 6px 14px; min-height: unset; }
 
+  /* Poziv u sobu — sopstvena kartica (korisnikov zahtev, ponovljen: deljena
+     .kibic-request-banner klasa je za ovaj duzi tekst delovala zbijeno).
+     Ikonica+tekst gore, dugmad ispod u svom redu, jasno obojena. */
+  .invite-banner {
+    position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(180deg, #3a2a1a 0%, #201409 100%);
+    border: 2px solid var(--gold);
+    border-radius: 12px;
+    padding: 14px 18px; z-index: 500;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    max-width: 320px; text-align: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  }
+  .invite-banner-icon { font-size: 1.8em; }
+  .invite-banner-text { font-weight: 600; line-height: 1.4; }
+  .invite-banner-actions { display: flex; gap: 10px; justify-content: center; width: 100%; }
+  .invite-banner-actions button { width: auto; margin: 0; padding: 7px 16px; min-height: unset; flex: 1; }
+
   #kibicRequestPanel {
     position: fixed; top: 70px; right: 12px; z-index: 400;
     border: 2px solid rgba(var(--gold-rgb),0.5);
@@ -1283,7 +1306,8 @@
        skroluje, uzivo prijavljeno "ne radi vert. scroll"). */
     #rightSidePanel .bid-log { flex-direction: column; flex-wrap: nowrap; align-items: stretch; width: 100%; margin: 0; }
     #rightSidePanel .bid-entry { justify-content: center; }
-    #rightSidePanel .bid-controls { flex-direction: column; align-items: stretch; }
+    /* ISTI bag kao .bid-log iznad — flex-wrap:nowrap OBAVEZAN, ne kozmetika. */
+    #rightSidePanel .bid-controls { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
     #rightSidePanel .bid-controls .section-label { text-align: center; }
     #rightSidePanel .bid-btn { width: 100%; max-width: none; flex: none; }
   }
@@ -1342,12 +1366,18 @@
        justify-content:center), u RED (ne koloni) jer je taj prostor plitak
        ali sirok. */
     /* Korisnikov zahtev: u JEDNOM redu su 4 dugmeta bila dovoljno siroka da
-       prekriju poslednju kartu u ruci ispod njih. 2x2 mreza umesto 1x4 reda
-       prepolovljuje potrebnu sirinu (visina raste, ali tu ima slobodnog
-       crnog prostora ispod stola koji se ionako ne koristi). */
+       prekriju poslednju kartu u ruci ispod njih. Vise redova oslobadja
+       sirinu (visina raste, ali tu ima slobodnog crnog prostora ispod
+       stola koji se ionako ne koristi). NAPOMENA: dodavanje 🏠 dugmeta je
+       ovo pokvarilo — sad ima 5 ikonica (chat/predaja/kuca/tabela/zvuk) u
+       ONLINE modu, a 2x2 GRID (fiksne 2 kolone) ostavlja 5. usamljenu u
+       sopstvenom redu, poravnatu levo umesto centrirano. flex-wrap+
+       justify-content:center (umesto grid) centrira SVAKI red nezavisno —
+       max-width ogranicava na TACNO 3 po redu (icon ~34px + gap 4px). */
     .top-actions {
       position: fixed; bottom: 4px; right: 4px;
-      display: grid; grid-template-columns: repeat(2, auto); gap: 4px; z-index: 90;
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; z-index: 90;
+      max-width: 138px;
       background: rgba(0,0,0,0.4); padding: 4px; border-radius: 10px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.4);
     }
@@ -1376,7 +1406,8 @@
     #leftSidePanel { grid-column: 1; }
     #rightSidePanel { grid-column: 3; }
     #rightSidePanel .bid-log { flex-direction: column; flex-wrap: nowrap; align-items: stretch; width: 100%; margin: 0; padding: 3px 2px; }
-    #rightSidePanel .bid-controls { flex-direction: column; align-items: stretch; }
+    /* ISTI bag kao .bid-log iznad — flex-wrap:nowrap OBAVEZAN, ne kozmetika. */
+    #rightSidePanel .bid-controls { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
     #rightSidePanel .bid-btn { width: 100%; max-width: none; flex: none; }
     /* Manje horizontalnog paddinga u samoj bid-entry "pilulici" — korisnikov
        zahtev: "tekst uzak, ima mnogo padinga sa leve i desne strane, ne
