@@ -412,6 +412,20 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
         `passed=${s.players.map(p => p.hasPassedBid)} bidLevels=${s.players.map(p => p.bidLevel)}`
       );
     }
+    if (safeAction.type === 'follow' || safeAction.type === 'call') {
+      // PRIVREMENO dijagnosticko logovanje (uzivo prijavljen bag: tabela
+      // "Pratnja" prazna na rukama gde je bilo pratilaca) — ukloniti posle
+      // potvrde uzroka. Belezi followChoices ODMAH posle applyAction, dok se
+      // phase eventualno vec prebacila na GAME_OVER (niko ne prati, RULES
+      // 5.4) — ako OVDE oba pratioca vec pokazuju NE_DODJEM, prazna
+      // Pratnja/bez broja stihova u tabeli je ISPRAVNO ponasanje, ne bag.
+      const s = room.game.state;
+      console.log(
+        `[FOLLOW DEBUG] room=${room.code} action=${JSON.stringify(safeAction)} accepted=${accepted} ` +
+        `phase=${s.phase} winner=${s.winner} followChoices=${JSON.stringify(s.followChoices)} ` +
+        `caller=${s.caller} callee=${s.callee} declaredGame=${s.declaredGame}`
+      );
+    }
     if (accepted) {
       broadcastRoomState(room);
     } else {
