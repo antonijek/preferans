@@ -848,6 +848,15 @@
     opacity: 0.5; cursor: not-allowed; filter: grayscale(0.4);
   }
   #roomScreen .mode-btn:disabled:hover { background: linear-gradient(180deg, #2e5c32 0%, #1a3a1d 100%); }
+  /* Isti tamnozeleni ton i na malim icon-btn dugmadima ove stranice
+     (osvezi liste sobe/online) — bez ovoga bi ostao usamljen zlatni
+     kvadratic pored inace potpuno zelenih dugmadi. */
+  #roomScreen .icon-btn {
+    background: linear-gradient(180deg, #2e5c32 0%, #1a3a1d 100%);
+    border-color: rgba(76, 175, 80, 0.5);
+    color: #e8f5e9;
+  }
+  #roomScreen .icon-btn:hover { background: linear-gradient(180deg, #386b3d 0%, #234a27 100%); }
 
   .online-users-grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;
