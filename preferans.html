@@ -1096,6 +1096,36 @@
      ".screen .score-box" ovde ima istu (0,2,0) specificnost KAO ".screen
      .box" ALI dolazi kasnije u fajlu pa pobedjuje po redosledu. */
   .screen .score-box { max-width: min(94vw, 920px); }
+  /* Korisnikov zahtev: "pozadina tabele je tamna, a stranica je inace
+     tamna, pa je sve jedva vidljivo" — deljena ".screen .box" braon
+     gradijent (#3c2b1a-#1e150c) je premalo svetliji od skoro-crne
+     pozadine iza (.screen je rgba(0,0,0,0.85)) da bi tabela stvarno
+     "iskocila". Primetno svetliji/topliji mahagoni SAMO za ovaj box,
+     plus jaci zlatni obrub za jasnu granicu. */
+  .screen .score-box {
+    background: linear-gradient(180deg, #5a4023 0%, #2e2010 100%);
+    border-color: rgba(var(--gold-rgb), 0.65);
+  }
+  /* Korisnikov zahtev: na telefonu se redovi tabele lome (kolone preuske)
+     — "daj scrol na vertikalnom a na horizontalnom prosiri skoro po
+     citavom ekranu". table-layout:fixed drzi kolone unutar box sirine, pa
+     jedini nacin da se izbegne lomljenje sadrzaja je da SAM box bude sirok
+     skoro koliko i ekran (umesto 94vw sa punim 24px paddingom), uz manji
+     padding/font da tabela iskoristi taj prostor. Vertikalni scroll vec
+     radi (.screen .box ima max-height:90vh;overflow-y:auto) — ovde samo
+     dodajemo touch-scroll pouzdanost, isti obrazac kao za landscape
+     side-panele ranije ovog fajla. */
+  @media (max-width: 480px) {
+    .screen .score-box {
+      max-width: 99vw;
+      padding: 16px 8px;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+    .score-table { font-size: 0.78em; }
+    .score-table th, .score-table td { padding: 5px 3px; }
+    .score-focal-card { padding: 10px; }
+  }
   /* Korisnikov zahtev: "ima horizontalni scroll, nema potrebe prosiri
      modal" — table-layout:fixed prisiljava kolone da UVEK staju u 100%
      sirine (auto layout inace pusti tabelu da preraste kontejner kad
