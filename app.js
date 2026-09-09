@@ -2253,7 +2253,7 @@ async function connectOnlineSocket() {
   // pozdravnog ekrana na sobu, jer tu se kod stvarno vidi.
   onlineSocket.on('room:info', (info) => {
     if (info.seat !== null) mySeat = info.seat;
-    if (info.code) { $('roomCodeInput').value = info.code; myRoomCode = info.code; }
+    if (info.code) { $('roomCodeInput').value = info.code; myRoomCode = info.code; updateRoomJoinButtonState(); }
     if (game.state?.phase === 'WAITING' || !game.state) {
       $('roomStatus').innerHTML = `Kod sobe: <b style="font-size:1.3em">${info.code}</b> — čeka se još igrača...`;
       $('homeScreen').classList.remove('active');
@@ -2583,7 +2583,25 @@ function renderOnlineUsers(users) {
   }
 }
 
+// Korisnikov zahtev: "dugme Pridruzi se treba da bude disable ako sam se
+// vec pridruzio" — za RUCNI unos koda (ne per-red dugme u listi, koje vec
+// ima svoju "Ti si ovde" logiku ispod). Pozvano na svaki unos u polje, i
+// ovde (renderRoomList vec radi periodicno preko startRoomListPolling) da
+// se stanje samo-ispravi i kad se myRoomCode promeni negde drugde bez da
+// korisnik dira polje (npr. posle create/join).
+function updateRoomJoinButtonState() {
+  const input = $('roomCodeInput');
+  const btn = $('roomJoinBtn');
+  if (!input || !btn) return;
+  const typed = input.value.trim().toUpperCase();
+  const alreadyIn = myRoomCode !== null && typed === myRoomCode;
+  btn.disabled = alreadyIn;
+  btn.title = alreadyIn ? 'Već si u ovoj sobi' : '';
+}
+window.updateRoomJoinButtonState = updateRoomJoinButtonState;
+
 function renderRoomList(rooms) {
+  updateRoomJoinButtonState();
   const countEl = $('homeRoomCount');
   if (countEl) countEl.textContent = `🃏 ${rooms.length} ${rooms.length === 1 ? 'otvorena soba' : 'otvorenih soba'}`;
 
@@ -2636,6 +2654,7 @@ function createRoomOnline() {
     resetHandHistoryForNewRoom();
     $('roomCodeInput').value = res.code;
     $('roomStatus').innerHTML = `Kod sobe: <b style="font-size:1.3em">${res.code}</b> — podeli ga sa drugarima. Čeka se još igrača...`;
+    updateRoomJoinButtonState();
   });
 }
 
@@ -2648,6 +2667,7 @@ function joinRoomOnline() {
     myRoomCode = res.code;
     resetHandHistoryForNewRoom();
     $('roomStatus').textContent = `Pridružen sobi ${res.code}, čeka se početak...`;
+    updateRoomJoinButtonState();
   });
 }
 
@@ -2661,6 +2681,7 @@ function joinAsSpectatorOnline() {
     resetHandHistoryForNewRoom();
     $('roomStatus').textContent = `Kibiciraš sobu ${res.code}.`;
     $('kibicRequestPanel').style.display = '';
+    updateRoomJoinButtonState();
   });
 }
 

@@ -816,18 +816,38 @@
   .room-panels {
     max-width: 980px; margin: 0 auto; padding: 20px 24px 10px;
     display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;
-    align-items: start;
+    /* Korisnikov zahtev: "leva strana kraca od desne" — grid default bi
+       vec bio stretch, ali eksplicitno "start" (ranija verzija) je terao
+       svaki panel da se skupi na SOPSTVENU visinu sadrzaja. Stretch = oba
+       panela dele visinu VISEG od njih dvoje, izgledaju kao par. */
+    align-items: stretch;
   }
   .room-panel {
     background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: 14px; padding: 22px 20px;
+    display: flex; flex-direction: column;
   }
   .room-footer-actions {
     max-width: 980px; margin: 0 auto; padding: 24px 24px 50px;
     display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
   }
   .room-footer-actions .mode-btn { flex: 1; min-width: 160px; }
+  /* Korisnikov zahtev: "umesto zlatnih dugmadi stavi zelena, nesto
+     tamnija" — SAMO na Sobi (ne dira .mode-btn svuda drugde na sajtu).
+     Tamnija/muklija od svetlog "potvrdi" zelenog (.bid-btn.primary,
+     #scoreScreen .mode-btn) da se ne pomesaju znacenja — ovo je "obicna"
+     akcija ovde, ne posebno "potvrdi/aktivno" stanje. */
+  #roomScreen .mode-btn {
+    background: linear-gradient(180deg, #2e5c32 0%, #1a3a1d 100%);
+    border-color: rgba(76, 175, 80, 0.5);
+    color: #e8f5e9;
+  }
+  #roomScreen .mode-btn:hover { background: linear-gradient(180deg, #386b3d 0%, #234a27 100%); }
+  #roomScreen .mode-btn:disabled {
+    opacity: 0.5; cursor: not-allowed; filter: grayscale(0.4);
+  }
+  #roomScreen .mode-btn:disabled:hover { background: linear-gradient(180deg, #2e5c32 0%, #1a3a1d 100%); }
 
   .online-users-grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;
@@ -1818,10 +1838,10 @@
 
       <div class="text-field">
         <label for="roomCodeInput">Ili unesi kod sobe ručno</label>
-        <input type="text" id="roomCodeInput" placeholder="npr. 9A7AU" style="text-transform:uppercase">
+        <input type="text" id="roomCodeInput" placeholder="npr. 9A7AU" style="text-transform:uppercase" oninput="updateRoomJoinButtonState()">
       </div>
       <div style="display:flex;gap:8px">
-        <button class="mode-btn" onclick="joinRoomOnline()">Pridruži se</button>
+        <button class="mode-btn" id="roomJoinBtn" onclick="joinRoomOnline()">Pridruži se</button>
         <button class="mode-btn" onclick="joinAsSpectatorOnline()">Kibiciraj</button>
       </div>
       <div class="field-error" id="roomError"></div>
