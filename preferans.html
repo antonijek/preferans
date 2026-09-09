@@ -796,6 +796,39 @@
   .feature-card h3 { font-family: 'Cinzel', serif; font-size: 1.05em; margin-bottom: 6px; }
   .feature-card p { color: rgba(255,255,255,0.65); font-size: 0.88em; line-height: 1.5; }
 
+  /* === Soba kao PRAVA stranica (isti obrazac kao pozdravni ekran gore) === */
+  .room-hero {
+    padding: 90px 24px 20px;
+    text-align: center;
+    background: radial-gradient(ellipse at top, rgba(76,175,80,0.18) 0%, transparent 65%);
+  }
+  .room-hero-title {
+    font-family: 'Cinzel', serif; font-weight: 800; font-size: clamp(1.8em, 5vw, 2.4em);
+    background: linear-gradient(180deg, #ffffff 0%, #c8e6c9 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    margin-bottom: 8px;
+  }
+  .room-status-line { color: rgba(255,255,255,0.75); min-height: 1.4em; margin-bottom: 14px; }
+  .room-hero .room-online-toggle { max-width: 320px; margin: 0 auto; }
+  .room-hero #onlineUsersList { max-width: 640px; margin: 10px auto 0; }
+
+  .room-panels {
+    max-width: 980px; margin: 0 auto; padding: 20px 24px 10px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;
+    align-items: start;
+  }
+  .room-panel {
+    background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px; padding: 22px 20px;
+  }
+  .room-footer-actions {
+    max-width: 980px; margin: 0 auto; padding: 24px 24px 50px;
+    display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+  }
+  .room-footer-actions .mode-btn { flex: 1; min-width: 160px; }
+
   .online-users-grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;
   }
@@ -830,27 +863,6 @@
     max-height: 90vh;
     overflow-y: auto;
     transition: border-color 0.3s, box-shadow 0.3s;
-  }
-  /* Korisnikov zahtev, DRUGI pokusaj: samo sirenje nije bilo dovoljno —
-     "soba je i dalje modal sa scrolom". Pravi uzrok forme je sam OBLIK:
-     centrirana kartica sa unutrasnjim overflow-y:auto UVEK deluje kao
-     dijalog, bez obzira na sirinu (isti zakljucak vec jednom izveden za
-     pocetni ekran, vidi .screen.rich-page gore — dokazan obrazac,
-     ponovljen ovde umesto novog pristupa). #roomScreen postaje "prava"
-     stranica: screen sam skroluje (ne unutrasnja kutija), sadrzaj vise
-     nije ogranicene visine niti centriran u praznini, samo ograničene
-     sirine radi citljivosti. HTML/ID-jevi/JS netaknuti — cisto CSS. */
-  #roomScreen.screen.active {
-    display: block;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: 24px 16px 48px;
-  }
-  #roomScreen .box {
-    max-width: 640px;
-    margin: 0 auto;
-    max-height: none;
-    overflow: visible;
   }
   /* Kraj CELE partije (MATCH_OVER) — vise vizuelnog "wow" efekta nego obican
      kraj runde, pošto je ovo najvazniji trenutak da igra ostavi dobar utisak. */
@@ -1130,6 +1142,17 @@
     background: linear-gradient(180deg, #1e4d22 0%, #0d2410 100%);
     border-color: rgba(76, 175, 80, 0.6);
   }
+  /* Korisnikov zahtev: "dugme zatvori tabelu je i dalje braon" — .mode-btn
+     je deljena braon/mesing klasa (za SVA dugmad van stola), ali unutar
+     ZELENE Tabele deluje neusaglaseno. Zeleno je vec rezervisano za
+     potvrdi/aktivno (korisnikov raniji izbor) — Zatvori ovde jeste tacno
+     ta vrsta akcije. */
+  #scoreScreen .mode-btn {
+    background: linear-gradient(180deg, #5cbf60 0%, #43a047 100%);
+    border-color: #66bb6a;
+    color: #0d2410;
+  }
+  #scoreScreen .mode-btn:hover { background: linear-gradient(180deg, #66c96a 0%, #4caf50 100%); }
   /* Korisnikov zahtev: na telefonu se redovi tabele lome (kolone preuske)
      — "daj scrol na vertikalnom a na horizontalnom prosiri skoro po
      citavom ekranu". table-layout:fixed drzi kolone unutar box sirine, pa
@@ -1754,50 +1777,62 @@
 </div>
 
 <!-- Online: soba -->
-<div class="screen full-page" id="roomScreen">
+<!-- Korisnikov zahtev: "soba mi se uopste ne svidja... UI potpuno promeni,
+     funkcionalnost neka ostane" — isti ".rich-page" obrazac kao pozdravni
+     ekran (dokazan, vec resio identican utisak tamo), umesto jedne uske
+     braon kartice: hero naslov + DVA staklena panela (Napravi/Pridruzi se)
+     jedan pored drugog na sirem ekranu, jedan ispod drugog na telefonu
+     (auto-fit grid, bez media querija). SVI ID-jevi/onclick pozivi ispod
+     su IDENTICNI kao pre — cisto vizuelno grupisanje/stil. -->
+<div class="screen rich-page" id="roomScreen">
   <div class="full-page-header"><span class="logo">🃏 Preferans</span></div>
-  <div class="box setup-box">
-    <h2 class="setup-title">Soba</h2>
-    <div id="roomStatus" style="margin-bottom:12px;min-height:1.4em"></div>
 
-    <!-- Korisnikov zahtev: lista "ko je online" je ranije uvek stajala
-         razvucena na vrhu sobe, guralа sve ostalo dole i cinila ekran
-         predugackim (posebno na telefonu, "vrh i dno se ne vide"). Sad je
-         iza dugmeta, sklonjena dok se ne zatrazi. -->
-    <button class="mode-btn" id="onlineUsersToggleBtn" onclick="toggleOnlineUsersPanel()">👥 Ko je online (<span id="onlineUsersCount">0</span>)</button>
+  <section class="room-hero">
+    <h1 class="room-hero-title">Soba</h1>
+    <div id="roomStatus" class="room-status-line"></div>
+    <button class="mode-btn room-online-toggle" id="onlineUsersToggleBtn" onclick="toggleOnlineUsersPanel()">👥 Ko je online (<span id="onlineUsersCount">0</span>)</button>
     <div id="onlineUsersList" class="room-list" style="display:none"><div class="room-list-empty">Učitavanje...</div></div>
+  </section>
 
-    <div class="setup-field">
-      <label for="roomStartBula">Početna bula</label>
-      <input type="number" id="roomStartBula" value="100" min="50" max="300" step="10" oninput="clampRefeInputToBula('roomStartBula', 'roomRefeCount')">
+  <section class="room-panels">
+    <div class="room-panel">
+      <h2 class="section-title">Napravi sobu</h2>
+      <div class="setup-field">
+        <label for="roomStartBula">Početna bula</label>
+        <input type="number" id="roomStartBula" value="100" min="50" max="300" step="10" oninput="clampRefeInputToBula('roomStartBula', 'roomRefeCount')">
+      </div>
+      <div class="setup-field">
+        <label for="roomRefeCount">Refe po igraču</label>
+        <input type="number" id="roomRefeCount" value="2" min="0" max="5" step="1">
+      </div>
+      <button class="mode-btn primary" onclick="createRoomOnline()">Napravi novu sobu</button>
     </div>
-    <div class="setup-field">
-      <label for="roomRefeCount">Refe po igraču</label>
-      <input type="number" id="roomRefeCount" value="2" min="0" max="5" step="1">
-    </div>
-    <button class="mode-btn primary" onclick="createRoomOnline()">Napravi novu sobu</button>
 
-    <div class="room-list-header">
-      <span>Otvorene sobe</span>
-      <button class="icon-btn" onclick="refreshRoomList()" title="Osveži">🔄</button>
-    </div>
-    <div id="openRoomsList" class="room-list"><div class="room-list-empty">Učitavanje...</div></div>
+    <div class="room-panel">
+      <h2 class="section-title">Pridruži se</h2>
+      <div class="room-list-header">
+        <span>Otvorene sobe</span>
+        <button class="icon-btn" onclick="refreshRoomList()" title="Osveži">🔄</button>
+      </div>
+      <div id="openRoomsList" class="room-list"><div class="room-list-empty">Učitavanje...</div></div>
 
-    <div class="text-field">
-      <label for="roomCodeInput">Ili unesi kod sobe ručno</label>
-      <input type="text" id="roomCodeInput" placeholder="npr. 9A7AU" style="text-transform:uppercase">
+      <div class="text-field">
+        <label for="roomCodeInput">Ili unesi kod sobe ručno</label>
+        <input type="text" id="roomCodeInput" placeholder="npr. 9A7AU" style="text-transform:uppercase">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="mode-btn" onclick="joinRoomOnline()">Pridruži se</button>
+        <button class="mode-btn" onclick="joinAsSpectatorOnline()">Kibiciraj</button>
+      </div>
+      <div class="field-error" id="roomError"></div>
     </div>
-    <div style="display:flex;gap:8px">
-      <button class="mode-btn" onclick="joinRoomOnline()">Pridruži se</button>
-      <button class="mode-btn" onclick="joinAsSpectatorOnline()">Kibiciraj</button>
-    </div>
+  </section>
+
+  <section class="room-footer-actions">
     <button class="mode-btn" onclick="toggleLockOnline()">🔒 Zaključaj/otključaj sobu</button>
-    <div class="field-error" id="roomError"></div>
-    <div style="display:flex;gap:8px;margin-top:16px">
-      <button class="mode-btn" onclick="goToHomeScreen()">← Nazad</button>
-      <button class="mode-btn" onclick="logoutOnline()">Odjavi se</button>
-    </div>
-  </div>
+    <button class="mode-btn" onclick="goToHomeScreen()">← Nazad</button>
+    <button class="mode-btn" onclick="logoutOnline()">Odjavi se</button>
+  </section>
 </div>
 
 <!-- Online: kibic zahtevi (spectator strana) i dolazni zahtevi (player strana) -->
