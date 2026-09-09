@@ -439,7 +439,25 @@ function recordHandIfNew() {
   // pise u chat dok je rezultat prikazan) — referenca je skoro UVEK nova pa
   // se ista zavrsena ruka upisivala ponovo na SVAKI takav re-broadcast.
   // round je stabilan primitivan broj, poredi se po VREDNOSTI.
-  if (!result || game.state.round === lastRecordedRound) return;
+  //
+  // BAG #2 (uzivo prijavljeno VISE PUTA, dugo neuhvacen: "prazna Pratnja i
+  // 0 stihova na ruci gde je stvarno bilo pratilaca"): engine-ov newHand()
+  // (game.ts) resetuje followChoices/caller/callee/tricksWon za NOVU rundu,
+  // ali NIKAD ne cisti lastHandResult — ono ostaje "zivo" (staro, od
+  // PRETHODNE zavrsene ruke) kroz CELU sledecu rundu (BIDDING itd.), sve dok
+  // se sledeca ruka i sama ne zavrsi. Cim server pozove dealNextHand()
+  // (round++, newHand()) i broadcast-uje FRESH stanje (phase=BIDDING,
+  // followChoices/tricksWon prazni), stari kod je OVDE video: result=istinit
+  // (stari lastHandResult) I round!==lastRecordedRound (round se upravo
+  // povecao) → upisivao je "duh" red sa TACNIM pobednikom/igrom/bulama (iz
+  // starog lastHandResult) ali PRAZNOM Pratnjom/0 stihova (iz svezeg,
+  // resetovanog state-a) — pod NOVIM (round+1) brojem kruga. Prava sledeca
+  // ruka je onda, kad se STVARNO zavrsi, imala ISTI round broj vec
+  // "potrosen" u lastRecordedRound, pa se NIKAD nije upisala. Ispravka:
+  // ruka se sme upisati SAMO dok je state stvarno u terminalnoj fazi — inace
+  // je lastHandResult po definiciji zaostao trag prethodne runde.
+  const isTerminalPhase = game.state.phase === 'GAME_OVER' || game.state.phase === 'MATCH_OVER';
+  if (!result || !isTerminalPhase || game.state.round === lastRecordedRound) return;
   lastRecordedRound = game.state.round;
   handHistory.push({
     round: game.state.round,
