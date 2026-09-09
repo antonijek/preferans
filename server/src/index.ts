@@ -19,7 +19,19 @@ async function main(): Promise<void> {
 
   const app = express();
   app.use(express.json());
-  app.use(express.static(PROJECT_ROOT));
+  // BAG (uzivo prijavljen, veceras VISE PUTA: "popravio si ali i dalje isto"
+  // — poprvke SU stvarno bile na serveru, ali browser je i dalje ucitavao
+  // STARI app.js iz keša). express.static bez opcija ne salje Cache-Control
+  // — bez njega neki browseri heuristicki kesiraju staticke fajlove i BEZ
+  // eksplicitnog zahteva, pa cak ni tvrdi F5 ne garantuje sveze ucitavanje.
+  // no-cache (ne "no-store") i dalje dozvoljava keširanje ali FORSIRA
+  // revalidaciju (If-None-Match/304) na SVAKI zahtev — uvek sveze, uz skoro
+  // istu brzinu jer 304 odgovor nema telo.
+  app.use(express.static(PROJECT_ROOT, {
+    setHeaders: (res) => {
+      res.setHeader('Cache-Control', 'no-cache');
+    },
+  }));
 
   app.get('/', (_req, res) => {
     res.sendFile(path.join(PROJECT_ROOT, 'preferans.html'));
