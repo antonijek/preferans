@@ -1086,11 +1086,16 @@
   #kibicRequestPanel label { display: block; font-size: 0.85em; margin-bottom: 6px; }
   #kibicRequestPanel .icon-btn { min-width: unset; padding: 6px 10px; font-size: 0.85em; }
 
-  .score-box { max-width: 640px; }
   .score-section-title { font-size: 0.85em; opacity: 0.7; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 0.5px; }
   /* Korisnikov zahtev: modal mnogo siri (kolone su se lomile u uskom
-     460px), i "razbiti" monotonu braon boju zebra-prugama. */
-  .score-box { max-width: min(94vw, 920px); }
+     460px), i "razbiti" monotonu braon boju zebra-prugama.
+     BAG (uzivo prijavljeno, i dalje uska posle "popravke"): ".score-box"
+     (0,1,0 specificnost) nikad nije mogao da pobedi ".screen .box"
+     (0,2,0 — dve klase) koji postavlja max-width:460px, bez obzira sto
+     dolazi KASNIJE u fajlu — CSS specificnost pobedjuje nad redosledom.
+     ".screen .score-box" ovde ima istu (0,2,0) specificnost KAO ".screen
+     .box" ALI dolazi kasnije u fajlu pa pobedjuje po redosledu. */
+  .screen .score-box { max-width: min(94vw, 920px); }
   /* Korisnikov zahtev: "ima horizontalni scroll, nema potrebe prosiri
      modal" — table-layout:fixed prisiljava kolone da UVEK staju u 100%
      sirine (auto layout inace pusti tabelu da preraste kontejner kad
