@@ -198,13 +198,23 @@ document.addEventListener('click', (e) => {
 
 // Korisnikov zahtev: "kad u pretrazivacu odem na drugu stranicu nista ne
 // prijavljuje kao da sam i dalje za stolom" — 🏠 dugme (peekHomeScreen)
-// pokriva SVESTAN klik, ali ne i obicno prebacivanje taba/stranice u
-// browseru (socket ostaje ziv u pozadini, pravi 'disconnect' se NE
-// okida). Page Visibility API hvata i taj slucaj. awayFromTable provera
-// sprecava dupli/konfliktni emit dok je 🏠 tok vec eksplicitno aktivan.
-document.addEventListener('visibilitychange', () => {
+// pokriva SVESTAN klik, ali ne i obicno napustanje/zatvaranje TABA u
+// browseru (socket ostaje ziv u pozadini, pravi 'disconnect' se NE okida).
+// BAG (uzivo prijavljen ODMAH posle prve verzije): 'visibilitychange' je
+// POGRESAN signal ovde — okida se i na obicno PREBACIVANJE PROZORA/APLIKACIJE
+// (drugi browser, druga app) dok preferans tab OSTAJE otvoren u pozadini,
+// sto je korisnik EKSPLICITNO rekao da NE treba da broji ("samo ako je
+// zatvorio sajt ili otisao na drugi, ne ako ga je spustio i gleda nesto
+// drugo"). 'pagehide' se okida SAMO na stvarnu navigaciju/zatvaranje OVOG
+// taba (ne na gubljenje fokusa prozora) — 'pageshow' je njegov par za
+// povratak (npr. back-dugme, bfcache).
+window.addEventListener('pagehide', () => {
   if (mode !== 'online' || !onlineSocket || mySeat === null || awayFromTable) return;
-  onlineSocket.emit(document.hidden ? 'room:setAway' : 'room:setBack', {});
+  onlineSocket.emit('room:setAway', {});
+});
+window.addEventListener('pageshow', () => {
+  if (mode !== 'online' || !onlineSocket || mySeat === null || awayFromTable) return;
+  onlineSocket.emit('room:setBack', {});
 });
 
 // Maksimalan broj refea zavisi od pocetne bule (korisnikov zahtev — "ne
