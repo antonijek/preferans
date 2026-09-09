@@ -831,14 +831,27 @@
     overflow-y: auto;
     transition: border-color 0.3s, box-shadow 0.3s;
   }
-  /* Korisnikov zahtev: "soba je modal, mislim da je bolje da je stranica,
-     bila bi preglednija" — soba (lista otvorenih soba + kreiranje) ima
-     realno vise sadrzaja (lista igraca online, lista soba, formu) nego
-     ostali .box ekrani, pa uska 460px kartica deluje kao stisnut popup.
-     Samo sirina se menja (ID selektor pobedjuje ".screen .box" po
-     specificnosti) — HTML struktura/ID-jevi/JS ostaju netaknuti, cisto
-     vizuelno "prosirenje" da vise lici na svoju stranicu nego na modal. */
-  #roomScreen .box { max-width: min(92vw, 720px); }
+  /* Korisnikov zahtev, DRUGI pokusaj: samo sirenje nije bilo dovoljno —
+     "soba je i dalje modal sa scrolom". Pravi uzrok forme je sam OBLIK:
+     centrirana kartica sa unutrasnjim overflow-y:auto UVEK deluje kao
+     dijalog, bez obzira na sirinu (isti zakljucak vec jednom izveden za
+     pocetni ekran, vidi .screen.rich-page gore — dokazan obrazac,
+     ponovljen ovde umesto novog pristupa). #roomScreen postaje "prava"
+     stranica: screen sam skroluje (ne unutrasnja kutija), sadrzaj vise
+     nije ogranicene visine niti centriran u praznini, samo ograničene
+     sirine radi citljivosti. HTML/ID-jevi/JS netaknuti — cisto CSS. */
+  #roomScreen.screen.active {
+    display: block;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 24px 16px 48px;
+  }
+  #roomScreen .box {
+    max-width: 640px;
+    margin: 0 auto;
+    max-height: none;
+    overflow: visible;
+  }
   /* Kraj CELE partije (MATCH_OVER) — vise vizuelnog "wow" efekta nego obican
      kraj runde, pošto je ovo najvazniji trenutak da igra ostavi dobar utisak. */
   .screen .box.match-over {
@@ -1108,11 +1121,14 @@
      tamna, pa je sve jedva vidljivo" — deljena ".screen .box" braon
      gradijent (#3c2b1a-#1e150c) je premalo svetliji od skoro-crne
      pozadine iza (.screen je rgba(0,0,0,0.85)) da bi tabela stvarno
-     "iskocila". Primetno svetliji/topliji mahagoni SAMO za ovaj box,
-     plus jaci zlatni obrub za jasnu granicu. */
+     "iskocila". Korisnikov naknadni izbor (upitnik): ne samo kontrast,
+     nego konkretno NE braon — ista tamnozelena kao .table-felt
+     (#2e7d32/#1b5e20), da Tabela vizuelno pripada "kockarnica" stolu
+     umesto da bude jos jedna braon kartica. Zelena granica (#4caf50,
+     isti ton kao ivica stola) umesto zlatne. */
   .screen .score-box {
-    background: linear-gradient(180deg, #5a4023 0%, #2e2010 100%);
-    border-color: rgba(var(--gold-rgb), 0.65);
+    background: linear-gradient(180deg, #1e4d22 0%, #0d2410 100%);
+    border-color: rgba(76, 175, 80, 0.6);
   }
   /* Korisnikov zahtev: na telefonu se redovi tabele lome (kolone preuske)
      — "daj scrol na vertikalnom a na horizontalnom prosiri skoro po
