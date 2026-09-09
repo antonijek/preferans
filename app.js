@@ -196,6 +196,17 @@ document.addEventListener('click', (e) => {
   if (e.target.closest && e.target.closest('button')) sfx.click();
 }, true);
 
+// Korisnikov zahtev: "kad u pretrazivacu odem na drugu stranicu nista ne
+// prijavljuje kao da sam i dalje za stolom" — 🏠 dugme (peekHomeScreen)
+// pokriva SVESTAN klik, ali ne i obicno prebacivanje taba/stranice u
+// browseru (socket ostaje ziv u pozadini, pravi 'disconnect' se NE
+// okida). Page Visibility API hvata i taj slucaj. awayFromTable provera
+// sprecava dupli/konfliktni emit dok je 🏠 tok vec eksplicitno aktivan.
+document.addEventListener('visibilitychange', () => {
+  if (mode !== 'online' || !onlineSocket || mySeat === null || awayFromTable) return;
+  onlineSocket.emit(document.hidden ? 'room:setAway' : 'room:setBack', {});
+});
+
 // Maksimalan broj refea zavisi od pocetne bule (korisnikov zahtev — "ne
 // moze partija od 50 imati 5 refa, to je glupo"). RULES.md 7.2 vec navodi
 // podrazumevanu razmeru "2 refea za partiju od 100 bula" — ovo samo
@@ -932,8 +943,20 @@ function renderBiddingPanel() {
       const extraCls = b.type === 'PASS' ? 'dalje' : (b.type === 'IGRA' ? 'igra' : (b.type === 'MOGU' ? 'mogu' : 'bid'));
       log.innerHTML += `<span class="${cls} ${extraCls}">${seatLabel}: ${txt}</span>`;
     }
-    // Skroluj na kraj
+    // Skroluj na kraj — HORIZONTALNO za baznu (desktop, red-obrazac) verziju
+    // .bid-log-a. BAG (uzivo prijavljeno vise puta: "ne vidim ni pocetak ni
+    // kraj" na landscape telefonu/sirokom desktopu): tamo se NE skroluje
+    // sam #bidLog nego njegov RODITELJ #rightSidePanel (flex-direction:column
+    // + overflow-y:auto na panelu, ne na logu) — ova linija je bila
+    // POTPUNO NEEFIKASNA za taj slucaj (skrolovala pogresnu osu na pogresnom
+    // elementu), pa je stvarna pozicija ostajala prepustena browser-ovom
+    // "scroll anchoring" nagadjanju umesto da bude POUZDANO na najnovijem
+    // unosu. Sad se skroluje i #bidLog (horizontalno, ako je red) I njegov
+    // roditelj panel (vertikalno, ako je kolona) — jedno od njih je uvek
+    // no-op zavisno od layout-a, bezopasno.
     log.scrollLeft = log.scrollWidth;
+    const sidePanel = log.closest('.side-panel');
+    if (sidePanel) sidePanel.scrollTop = sidePanel.scrollHeight;
   }
 
   const ctrl = $('bidControls');
@@ -1844,7 +1867,9 @@ function renderScoreContent() {
     html += `<div class="score-empty">Još nije odigrana nijedna ruka.</div>`;
   } else {
     const kontraName = { KONTRA: 'Kontra', REKONTRA: 'Rekontra', SUBKONTRA: 'Subkontra', MORTKONTRA: 'Mortkontra' };
-    html += `<div style="overflow-x:auto"><table class="score-table"><thead><tr>
+    html += `<div style="overflow-x:auto"><table class="score-table">
+      <colgroup><col><col><col><col><col><col><col></colgroup>
+      <thead><tr>
       <th>Krug</th><th>Nosilac</th><th>Igra</th><th>Kontra</th><th>Pratnja</th><th>Prošao</th><th>Bule</th>
     </tr></thead><tbody>`;
     for (const h of [...handHistory].reverse()) {
@@ -1852,27 +1877,26 @@ function renderScoreContent() {
       // OBA ako su dosli posebno, svako sa svojim brojem stihova. "Prosao"
       // sad nosi i koliko je NOSILAC uhvatio (ne posebna "Stihovi" kolona,
       // koja se uklonjena).
-      // wasPlayed razdvaja stvarno odigrane ruke od "niko ne prati"/"Pik bez
-      // kontre" formulskih ishoda (RULES 5.4/7.1.1) — u ovim drugim tricksWon
-      // ostaje 0 za sve (nikad se stvarno ne igra), pa bi "(0)" izgledalo kao
-      // bag ("nosilac prosao a nije uhvatio nijedan stih"). Bez broja u tom
-      // slucaju je tacnije nego pogresno "(0)".
-      // Korisnikov zahtev (potvrdjeno u engine game.ts endHand() — "combinedTricks"
-      // za supu kad nosilac padne): kad postoji poziv, POZVANI (callee) se ne
-      // prikazuje odvojeno — njegovi stihovi se DODAJU zvaocu, jer zajedno
-      // igraju kao jedna strana. Bez ovoga je izgledalo kao da nedostaju
-      // stihovi (npr. zvaoc 2, pozvani 3 stvarno uhvacena — prikazivano je
-      // samo "2", "falili" 3).
-      const followTxt = h.wasPlayed && h.followSeats && h.followSeats.length > 0
+      // BAG (uzivo prijavljeno VISE puta: "u tabeli nema nista od toga" na
+      // STVARNO odigranoj ruci sa realnim stihovima): oslanjanje na wasPlayed
+      // (game.state.tricks.length>0 u trenutku snimanja) je OCIGLEDNO davalo
+      // pogresnu vrednost u nekim online scenarijima ciji tacan uzrok nisam
+      // uspeo da nadjem (lokalna engine simulacija istog toka radi ispravno).
+      // Umesto da se DALJE oslanja na tu (nepouzdanu) zastavicu, prikaz sad
+      // gleda DIREKTNO stvarne brojeve — 0 je vec "falsy" u JS-u, pa se
+      // "(0)"/prazna Pratnja za formulske "niko ne prati" ishode (RULES 5.4,
+      // gde SVI tricksWon ostaju 0) svejedno ne prikazuju, BEZ da zavise od
+      // posebne (bagovite) zastavice.
+      const followTxt = h.followSeats && h.followSeats.length > 0
         ? h.followSeats.map(p => {
             const combined = (h.caller === p && h.callee !== null) ? h.tricksWon[p] + h.tricksWon[h.callee] : h.tricksWon[p];
             return `<span class="follow-line">${POS_LABELS[p]}: ${combined}</span>`;
           }).join('')
         : '—';
-      const winnerTricks = h.wasPlayed && h.winner !== null && h.tricksWon ? h.tricksWon[h.winner] : null;
+      const winnerTricks = h.winner !== null && h.tricksWon ? h.tricksWon[h.winner] : 0;
       const resultTxt = h.passed
-        ? `✓ prošao${winnerTricks !== null ? ` (${winnerTricks})` : ''}`
-        : `✗ pao${winnerTricks !== null ? ` (${winnerTricks})` : ''}`;
+        ? `✓ prošao${winnerTricks ? ` (${winnerTricks})` : ''}`
+        : `✗ pao${winnerTricks ? ` (${winnerTricks})` : ''}`;
       html += `<tr>
         <td>${h.round}</td>
         <td>${POS_LABELS[h.winner]}</td>

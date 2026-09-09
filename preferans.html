@@ -1098,6 +1098,19 @@
      prelama takav sadrzaj u novi red UMESTO da gura tabelu sire. */
   .score-table { width: 100%; border-collapse: collapse; font-size: 0.9em; table-layout: fixed; }
   .score-table th, .score-table td { padding: 6px 5px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); overflow-wrap: break-word; }
+  /* Korisnikov zahtev: "Bule" se lomilo u vise redova ("ne lomi kao sad na
+     bule") — table-layout:fixed BEZ eksplicitnih sirina deli SVIH 7 kolona
+     RAVNOMERNO (1/7 svaka), sto je Pratnji (najduzi sadrzaj — stacked
+     imena+brojevi) i Bulama (npr. "114/100/100", ~11 karaktera bez
+     razmaka za prelom) davalo isti prostor kao uskom "Krug"-u. Eksplicitne
+     % sirine po koloni umesto ravnomerne podele. */
+  .score-table col:nth-child(1) { width: 8%; }
+  .score-table col:nth-child(2) { width: 13%; }
+  .score-table col:nth-child(3) { width: 11%; }
+  .score-table col:nth-child(4) { width: 11%; }
+  .score-table col:nth-child(5) { width: 23%; }
+  .score-table col:nth-child(6) { width: 14%; }
+  .score-table col:nth-child(7) { width: 20%; }
   .score-table th { opacity: 0.7; font-weight: 600; font-size: 0.85em; }
   .score-table td:first-child, .score-table th:first-child { text-align: left; }
   .score-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.045); }
@@ -1402,7 +1415,22 @@
        ostaje 'visible'). Bez ovoga se dobija HORIZONTALNI scroll cim
        sadrzaj malo prevazidje 120px sirinu kolone (uzivo prijavljeno:
        "stavio si hor scroll, a trebalo je vertikalni"). */
-    #leftSidePanel, #rightSidePanel { grid-row: 1; height: 100%; min-height: 0; overflow-y: auto; overflow-x: hidden; align-self: stretch; padding: 4px 3px; }
+    /* -webkit-overflow-scrolling:touch — bez ovoga neki mobilni browseri
+       (starije/pojedine WebKit verzije) ili IGNORISU touch-scroll unutar
+       UGNJEZDENOG overflow:auto elementa ili ga rade jako trzavo/
+       nepouzdano, cak i kad je overflow mehanika (potvrdjeno automatizovanim
+       testom) tehnicki ispravna — CSS overflow racunanje i STVARNA touch-
+       gesta na telefonu su DVE odvojene stvari. overscroll-behain:contain
+       sprecava da scroll-gest "iscuri" na roditeljsku stranicu (sto bi
+       osecaj "zaglavljeno" moglo da objasni i bez pravog CSS baga). */
+    #leftSidePanel, #rightSidePanel {
+      grid-row: 1; height: 100%; min-height: 0;
+      overflow-y: auto; overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      align-self: stretch; padding: 4px 3px;
+    }
     #leftSidePanel { grid-column: 1; }
     #rightSidePanel { grid-column: 3; }
     #rightSidePanel .bid-log { flex-direction: column; flex-wrap: nowrap; align-items: stretch; width: 100%; margin: 0; padding: 3px 2px; }
