@@ -1116,6 +1116,11 @@
      dodajemo touch-scroll pouzdanost, isti obrazac kao za landscape
      side-panele ranije ovog fajla. */
   @media (max-width: 480px) {
+    /* #scoreScreen (ID) da pobedi bazno ".screen { padding:20px }" —
+       taj padding na FLEX kontejneru je jeo prostor bez obzira sto je
+       .score-box max-width vec postavljen na 99vw (dete ne moze da
+       preraste dostupan prostor roditelja u flex layoutu). */
+    #scoreScreen { padding: 6px; }
     .screen .score-box {
       max-width: 99vw;
       padding: 16px 8px;
