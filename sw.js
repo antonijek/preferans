@@ -1,7 +1,17 @@
 // Service worker za PWA instalaciju/offline. Bump CACHE_NAME verziju kad se
 // menja lista fajlova ispod (npr. nov fajl u engine/dist/) da stari klijenti
 // dobiju svez keš umesto da ostanu zaglavljeni na stara verziju zauvek.
-const CACHE_NAME = 'preferans-v5';
+// BAG (uzivo prijavljen 2026-09-10, "MATCH_OVER katastrofa" — klijent je
+// prikazivao davno zastarelu verziju koda uprkos vise deploy-eva i uprkos
+// Cache-Control:no-cache HTTP zaglavlju): ta HTTP zaglavlja NE diraju vec
+// INSTALIRAN service worker — SW proverava sopstveni fajl za izmene retko i
+// nezavisno od servera, pa je ostajao "zaglavljen" na v5 logici (ukljucujuci
+// eventualni mrezni hiccup -> cache.match() fallback na STARI keš ispod te
+// verzije) nedeljama uprkos dosledno svezim HTTP odgovorima. JEDINI pouzdan
+// nacin da se stari klijenti odmah prebace: promeniti SADRZAJ ovog fajla
+// (bump verzije), sto tera browser da primeti razliku i instalira NOVI SW.
+// UBUDUCE: bump-ovati OVDE pri SVAKOM deploy-u koji dira app.js/preferans.html.
+const CACHE_NAME = 'preferans-v6';
 const SHELL_FILES = [
   '/',
   '/preferans.html',

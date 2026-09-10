@@ -522,7 +522,10 @@ function checkRefeToast() {
   // ne potrosi kao nosilac (uzivo prijavljen bag — "opet nema refe").
   const pendingSum = game.state.refePending[0] + game.state.refePending[1] + game.state.refePending[2];
   if (pendingSum > lastRefePendingSum) {
-    showToast('🤝 REFA dodeljena svima! (na raspolaganju)');
+    // Korisnikov zahtev (2026-09-10): "ne treba da stoji, treba samo Refe" —
+    // kratko, bez objasnjenja teksta (isti pravac kao ranije uklonjeni
+    // "(Betl — svi automatski prate)" parenthetical).
+    showToast('🤝 Refe');
   }
   lastRefePendingSum = pendingSum;
   // Potrošnja (🔁 iskorišćeno) — nosilac neke ruke trosi svoju
