@@ -1829,23 +1829,28 @@ function renderResult() {
     // plasmana, SA VIDLJIVIM proracunom (korisnikov zahtev 2026-09-10:
     // "zelim da vidim to prikazano na kraju... prvi drugi treci, ne samo
     // pobednik je x, jer nekad 2 igraca mogu biti skoro izjednacena").
-    // game.getMatchScores() — ISTA engine metoda (radi i online i offline,
-    // "game" je prava Game instanca u oba moda, samo joj se online .state
-    // menja na svaki broadcast) koju server koristi za STVARNE bodove, umesto
-    // da klijent drzi svoju odvojenu (i ranije POGRESNU, bez *10) kopiju
-    // formule koja bi mogla da se razidje.
-    // BAG (uzivo prijavljen VISE PUTA, 2026-09-10 — "28. put ista stvar"):
-    // bilo koja NEUHVACENA greska ovde je prekidala renderResult() NA POLA —
-    // naslov (par redova iznad) se vec stigao azurirati na "Kraj partije!",
-    // ali ovaj blok nikad nije stigao da PREPISE $('resultMsg') sa novim
-    // sadrzajem, pa je klijent ostajao zaglavljen na STAROM GAME_OVER
-    // narativu zauvek (izgledalo je kao "stari kod", a bio je live/svez kod
-    // koji je samo pukao usred izvrsavanja). try/catch ovde garantuje da BAR
-    // NESTO ispravno zamenii stari prikaz, cak i ako neki nepredvidjen
-    // slucaj (npr. debtMatrix nedostaje na starijoj/tranzicionoj partiji)
-    // izazove gresku — korisnik vise nikad ne sme da vidi zaglavljen prikaz.
+    // PRAVI UZROK BAGA (nadjen 2026-09-10 posle "28. put ista stvar" —
+    // ranije try/catch je samo GRACEFULLY sakrivao ovo, ne resavao):
+    // "game" u ONLINE modu NIJE prava Game instanca — createOnlineGameProxy()
+    // (gore u fajlu) je tanak proksi koji ima SAMO akcije (bid/pass/...),
+    // NEMA getMatchScores() uopste. game.getMatchScores() je OVDE UVEK bacao
+    // "nije funkcija" za svaku online partiju, sto je NEUHVACENA greska
+    // prekidala renderResult() na pola — naslov se stigao azurirati, ali
+    // ovaj blok nikad nije stigao da prepise $('resultMsg'). Ispravka:
+    // racunaj score DIREKTNO iz s.bulas/s.debtMatrix (oba vec stoje u
+    // svakom game.state broadcast-u, bez obzira na proksi) — ista formula,
+    // bez ikakve zavisnosti od engine metode koja online ne postoji.
     try {
-      const scores = game.getMatchScores();
+      const owed = [0, 1, 2].map(p => {
+        let owedBy = 0, owedTo = 0;
+        for (const y of [0, 1, 2]) {
+          if (y === p) continue;
+          owedBy += s.debtMatrix?.[p]?.[y] ?? 0;
+          owedTo += s.debtMatrix?.[y]?.[p] ?? 0;
+        }
+        return { owedBy, owedTo };
+      });
+      const scores = [0, 1, 2].map(p => s.bulas[p] * 10 + owed[p].owedBy - owed[p].owedTo);
       const ranking = [0, 1, 2].slice().sort((a, b) => scores[a] - scores[b]);
       const winnerPos = ranking[0];
       const RANK_LABELS = ['🥇 1. mesto', '🥈 2. mesto', '🥉 3. mesto'];
@@ -1862,15 +1867,7 @@ function renderResult() {
                ${typeof newRating === 'number' ? `<span style="opacity:0.6">(rejting: ${newRating})</span>` : ''}
              </div>`
           : '';
-        // Tacan proracun: score = bula*10 + (sta P duguje drugima) - (sta je
-        // drugima duzno P-u), citano direktno iz istog debtMatrix-a koji je
-        // koristio server (deo game.state, prolazi kroz redakciju netaknut).
-        let owedBy = 0, owedTo = 0;
-        for (const y of [0, 1, 2]) {
-          if (y === p) continue;
-          owedBy += s.debtMatrix?.[p]?.[y] ?? 0;
-          owedTo += s.debtMatrix?.[y]?.[p] ?? 0;
-        }
+        const { owedBy, owedTo } = owed[p];
         const parts = [`${s.bulas[p]}×10`];
         if (owedBy > 0) parts.push(`+${owedBy}`);
         if (owedTo > 0) parts.push(`−${owedTo}`);
