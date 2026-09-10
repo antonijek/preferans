@@ -254,10 +254,29 @@ export class Game {
     // na igracev prvi potez u rundi. Cim je na svom prvom potezu vec rekao
     // broj ili "dalje", vise ne moze konkurisati sa Igra kasnije.
     if (!this.state.players[player]!.igraEligible) return false;
-    if (this.state.igraPlayer === null) {
+    const wasFirstIgra = this.state.igraPlayer === null;
+    if (wasFirstIgra) {
       this.state.igraPlayer = player;
     }
     this.state.bids.push({ player, type: 'IGRA' });
+    // Korisnikov zahtev (ponovljen, 2026-09-10 — "vec sam rekao da je
+    // nepotrebno"): igrac koji vise NIJE igraEligible (vec je na SVOM prvom
+    // potezu ove runde rekao broj ili "dalje") jedino sto jos MOZE da uradi
+    // je "dalje" — nema stvarnog izbora. Bez cekanja na taj besmisleni klik,
+    // takav igrac se ovde ODMAH auto-prijavljuje kao "presao" cim je prvi
+    // Igra izgovoren, umesto da se prikaz zaglavi na njemu sa "dalje" kao
+    // jedinom opcijom. Igraci koji JOS NISU igrali ovu rundu (jos su
+    // igraEligible) i dalje dobijaju svoj pravi red — mogu i sami reci Igra.
+    if (wasFirstIgra) {
+      for (const p of [0, 1, 2] as Position[]) {
+        if (p === player) continue;
+        const pl = this.state.players[p]!;
+        if (!pl.hasPassedBid && !pl.igraEligible) {
+          pl.hasPassedBid = true;
+          this.state.bids.push({ player: p, type: 'PASS' });
+        }
+      }
+    }
     this.advanceBidder();
     return true;
   }

@@ -193,6 +193,33 @@ test('e2e: oba pratioca "Ne dodjem" na NE-PIK igri, nosilac VEC ima raspolozivu 
   assert.equal(game.state.lastHandResult?.refeConsumed, 1);
 });
 
+// Korisnikov zahtev (ponovljen 2026-09-10 — "vec sam rekao da je
+// nepotrebno"): kad neko kaze Igra, pratilac koji je VEC potrosio svoj
+// prvi potez (broj ili dalje) nema vise NIKAKAV stvaran izbor — jedino sto
+// moze je "dalje". Bidding ne sme da ceka taj besmisleni klik.
+test('e2e: pratilac koji vise nije igraEligible se AUTOMATSKI presao cim neko kaze Igra (bez cekanja na klik)', () => {
+  const game = new Game({ seed: 70 });
+  game.newHand(0); // dealer=0, prvi na potezu = P1
+  assert.equal(game.bid(1, 2), true); // P1 trosi igraEligible svojim prvim potezom
+  assert.equal(game.state.players[1]!.igraEligible, false);
+
+  assert.equal(game.sayIgra(2), true); // P2 (jos eligible) kaze Igra
+  // P1 vise NIJE bio pitan — automatski je oznacen kao presao, ODMAH.
+  assert.equal(game.state.players[1]!.hasPassedBid, true, 'P1 auto-presao, bez eksplicitnog klika');
+  assert.equal(game.state.bids.some(b => b.player === 1 && b.type === 'PASS'), true, 'auto-pas upisan u istoriju licitacije (za bid log)');
+  // P0 JOS NIJE igrao ovu rundu — i dalje eligible, i dalje mora da odgovori
+  // svojim pravim potezom (nije dirnut auto-pas logikom).
+  assert.equal(game.state.players[0]!.igraEligible, true);
+  assert.equal(game.state.players[0]!.hasPassedBid, false);
+  assert.equal(game.state.currentBidder, 0, 'red preskace auto-presalog P1 i ide pravo na P0');
+  assert.equal(game.state.phase, 'BIDDING', 'jos se ceka P0 (stvarno eligible), nije jos zavrseno');
+
+  // P0 sad odgovara (dalje) — TEK sad su svi odgovorili, bidding se zavrsava.
+  assert.equal(game.pass(0), true);
+  assert.equal(game.state.phase, 'DECLARING');
+  assert.equal(game.state.winner, 2);
+});
+
 test('e2e: dva igraca kazu Igra — SVAKI mora proglasiti SVOJU igru, JACA pobedjuje (RULES 3.4.1)', () => {
   // Uzivo prijavljen bag: ranije se odmah proglasavao pobednik = PRVI koji
   // je rekao Igra, bez ikakvog trazenja da ostali koji su TAKODJE rekli
