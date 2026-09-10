@@ -557,8 +557,15 @@ function updateSoundEffects() {
   const talonVisible = !!$('talonCenter') && $('talonCenter').style.display !== 'none';
   const enteredBidding = s.phase === 'BIDDING' && soundSnapshot.phase !== 'BIDDING';
   const bidsCleared = s.bids.length === 0 && soundSnapshot.bidsLen > 0;
+  // Korisnikov zahtev (2026-09-10): "kad zavrsi ruka nema nikakav zvuk" —
+  // sfx.win() je vec postojao (definisan gore) ali NIKAD nije bio pozvan
+  // odavde. Isti tranzicija-detekcija obrazac kao enteredBidding.
+  const enteredTerminal = (s.phase === 'GAME_OVER' || s.phase === 'MATCH_OVER' || s.phase === 'REFE')
+    && !TERMINAL_PHASES.includes(soundSnapshot.phase);
 
-  if (enteredBidding || bidsCleared) {
+  if (enteredTerminal) {
+    sfx.win();
+  } else if (enteredBidding || bidsCleared) {
     sfx.deal();
   } else if (trickLen > soundSnapshot.trickLen) {
     sfx.cardPlay();
