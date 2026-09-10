@@ -1282,12 +1282,17 @@
     border-radius: 10px;
     padding: 6px 10px;
     text-align: center;
-    min-width: 84px;
+    min-width: 150px;
   }
   .score-player-card.winner { border-color: #ffeb3b; box-shadow: 0 0 14px rgba(255,235,59,0.5); }
   .score-player-name { font-weight: 700; font-size: 0.9em; }
   .score-player-row { display: flex; align-items: baseline; justify-content: center; gap: 4px; margin-top: 2px; }
   .score-player-bula { font-family: 'Oswald', sans-serif; font-size: 1.2em; font-weight: 700; letter-spacing: 0.3px; color: #ffeb3b; }
+  /* Korisnikov zahtev (2026-09-10): "zelim da vidim to prikazano na kraju
+     [proracun]... prvi drugi treci, ne samo pobednik" — redni broj mesta +
+     tacan racun (bula*10 + duguje - potrazuje = score) vidljivi po igracu. */
+  .score-player-rank { font-size: 0.75em; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .score-breakdown { font-size: 0.78em; opacity: 0.75; margin-top: 4px; font-family: 'Oswald', sans-serif; }
   .score-refe-dots { display: inline-flex; gap: 2px; margin-left: 4px; }
   /* Refe vizuelno: prazan obrub = jos nije dodeljena, zlatna/upaljena =
      na raspolaganju (aktivna), precrtana = potrosena. */

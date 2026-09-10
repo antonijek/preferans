@@ -1811,23 +1811,20 @@ function renderResult() {
     if (endMatchBanners) endMatchBanners.innerHTML = '';
     // Korisnikov zahtev: kraj PARTIJE ne treba da ponavlja narativ poslednje
     // ruke (ko je igrao sta, prosao/pao...) — samo naslov + tabela konacnog
-    // plasmana. Plasman NIJE samo najniza bula: supe (ko kome duguje) se
-    // moraju neto uracunati, jer igrac sa niskom bulom ali velikim dugom
-    // prema drugima moze biti efektivno losiji od nekog sa visom bulom kome
-    // se duguje. Efektivni rezultat = bula*10 + (sta duguje) - (sta mu
-    // duguju), nize je bolje. BAG (otkriven 2026-09-10 dok se pravio
-    // ranking sistem): ovde je ranije stajalo golo "bulas[p]" bez *10 —
-    // ne slaze se sa formulom koju je korisnik uzivo potvrdio primerom
-    // (memorija project-preferans-ranking-system-design) i sa server-side
-    // calculateMatchScores koji sad odredjuje STVARNE bodove. Ispravljeno
-    // da se plasman ovde i stvarni bodovi UVEK slazu.
-    const effective = [0, 1, 2].map(p =>
-      s.bulas[p] * 10 - (netSupeBetween(p, leftNeighborOf(p)) + netSupeBetween(p, rightNeighborOf(p)))
-    );
-    const ranking = [0, 1, 2].slice().sort((a, b) => effective[a] - effective[b]);
+    // plasmana, SA VIDLJIVIM proracunom (korisnikov zahtev 2026-09-10:
+    // "zelim da vidim to prikazano na kraju... prvi drugi treci, ne samo
+    // pobednik je x, jer nekad 2 igraca mogu biti skoro izjednacena").
+    // game.getMatchScores() — ISTA engine metoda (radi i online i offline,
+    // "game" je prava Game instanca u oba moda, samo joj se online .state
+    // menja na svaki broadcast) koju server koristi za STVARNE bodove, umesto
+    // da klijent drzi svoju odvojenu (i ranije POGRESNU, bez *10) kopiju
+    // formule koja bi mogla da se razidje.
+    const scores = game.getMatchScores();
+    const ranking = [0, 1, 2].slice().sort((a, b) => scores[a] - scores[b]);
     const winnerPos = ranking[0];
+    const RANK_LABELS = ['🥇 1. mesto', '🥈 2. mesto', '🥉 3. mesto'];
     let html = `<div class="score-players-row">`;
-    for (const p of ranking) {
+    ranking.forEach((p, idx) => {
       // lastMatchRankingResult stize SAMO online (server-autoritativan) —
       // offline/lokalni mod nema trajni rejting, prikaz se gracefully
       // izostavlja.
@@ -1839,12 +1836,27 @@ function renderResult() {
              ${typeof newRating === 'number' ? `<span style="opacity:0.6">(rejting: ${newRating})</span>` : ''}
            </div>`
         : '';
+      // Tacan proracun: score = bula*10 + (sta P duguje drugima) - (sta je
+      // drugima duzno P-u), citano direktno iz istog debtMatrix-a koji je
+      // koristio server (deo game.state, prolazi kroz redakciju netaknut).
+      let owedBy = 0, owedTo = 0;
+      for (const y of [0, 1, 2]) {
+        if (y === p) continue;
+        owedBy += s.debtMatrix?.[p]?.[y] ?? 0;
+        owedTo += s.debtMatrix?.[y]?.[p] ?? 0;
+      }
+      const parts = [`${s.bulas[p]}×10`];
+      if (owedBy > 0) parts.push(`+${owedBy}`);
+      if (owedTo > 0) parts.push(`−${owedTo}`);
+      const breakdown = `${parts.join(' ')} = ${scores[p]}`;
       html += `<div class="score-player-card ${p === winnerPos ? 'winner' : ''}">
+        <div class="score-player-rank">${RANK_LABELS[idx]}</div>
         <div class="score-player-name">${POS_LABELS[p]}${p === winnerPos ? ' 🏆' : ''}</div>
         <div class="score-player-row"><span class="score-player-bula">${s.bulas[p]}</span></div>
+        <div class="score-breakdown">${breakdown}</div>
         ${deltaTxt}
       </div>`;
-    }
+    });
     html += `</div>`;
     html += `<p style="text-align:center;margin-top:14px">🏆 <strong style="color:#ffeb3b">${POS_LABELS[winnerPos]} pobeđuje!</strong></p>`;
     // Korisnikov zahtev: razlog kraja partije (prirodan/dogovor/napustanje)
