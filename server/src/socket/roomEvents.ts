@@ -164,6 +164,14 @@ function resolveMatchRanking(room: RoomState): void {
 
 function maybeAutoAdvanceHand(room: RoomState): void {
   if (room.game.state.phase !== 'GAME_OVER' || room.nextHandScheduled) return;
+  // Korisnikov zahtev (2026-09-10): "kad neko pobegne nemoj AI da
+  // zamenjuje nego igraci posle nekog cekanja mogu da zavrse na prekid
+  // partije" — AI zavrsava (neizbezno) rukU KOJA JE VEC U TOKU kad neko
+  // ode, ali se NIKAD ne deli NOVA ruka dok je abandonedSeat postavljen.
+  // Preostala dva igraca vide "Predlozi prekid partije" (game:proposeEndMatch,
+  // activeSeatsForRoom vec iskljucuje napusteno sediste) umesto da partija
+  // tiho nastavi sa AI na trecem mestu unedogled.
+  if (room.abandonedSeat !== null) return;
   room.nextHandScheduled = true;
   room.nextHandTimeout = setTimeout(() => {
     room.nextHandScheduled = false;
@@ -523,6 +531,14 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     const room = currentRoom();
     if (!room || room.game.state.phase !== 'GAME_OVER') {
       ack?.({ error: 'Nema zavrsene ruke za nastavak' });
+      return;
+    }
+    // Korisnikov zahtev (2026-09-10): kad je neko napustio sto, NEMA nove
+    // ruke dok se on ne vrati ili preostali igraci ne zavrse partiju
+    // (game:proposeEndMatch) — ni rucnim klikom, ne samo auto-tajmerom
+    // (vidi maybeAutoAdvanceHand).
+    if (room.abandonedSeat !== null) {
+      ack?.({ error: 'Neko je napustio sto — sačekaj njegov povratak ili predloži kraj partije' });
       return;
     }
     const loc = getUserLocation(userId);

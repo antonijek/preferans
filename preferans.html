@@ -119,6 +119,22 @@
   }
   .icon-btn:hover { background: linear-gradient(180deg, #8e7132 0%, #7a5f28 100%); border-color: var(--gold-bright); }
   .icon-btn:active { background: var(--gold-dark); }
+  .mode-btn.danger { background: linear-gradient(180deg, #d32f2f 0%, #b71c1c 100%); border-color: #ef5350; }
+  .mode-btn.danger:hover { background: linear-gradient(180deg, #dd3a3a 0%, #c62828 100%); }
+
+  /* Korisnikov zahtev (2026-09-10): jedno dugme za "opcije partije" umesto
+     dva odvojena, otvara mali padajuci meni ispod sebe. */
+  .match-menu-wrap { position: relative; display: inline-block; }
+  .match-menu-panel {
+    position: absolute; top: 100%; right: 0; margin-top: 6px;
+    background: linear-gradient(180deg, #2c2013 0%, #1a130b 100%);
+    border: 1px solid rgba(var(--gold-rgb),0.4);
+    border-radius: 10px; padding: 8px; z-index: 300;
+    display: flex; flex-direction: column; gap: 6px;
+    min-width: 220px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  }
+  .match-menu-panel button { width: 100%; margin: 0; white-space: nowrap; }
 
   /* === STATUS BAR (ugovor + poslednji stih) === */
   .status-bar {
@@ -1615,8 +1631,18 @@
   </div>
   <div class="top-actions">
     <button class="icon-btn" id="chatToggleBtn" onclick="toggleChat()" style="display:none;position:relative">💬<span id="chatUnreadBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#e53935;color:#fff;border-radius:50%;min-width:18px;height:18px;font-size:0.65em;line-height:18px;text-align:center;font-weight:700;padding:0 3px"></span></button>
-    <button class="icon-btn" id="leaveMatchBtn" onclick="leaveMatch()" style="display:none" title="Napusti partiju">🏳️</button>
-    <button class="icon-btn" id="proposeEndBtn" onclick="proposeEndMatch()" style="display:none" title="Predloži kraj partije">🏁</button>
+    <!-- Korisnikov zahtev (2026-09-10): "ne trebaju nam 2 ikonice za
+         zastavicom, samo jedna" — nekada odvojena leaveMatchBtn (🏳️
+         napusti) i proposeEndBtn (🏁 predlozi kraj) su sad JEDNO dugme
+         koje otvara mali meni sa oba izbora (predlog za prekid gore,
+         "napusti svakako" dole kao krajnja/opasnija opcija). -->
+    <div class="match-menu-wrap">
+      <button class="icon-btn" id="matchMenuBtn" onclick="toggleMatchMenu()" style="display:none" title="Opcije partije">🏳️</button>
+      <div id="matchMenuPanel" class="match-menu-panel" style="display:none">
+        <button class="mode-btn" onclick="closeMatchMenu(); proposeEndMatch();">🤝 Predloži prekid partije</button>
+        <button class="mode-btn danger" onclick="closeMatchMenu(); leaveMatch();">🏳️ Napusti svakako</button>
+      </div>
+    </div>
     <button class="icon-btn" id="peekHomeBtn" onclick="peekHomeScreen()" style="display:none" title="Nazad na početnu (ostaješ za stolom)">🏠</button>
     <button class="icon-btn" onclick="toggleScore()">📊</button>
     <button class="icon-btn" id="soundToggleBtn" onclick="toggleSound()" title="Zvuk uklj/isklj">🔊</button>

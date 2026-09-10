@@ -1802,6 +1802,13 @@ function renderResult() {
   }
 
   if (s.phase === 'MATCH_OVER') {
+    // BAG (uzivo prijavljen: "modal se sam ne sklanja kad kliknem slazem se
+    // sa prekidom") — end-match-banner se ranije cistio SAMO na
+    // game:endMatchCancelled, nikad na stvaran uspesan zavrsetak (svi
+    // prihvatili -> MATCH_OVER). Ovde je JEDINO mesto koje UVEK pouzdano
+    // zna da je partija gotova, bez obzira koji je od 3 puta doveo do toga.
+    const endMatchBanners = $('endMatchBanners');
+    if (endMatchBanners) endMatchBanners.innerHTML = '';
     // Korisnikov zahtev: kraj PARTIJE ne treba da ponavlja narativ poslednje
     // ruke (ko je igrao sta, prosao/pao...) — samo naslov + tabela konacnog
     // plasmana. Plasman NIJE samo najniza bula: supe (ko kome duguje) se
@@ -2076,7 +2083,7 @@ function resultAction() {
       goToHomeScreen();
     } else {
       onlineSocket.emit('game:dealNext', {}, (res) => {
-        if (res?.error) console.warn('[online] game:dealNext odbijen:', res.error);
+        if (res?.error) { console.warn('[online] game:dealNext odbijen:', res.error); showAppToast(`⚠️ ${res.error}`); }
       });
     }
     return;
@@ -2342,8 +2349,7 @@ async function connectOnlineSocket() {
       $('roomScreen').classList.remove('active');
       $('setupScreen').classList.remove('active');
       $('chatToggleBtn').style.display = '';
-      $('leaveMatchBtn').style.display = '';
-      $('proposeEndBtn').style.display = '';
+      $('matchMenuBtn').style.display = '';
       $('peekHomeBtn').style.display = '';
       document.querySelector('.top-actions [onclick="restart()"]')?.style.setProperty('display', 'none');
       stopRoomListPolling();
@@ -2426,8 +2432,8 @@ function backToSetup() {
   $('roomScreen').classList.remove('active');
   $('chatScreen').classList.remove('open');
   $('chatToggleBtn').style.display = 'none';
-  $('leaveMatchBtn').style.display = 'none';
-    $('proposeEndBtn').style.display = 'none';
+  $('matchMenuBtn').style.display = 'none';
+    closeMatchMenu();
   $('peekHomeBtn').style.display = 'none';
   $('backToTableBtn').style.display = 'none';
   $('kibicRequestPanel').style.display = 'none';
@@ -2490,8 +2496,8 @@ function logoutOnline() {
   $('roomScreen').classList.remove('active');
   $('chatScreen').classList.remove('open');
   $('chatToggleBtn').style.display = 'none';
-  $('leaveMatchBtn').style.display = 'none';
-    $('proposeEndBtn').style.display = 'none';
+  $('matchMenuBtn').style.display = 'none';
+    closeMatchMenu();
   $('peekHomeBtn').style.display = 'none';
   $('backToTableBtn').style.display = 'none';
   $('kibicRequestPanel').style.display = 'none';
@@ -2786,6 +2792,28 @@ function showKibicRequestBanner(spectatorUserId, name) {
 // dalje se ne nastavlja posle nje). Isti plain-DOM banner obrazac kao kibic
 // zahtev (showKibicRequestBanner) — bez native confirm()/alert(), app ih
 // nigde ne koristi.
+// === ONLINE: jedinstveni meni "opcije partije" (predlog za prekid / napusti) ===
+// Korisnikov zahtev (2026-09-10): "ne trebaju nam 2 ikonice... klikom na
+// nju treba da ima stavka o predlogu za prekid, u dnu treba da ima napusti
+// svakako dugme".
+function toggleMatchMenu() {
+  const panel = $('matchMenuPanel');
+  if (!panel) return;
+  panel.style.display = panel.style.display === 'none' ? '' : 'none';
+}
+function closeMatchMenu() {
+  const panel = $('matchMenuPanel');
+  if (panel) panel.style.display = 'none';
+}
+window.toggleMatchMenu = toggleMatchMenu;
+window.closeMatchMenu = closeMatchMenu;
+// Zatvori meni na klik BILO GDE van njega — isti obrazac kao svaki drugi
+// dropdown/popover.
+document.addEventListener('click', (e) => {
+  const wrap = document.querySelector('.match-menu-wrap');
+  if (wrap && !wrap.contains(e.target)) closeMatchMenu();
+});
+
 function leaveMatch() {
   if (mode !== 'online' || !onlineSocket || mySeat === null) return;
   const myBula = game.state?.bulas?.[mySeat];
@@ -2826,8 +2854,8 @@ function doLeaveMatch() {
   onlineSocket.emit('game:leave', {}, (res) => {
     if (res?.error) { console.warn('[online] game:leave odbijen:', res.error); return; }
     document.body.classList.remove('online-in-game');
-    $('leaveMatchBtn').style.display = 'none';
-    $('proposeEndBtn').style.display = 'none';
+    $('matchMenuBtn').style.display = 'none';
+    closeMatchMenu();
     $('peekHomeBtn').style.display = 'none';
     $('backToTableBtn').style.display = 'none';
     $('chatToggleBtn').style.display = 'none';
@@ -2849,13 +2877,39 @@ function doLeaveMatch() {
 // glasovi" obrazac kao showKibicRequestBanner/leaveMatch, server je
 // autoritativan (activeSeatsForRoom vec iskljucuje napusteno sediste).
 
+// Korisnikov zahtev (2026-09-10): "poziv za kraj partije treba da ima
+// konfirmaciju kao i svi ostali ovakvi elementi" — isti "da li si
+// siguran?" banner obrazac kao leaveMatch(), PRE nego sto se predlog
+// stvarno posalje ostalima.
 function proposeEndMatch() {
   if (mode !== 'online' || !onlineSocket || mySeat === null) return;
+  const banner = document.createElement('div');
+  banner.className = 'end-match-banner';
+  const span = document.createElement('span');
+  span.textContent = 'Predložiti ostalim igračima da se partija odmah završi (bule se otpisuju po pravilima)?';
+  banner.appendChild(span);
+  const actions = document.createElement('div');
+  actions.className = 'end-match-actions';
+  const confirmBtn = document.createElement('button');
+  confirmBtn.className = 'bid-btn primary';
+  confirmBtn.textContent = 'Predloži';
+  confirmBtn.onclick = () => { banner.remove(); doProposeEndMatch(); };
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'bid-btn';
+  cancelBtn.textContent = 'Odustani';
+  cancelBtn.onclick = () => banner.remove();
+  actions.appendChild(confirmBtn);
+  actions.appendChild(cancelBtn);
+  banner.appendChild(actions);
+  $('endMatchBanners').appendChild(banner);
+}
+window.proposeEndMatch = proposeEndMatch;
+
+function doProposeEndMatch() {
   onlineSocket.emit('game:proposeEndMatch', {}, (res) => {
     if (res?.error) { showAppToast(`⚠️ ${res.error}`); return; }
   });
 }
-window.proposeEndMatch = proposeEndMatch;
 
 function renderEndMatchBanner(readySeats, proposerSeat) {
   const container = $('endMatchBanners');
