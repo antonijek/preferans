@@ -1772,9 +1772,14 @@ function renderResult() {
   // Online: sledeca runda se inace deli SAMA (automatski tajmer) — "Igraj"
   // bi zbunilo kao da ovo dugme pokrece nesto sto se inace desi samo od
   // sebe. "Deli" bolje opisuje "preskoci cekanje / potvrdi odmah".
-  if (s.phase !== 'MATCH_OVER') {
-    $('nextRoundBtn').textContent = mode === 'online' ? 'Deli' : 'Igraj';
-  }
+  // BAG (uzivo prijavljen, 2026-09-10: "2 igraca zavrsila na soba ekranu"):
+  // ovo dugme je ranije OSTAJALO na "Deli" i za MATCH_OVER (uslov ga je
+  // eksplicitno preskakao, pa je teksta ostajao stale od PRETHODNOG
+  // GAME_OVER prikaza) — zbunjujuce, jer dugme tu ne deli nista, vec vodi
+  // nazad na pocetnu/novu partiju.
+  $('nextRoundBtn').textContent = s.phase === 'MATCH_OVER'
+    ? (mode === 'online' ? 'Nazad na početnu' : 'Nova partija')
+    : (mode === 'online' ? 'Deli' : 'Igraj');
   // Status "ko je vec spreman" (samo online, samo GAME_OVER — ne MATCH_OVER,
   // gde dugme vodi na pocetni ekran umesto da deli sledecu rundu).
   const dealStatusEl = $('dealNextStatus');
@@ -2091,6 +2096,23 @@ function nextRound() {
 function resultAction() {
   if (mode === 'online') {
     if (game.state.phase === 'MATCH_OVER') {
+      // BAG (uzivo prijavljen: "2 igraca zavrsila na soba ekranu umesto
+      // pocetne") — ranije se ovde SAMO menjao prikaz (goToHomeScreen), bez
+      // ciscenja online-in-game klase/myRoomCode/dugmadi za sto. Ostatak
+      // stanja od (sad mrtve) sobe je ostajao zakacen, pa je sledeci "Igraj
+      // online"/room:info mogao da zavrsi u nekonzistentnom stanju. Isti
+      // reset kao doLeaveMatch().
+      document.body.classList.remove('online-in-game');
+      myRoomCode = null;
+      $('chatToggleBtn').style.display = 'none';
+      $('chatScreen').classList.remove('open');
+      $('matchMenuBtn').style.display = 'none';
+      closeMatchMenu();
+      $('peekHomeBtn').style.display = 'none';
+      $('backToTableBtn').style.display = 'none';
+      mySeat = null;
+      awayFromTable = false;
+      disconnectedSeats.clear();
       $('resultScreen').classList.remove('active');
       goToHomeScreen();
     } else {
