@@ -1926,16 +1926,21 @@ function renderScoreContent() {
       // "(0)"/prazna Pratnja za formulske "niko ne prati" ishode (RULES 5.4,
       // gde SVI tricksWon ostaju 0) svejedno ne prikazuju, BEZ da zavise od
       // posebne (bagovite) zastavice.
+      // Korisnikov zahtev: Pratnja je pisala "Ime: N" a Prosao "reč (N)" —
+      // dva razlicita formata jedno pored drugog delovalo je neusaglaseno.
+      // Oba sad koriste isti "(N)" oblik. white-space:nowrap na CELOM
+      // tekstu (ne samo na broju) sprecava da se "prošao" i "(3)" prelome
+      // u dva reda kad je kolona uska (uzivo prijavljeno na telefonu).
       const followTxt = h.followSeats && h.followSeats.length > 0
         ? h.followSeats.map(p => {
             const combined = (h.caller === p && h.callee !== null) ? h.tricksWon[p] + h.tricksWon[h.callee] : h.tricksWon[p];
-            return `<span class="follow-line">${POS_LABELS[p]}: ${combined}</span>`;
+            return `<span class="follow-line" style="white-space:nowrap">${POS_LABELS[p]} (${combined})</span>`;
           }).join('')
         : '—';
       const winnerTricks = h.winner !== null && h.tricksWon ? h.tricksWon[h.winner] : 0;
       const resultTxt = h.passed
-        ? `✓ prošao${winnerTricks ? ` (${winnerTricks})` : ''}`
-        : `✗ pao${winnerTricks ? ` (${winnerTricks})` : ''}`;
+        ? `<span style="white-space:nowrap">✓ prošao${winnerTricks ? ` (${winnerTricks})` : ''}</span>`
+        : `<span style="white-space:nowrap">✗ pao${winnerTricks ? ` (${winnerTricks})` : ''}</span>`;
       html += `<tr>
         <td>${h.round}</td>
         <td>${POS_LABELS[h.winner]}</td>
