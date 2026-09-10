@@ -243,7 +243,7 @@ export function calculateWriteOffWithFrozenSeat(
 // je pao) dužan "follower"-u, akumulirano kroz CELU partiju.
 export function calculateMatchScores(
   bulas: [number, number, number],
-  debtMatrix: [[number, number, number], [number, number, number], [number, number, number]],
+  debtMatrix?: [[number, number, number], [number, number, number], [number, number, number]] | null,
 ): [number, number, number] {
   const scores: [number, number, number] = [0, 0, 0];
   for (const x of [0, 1, 2] as Position[]) {
@@ -251,8 +251,17 @@ export function calculateMatchScores(
     let owedToX = 0;
     for (const y of [0, 1, 2] as Position[]) {
       if (y === x) continue;
-      owedByX += debtMatrix[x][y];
-      owedToX += debtMatrix[y][x];
+      // BAG (uzivo prijavljen 2026-09-10, "28. put ista stvar" — MATCH_OVER
+      // ekran je ostajao zaglavljen na starom GAME_OVER prikazu): ako
+      // debtMatrix ikad NIJE tacno onakav niz kakav ocekujemo (npr. state
+      // stigao sa starijeg/drugacijeg izvora), golo `debtMatrix[x][y]" baca
+      // TypeError koji je NECEHVATAN prekidao renderResult() na pola — naslov
+      // se stigao azurirati (rani red), ali ostatak (karte rangiranja) nikad
+      // nije stigao da prepise stari sadrzaj. `?.`/`?? 0` garantuje da OVA
+      // funkcija NIKAD ne baca, cak i sa nepotpunim/nedostajucim podacima —
+      // u najgorem slucaju vraca cist bula*10 rezultat bez supe korekcije.
+      owedByX += debtMatrix?.[x]?.[y] ?? 0;
+      owedToX += debtMatrix?.[y]?.[x] ?? 0;
     }
     scores[x] = bulas[x] * 10 + owedByX - owedToX;
   }

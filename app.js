@@ -1827,53 +1827,75 @@ function renderResult() {
     // menja na svaki broadcast) koju server koristi za STVARNE bodove, umesto
     // da klijent drzi svoju odvojenu (i ranije POGRESNU, bez *10) kopiju
     // formule koja bi mogla da se razidje.
-    const scores = game.getMatchScores();
-    const ranking = [0, 1, 2].slice().sort((a, b) => scores[a] - scores[b]);
-    const winnerPos = ranking[0];
-    const RANK_LABELS = ['🥇 1. mesto', '🥈 2. mesto', '🥉 3. mesto'];
-    let html = `<div class="score-players-row">`;
-    ranking.forEach((p, idx) => {
-      // lastMatchRankingResult stize SAMO online (server-autoritativan) —
-      // offline/lokalni mod nema trajni rejting, prikaz se gracefully
-      // izostavlja.
-      const delta = lastMatchRankingResult?.deltas?.[p];
-      const newRating = lastMatchRankingResult?.newRatings?.[p];
-      const deltaTxt = typeof delta === 'number'
-        ? `<div class="score-player-row" style="margin-top:2px;font-size:0.85em">
-             <span style="color:${delta > 0 ? '#a5d6a7' : delta < 0 ? '#ff8a80' : 'inherit'}">${delta > 0 ? '+' : ''}${delta} bodova</span>
-             ${typeof newRating === 'number' ? `<span style="opacity:0.6">(rejting: ${newRating})</span>` : ''}
-           </div>`
+    // BAG (uzivo prijavljen VISE PUTA, 2026-09-10 — "28. put ista stvar"):
+    // bilo koja NEUHVACENA greska ovde je prekidala renderResult() NA POLA —
+    // naslov (par redova iznad) se vec stigao azurirati na "Kraj partije!",
+    // ali ovaj blok nikad nije stigao da PREPISE $('resultMsg') sa novim
+    // sadrzajem, pa je klijent ostajao zaglavljen na STAROM GAME_OVER
+    // narativu zauvek (izgledalo je kao "stari kod", a bio je live/svez kod
+    // koji je samo pukao usred izvrsavanja). try/catch ovde garantuje da BAR
+    // NESTO ispravno zamenii stari prikaz, cak i ako neki nepredvidjen
+    // slucaj (npr. debtMatrix nedostaje na starijoj/tranzicionoj partiji)
+    // izazove gresku — korisnik vise nikad ne sme da vidi zaglavljen prikaz.
+    try {
+      const scores = game.getMatchScores();
+      const ranking = [0, 1, 2].slice().sort((a, b) => scores[a] - scores[b]);
+      const winnerPos = ranking[0];
+      const RANK_LABELS = ['🥇 1. mesto', '🥈 2. mesto', '🥉 3. mesto'];
+      let html = `<div class="score-players-row">`;
+      ranking.forEach((p, idx) => {
+        // lastMatchRankingResult stize SAMO online (server-autoritativan) —
+        // offline/lokalni mod nema trajni rejting, prikaz se gracefully
+        // izostavlja.
+        const delta = lastMatchRankingResult?.deltas?.[p];
+        const newRating = lastMatchRankingResult?.newRatings?.[p];
+        const deltaTxt = typeof delta === 'number'
+          ? `<div class="score-player-row" style="margin-top:2px;font-size:0.85em">
+               <span style="color:${delta > 0 ? '#a5d6a7' : delta < 0 ? '#ff8a80' : 'inherit'}">${delta > 0 ? '+' : ''}${delta} bodova</span>
+               ${typeof newRating === 'number' ? `<span style="opacity:0.6">(rejting: ${newRating})</span>` : ''}
+             </div>`
+          : '';
+        // Tacan proracun: score = bula*10 + (sta P duguje drugima) - (sta je
+        // drugima duzno P-u), citano direktno iz istog debtMatrix-a koji je
+        // koristio server (deo game.state, prolazi kroz redakciju netaknut).
+        let owedBy = 0, owedTo = 0;
+        for (const y of [0, 1, 2]) {
+          if (y === p) continue;
+          owedBy += s.debtMatrix?.[p]?.[y] ?? 0;
+          owedTo += s.debtMatrix?.[y]?.[p] ?? 0;
+        }
+        const parts = [`${s.bulas[p]}×10`];
+        if (owedBy > 0) parts.push(`+${owedBy}`);
+        if (owedTo > 0) parts.push(`−${owedTo}`);
+        const breakdown = `${parts.join(' ')} = ${scores[p]}`;
+        html += `<div class="score-player-card ${p === winnerPos ? 'winner' : ''}">
+          <div class="score-player-rank">${RANK_LABELS[idx]}</div>
+          <div class="score-player-name">${POS_LABELS[p]}${p === winnerPos ? ' 🏆' : ''}</div>
+          <div class="score-player-row"><span class="score-player-bula">${s.bulas[p]}</span></div>
+          <div class="score-breakdown">${breakdown}</div>
+          ${deltaTxt}
+        </div>`;
+      });
+      html += `</div>`;
+      html += `<p style="text-align:center;margin-top:14px">🏆 <strong style="color:#ffeb3b">${POS_LABELS[winnerPos]} pobeđuje!</strong></p>`;
+      // Korisnikov zahtev: razlog kraja partije (prirodan/dogovor/napustanje)
+      // vidljiv na ekranu, ne samo implicitno.
+      const reasonTxt = s.matchEndReason === 'agreed' ? 'Partija je završena po dogovoru svih igrača.'
+        : s.matchEndReason === 'leave' ? 'Partija je završena dogovorom preostalih igrača posle napuštanja stola.'
         : '';
-      // Tacan proracun: score = bula*10 + (sta P duguje drugima) - (sta je
-      // drugima duzno P-u), citano direktno iz istog debtMatrix-a koji je
-      // koristio server (deo game.state, prolazi kroz redakciju netaknut).
-      let owedBy = 0, owedTo = 0;
-      for (const y of [0, 1, 2]) {
-        if (y === p) continue;
-        owedBy += s.debtMatrix?.[p]?.[y] ?? 0;
-        owedTo += s.debtMatrix?.[y]?.[p] ?? 0;
-      }
-      const parts = [`${s.bulas[p]}×10`];
-      if (owedBy > 0) parts.push(`+${owedBy}`);
-      if (owedTo > 0) parts.push(`−${owedTo}`);
-      const breakdown = `${parts.join(' ')} = ${scores[p]}`;
-      html += `<div class="score-player-card ${p === winnerPos ? 'winner' : ''}">
-        <div class="score-player-rank">${RANK_LABELS[idx]}</div>
-        <div class="score-player-name">${POS_LABELS[p]}${p === winnerPos ? ' 🏆' : ''}</div>
-        <div class="score-player-row"><span class="score-player-bula">${s.bulas[p]}</span></div>
-        <div class="score-breakdown">${breakdown}</div>
-        ${deltaTxt}
-      </div>`;
-    });
-    html += `</div>`;
-    html += `<p style="text-align:center;margin-top:14px">🏆 <strong style="color:#ffeb3b">${POS_LABELS[winnerPos]} pobeđuje!</strong></p>`;
-    // Korisnikov zahtev: razlog kraja partije (prirodan/dogovor/napustanje)
-    // vidljiv na ekranu, ne samo implicitno.
-    const reasonTxt = s.matchEndReason === 'agreed' ? 'Partija je završena po dogovoru svih igrača.'
-      : s.matchEndReason === 'leave' ? 'Partija je završena dogovorom preostalih igrača posle napuštanja stola.'
-      : '';
-    if (reasonTxt) html += `<p class="muted-line" style="text-align:center">${reasonTxt}</p>`;
-    $('resultMsg').innerHTML = html;
+      if (reasonTxt) html += `<p class="muted-line" style="text-align:center">${reasonTxt}</p>`;
+      $('resultMsg').innerHTML = html;
+    } catch (err) {
+      console.error('[MATCH_OVER render greška, koristim jednostavan fallback]', err);
+      const fallbackRanking = [0, 1, 2].slice().sort((a, b) => (s.bulas[a] ?? 0) - (s.bulas[b] ?? 0));
+      const fallbackWinner = fallbackRanking[0];
+      $('resultMsg').innerHTML = `<div class="score-players-row">${
+        fallbackRanking.map(p => `<div class="score-player-card ${p === fallbackWinner ? 'winner' : ''}">
+          <div class="score-player-name">${POS_LABELS[p]}${p === fallbackWinner ? ' 🏆' : ''}</div>
+          <div class="score-player-row"><span class="score-player-bula">${s.bulas[p] ?? '?'}</span></div>
+        </div>`).join('')
+      }</div><p style="text-align:center;margin-top:14px">🏆 <strong style="color:#ffeb3b">${POS_LABELS[fallbackWinner]} pobeđuje!</strong></p>`;
+    }
     return;
   }
 
