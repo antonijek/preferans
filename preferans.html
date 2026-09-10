@@ -1980,6 +1980,15 @@
   </div>
 </div>
 
-<script type="module" src="./app.js"></script>
+<!-- BAG (uzivo prijavljeno VISE puta, 2026-09-10: "i dalje stari prikaz
+     iako sam ocistio kes") — ni Cache-Control:no-cache HTTP zaglavlje ni
+     service worker cache-bump ne garantuju da ce SVAKI browser/uredjaj
+     odmah primetiti promenu (SW proverava sopstveni fajl retko i
+     nezavisno; obican disk cache takodje moze da ignorise no-cache u
+     nekim konfiguracijama). Query-string verzija na SAMOM <script> tagu
+     je jedini NEPOBITAN nacin — to je BUKVALNO nov URL koji nijedan keš
+     ikad nije video, ne postoji nacin da posluzi staru kopiju. UBUDUCE:
+     bump-ovati ?v=N ovde pri SVAKOM deploy-u koji dira app.js. -->
+<script type="module" src="./app.js?v=1"></script>
 </body>
 </html>
