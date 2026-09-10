@@ -1089,7 +1089,11 @@
      karticu sa istim bojama koje vec koristi chat (.chat-msg.p0/p1/p2) —
      dosledno kroz sajt, umesto inline stilova bez ikakve vizuelne
      hijerarhije koje su ovde ranije bile. */
-  .revealed-hands-box {
+  /* .screen .revealed-hands-box (dve klase) mora da se poklopi sa
+     specificnoscu deljenog ".screen .box" da bi ga stvarno pobedio —
+     ista greska/popravka kao ranije kod .score-box (CSS specificnost
+     pobedjuje nad redosledom u fajlu, ne obrnuto). */
+  .screen .revealed-hands-box {
     background: linear-gradient(180deg, #1e4d22 0%, #0d2410 100%);
     border-color: rgba(76, 175, 80, 0.6);
   }
