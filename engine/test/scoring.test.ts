@@ -9,6 +9,9 @@ import {
   calculateBetlSupa,
   calculateFinalScore,
   calculateWriteOff,
+  calculateWriteOffWithFrozenSeat,
+  calculateMatchScores,
+  calculateRatingDeltas,
   getGameValue,
   isBetl,
   isSans,
@@ -204,6 +207,69 @@ test('Primjeri iz dokumenta — A.2 Supe primer 12 (refe × kontra × Igra-tref)
 test('Primjeri iz dokumenta — A.2 Supe primer 13 (Igra-Pik + kontra + refe)', () => {
   const supe = calculateSupaForFollower(5, 'Igra-Pik', 4, 2);
   assert.equal(supe, 240);
+});
+
+// Korisnikov zahtev (2026-09-10) — "predlog za kraj" kad neko napusti sto:
+// napusteni ostaje na SVOJOJ buli, otpis se raspodeljuje samo izmedju
+// preostale dvojice.
+test('calculateWriteOffWithFrozenSeat — deljivo bez ostatka, frozen netaknut', () => {
+  const result = calculateWriteOffWithFrozenSeat([10, 2, -6], 2);
+  assert.equal(result.finalBule[2], -6, 'frozen sediste (P2) se ne dira');
+  assert.equal(result.writeOff[2], 0);
+  assert.equal(result.finalBule[0], 7, '10 - 3 (base, deljivo 6/2)');
+  assert.equal(result.finalBule[1], -1, '2 - 3');
+  assert.equal(result.finalBule[0] + result.finalBule[1] + result.finalBule[2], 0, 'zbir sve tri (ukljucujuci frozen) = 0');
+});
+
+test('calculateWriteOffWithFrozenSeat — sa ostatkom, gori (visi) igrac nosi veci otpis', () => {
+  const result = calculateWriteOffWithFrozenSeat([10, 3, -6], 2);
+  assert.equal(result.finalBule[2], -6, 'frozen netaknut');
+  assert.equal(result.writeOff[0], 4, 'P0 (najvisa bula medju preostalima) nosi ceiling');
+  assert.equal(result.writeOff[1], 3, 'P1 nosi base');
+  assert.equal(result.finalBule[0] + result.finalBule[1] + result.finalBule[2], 0);
+});
+
+test('calculateWriteOffWithFrozenSeat — zbir vec <=0, nema otpisa', () => {
+  const result = calculateWriteOffWithFrozenSeat([-10, -5, -6], 0);
+  assert.deepEqual(result.writeOff, [0, 0, 0]);
+  assert.deepEqual(result.finalBule, [-10, -5, -6]);
+});
+
+// Korisnikov dikirani primer (2026-09-04, memorija
+// project-preferans-ranking-system-design) — "Jug: bula -10, duguje Istoku
+// 70, duguje Zapadu 50 -> score +20. Istok: bula 2, potrazuje 70 od Juga,
+// duguje Zapadu 10 -> score -40." Zapad bula=5 dodata ovde radi punog
+// (validnog) debtMatrix-a za test, memorija ne navodi tu vrednost.
+test('calculateMatchScores — korisnikov potvrdjeni primer (bula*10 + neto supe)', () => {
+  const bulas: [number, number, number] = [-10, 2, 5];
+  const debtMatrix: [[number, number, number], [number, number, number], [number, number, number]] = [
+    [0, 70, 50], // Jug (0) duguje Istoku 70, Zapadu 50
+    [0, 0, 10],  // Istok (1) duguje Zapadu 10
+    [0, 0, 0],
+  ];
+  const scores = calculateMatchScores(bulas, debtMatrix);
+  assert.equal(scores[0], 20, 'Jug: -10*10 + 120 = 20');
+  assert.equal(scores[1], -40, 'Istok: 2*10 + 10 - 70 = -40');
+  assert.ok(scores[1] < scores[0], 'Istok pobedjuje (nize je bolje) uprkos goroj buli od Juga');
+});
+
+// Korisnikov primer za bodove (2026-09-10): score -112/-6/+118, priblizno
+// jednaki startni rejtinzi -> +10/0/-10.
+test('calculateRatingDeltas — korisnikov primer, jednaki rejtinzi', () => {
+  const deltas = calculateRatingDeltas([-112, -6, 118], [1000, 1000, 1000]);
+  assert.equal(deltas[0], 10, '1. mesto dobija +10');
+  assert.equal(deltas[1], 0, '2. mesto ostaje na 0');
+  assert.equal(deltas[2], -10, '3. mesto gubi -10');
+});
+
+test('calculateRatingDeltas — pobeda protiv slabijih nosi MANJE bodova nego protiv jednakih', () => {
+  const deltasEqual = calculateRatingDeltas([-100, 0, 100], [1000, 1000, 1000]);
+  const deltasStronger = calculateRatingDeltas([-100, 0, 100], [1400, 1000, 1000]);
+  assert.ok(
+    deltasStronger[0] < deltasEqual[0],
+    `pobeda ocekivana (visi rejting) treba da nosi manje bodova: ${deltasStronger[0]} vs ${deltasEqual[0]}`
+  );
+  assert.ok(deltasStronger[0] > 0, 'i dalje pozitivno (pobedio je)');
 });
 
 test('isBetl / isSans / isIgra / getTrumpSuit', () => {

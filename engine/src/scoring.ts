@@ -203,6 +203,85 @@ export function calculateWriteOff(bule: [number, number, number]): WriteOffResul
   return { writeOff: ws, finalBule: finalB };
 }
 
+// Korisnikov zahtev (2026-09-10): "neko pobegne sa stola, druga dvojica
+// mogu da zavrse partiju" — napusteni igrac se zamrzava na svojoj TRENUTNOJ
+// buli (ne dira se), a otpis (isti RULES 9.6 algoritam — najgori ostaje
+// najdublje u minusu) se raspodeljuje SAMO izmedju preostala dva igraca,
+// tako da zbir sve tri bule (2 otpisane + 1 zamrznuta) ispadne 0.
+export function calculateWriteOffWithFrozenSeat(
+  bule: [number, number, number],
+  frozenSeat: Position,
+): WriteOffResult {
+  const total = bule[0] + bule[1] + bule[2];
+  const finalB: [number, number, number] = [bule[0], bule[1], bule[2]];
+  const ws: [number, number, number] = [0, 0, 0];
+  if (total <= 0) {
+    // Nema sta da se otpise (zbir vec <=0) — samo MATCH_OVER, niko se ne dira.
+    return { writeOff: ws, finalBule: finalB };
+  }
+  const others = ([0, 1, 2] as Position[]).filter(p => p !== frozenSeat);
+  const playerCount = 2;
+  const ceiling = Math.ceil(total / playerCount);
+  const base = Math.floor(total / playerCount);
+  const remainder = total % playerCount;
+  const sorted = others
+    .map(p => ({ p, b: bule[p] }))
+    .sort((a, b) => b.b - a.b);
+  sorted.forEach((pl, idx) => {
+    const off = idx < remainder ? ceiling : base;
+    ws[pl.p] = off;
+    finalB[pl.p] = bule[pl.p] - off;
+  });
+  return { writeOff: ws, finalBule: finalB };
+}
+
+// Korisnikov zahtev (2026-09-10, dictirano 2026-09-04, vidi memoriju
+// project-preferans-ranking-system-design): ko pobedjuje partiju NIJE
+// prosto najniza (najbolja) bula — supe (ko kome duguje) se moraju
+// neto uracunati. Nize je bolje (isti smer kao gola bula).
+// debtMatrix[declarer][follower] = koliko je "declarer" (kao nosilac koji
+// je pao) dužan "follower"-u, akumulirano kroz CELU partiju.
+export function calculateMatchScores(
+  bulas: [number, number, number],
+  debtMatrix: [[number, number, number], [number, number, number], [number, number, number]],
+): [number, number, number] {
+  const scores: [number, number, number] = [0, 0, 0];
+  for (const x of [0, 1, 2] as Position[]) {
+    let owedByX = 0;
+    let owedToX = 0;
+    for (const y of [0, 1, 2] as Position[]) {
+      if (y === x) continue;
+      owedByX += debtMatrix[x][y];
+      owedToX += debtMatrix[y][x];
+    }
+    scores[x] = bulas[x] * 10 + owedByX - owedToX;
+  }
+  return scores;
+}
+
+// Pairwise ELO-stil promena rejtinga na kraju partije — korisnikov zahtev:
+// "vazno je sa kim igras... nece se uvek davati isti broj bodova".
+// K=10 potvrdjeno na korisnikovom primeru (score -112/-6/+118, jednaki
+// startni rejtinzi -> +10/0/-10, vidi plan/memoriju).
+export function calculateRatingDeltas(
+  scores: [number, number, number],
+  ratings: [number, number, number],
+  k = 10,
+): [number, number, number] {
+  const deltas: [number, number, number] = [0, 0, 0];
+  for (const x of [0, 1, 2] as Position[]) {
+    let delta = 0;
+    for (const y of [0, 1, 2] as Position[]) {
+      if (y === x) continue;
+      const expected = 1 / (1 + Math.pow(10, (ratings[y] - ratings[x]) / 400));
+      const actual = scores[x] < scores[y] ? 1 : scores[x] > scores[y] ? 0 : 0.5;
+      delta += actual - expected;
+    }
+    deltas[x] = Math.round(k * delta);
+  }
+  return deltas;
+}
+
 // Helper: da li igra zahteva 6+ štihova za prolaz
 export function isBetl(game: Game): boolean {
   return game === 'Betl' || game === 'Igra-Betl';

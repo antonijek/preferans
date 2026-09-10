@@ -6,6 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Game } from '../src/game.ts';
+import type { Position } from '../src/types.ts';
 
 test('match-end: normalna ruka koja ne dovodi zbir blizu 0 -> GAME_OVER (ruka), partija se nastavlja', () => {
   const game = new Game({ seed: 1 }); // podrazumevano 100/100/100, zbir=300
@@ -118,6 +119,70 @@ test('match-end: zbir sleti TACNO na 0 bez potrebe za capovanjem (srecno poklapa
   assert.equal(result.bulas[0] + result.bulas[1] + result.bulas[2], 0);
   assert.equal(game.state.phase, 'MATCH_OVER');
   assert.equal(result.supeDelta[1], 20, 'supe NISU capovane (puna vrednost se vec tacno poklopila)');
+});
+
+// Korisnikov zahtev (2026-09-10) — "Predlog za kraj": svi aktivni igraci
+// se slazu da zavrse partiju pre nego sto bule prirodno padnu na 0.
+test('applyAgreedEnd: otpisuje sve tri bule (RULES 9.6) i zavrsava partiju odmah', () => {
+  const game = new Game({ seed: 1 });
+  game.state.bulas = [10, 3, -6]; // zbir = 7
+  game.applyAgreedEnd();
+  assert.equal(game.state.phase, 'MATCH_OVER');
+  assert.equal(game.state.matchEndReason, 'agreed');
+  assert.equal(game.state.bulas[0] + game.state.bulas[1] + game.state.bulas[2], 0);
+  assert.equal(game.state.bulas[0], 7, '10 - ceiling(3) (7/3 -> base=2,ceiling=3,remainder=1)');
+});
+
+// Korisnikov zahtev (2026-09-10) — neko napusti sto, preostala dva se slazu
+// da zavrse; napusteni ostaje NA TRENUTNOJ buli (ne staroj "leave-time"
+// vrednosti — applyLeaveEnd cita state.bulas[frozenSeat] BAS u trenutku
+// poziva).
+test('applyLeaveEnd: zamrzava napusteno sediste na TRENUTNOJ buli, otpisuje samo preostala dva', () => {
+  const game = new Game({ seed: 1 });
+  game.state.bulas = [10, 2, -6]; // P2 (seat 2) je "napustio", trenutna bula -6
+  game.applyLeaveEnd(2 as Position);
+  assert.equal(game.state.phase, 'MATCH_OVER');
+  assert.equal(game.state.matchEndReason, 'leave');
+  assert.equal(game.state.bulas[2], -6, 'napusteno sediste NETAKNUTO');
+  assert.equal(game.state.bulas[0] + game.state.bulas[1] + game.state.bulas[2], 0);
+});
+
+test('endHand: debtMatrix se akumulira kad nosilac padne (declarer duguje pratiocima)', () => {
+  const game = new Game({ seed: 1 });
+  game.newHand(0);
+  game.bid(1, 2);
+  game.pass(2);
+  game.pass(0);
+  const hand = game.state.players[1]!.hand;
+  game.discard(1, [hand[0]!.id, hand[1]!.id]);
+  game.declareGame(1, 'Herc');
+  game.follow(0, 'DODJEM');
+  game.follow(2, 'DODJEM');
+  game.moze(0);
+  game.moze(2);
+  // Nosilac (P1) pada — malo stihova, pratioci uhvate dosta.
+  game.state.players[1]!.tricksWon = 2;
+  game.state.players[0]!.tricksWon = 4;
+  game.state.players[2]!.tricksWon = 4;
+  const result = game.endHand();
+  assert.ok(result.supeDelta[0]! > 0, 'P0 je zaradio supu');
+  assert.ok(result.supeDelta[2]! > 0, 'P2 je zaradio supu');
+  assert.equal(game.state.debtMatrix[1][0], result.supeDelta[0], 'nosilac (P1) duguje P0 tacno supeDelta');
+  assert.equal(game.state.debtMatrix[1][2], result.supeDelta[2], 'nosilac (P1) duguje P2 tacno supeDelta');
+  assert.equal(game.state.debtMatrix[0][1], 0, 'P0 ne duguje nosiocu nista (samo obrnuti smer postoji)');
+});
+
+test('getMatchScores: koristi state.bulas + state.debtMatrix (deljena logika sa calculateMatchScores)', () => {
+  const game = new Game({ seed: 1 });
+  game.state.bulas = [-10, 2, 5];
+  game.state.debtMatrix = [
+    [0, 70, 50],
+    [0, 0, 10],
+    [0, 0, 0],
+  ];
+  const scores = game.getMatchScores();
+  assert.equal(scores[0], 20);
+  assert.equal(scores[1], -40);
 });
 
 test('match-end: "niko ne prati" na ne-Pik igri takodje capuje ako bi prevazisla cilj', () => {

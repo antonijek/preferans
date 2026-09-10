@@ -31,6 +31,9 @@ export async function initDb(): Promise<void> {
     if (!existingCols.has('name')) db.run('ALTER TABLE users ADD COLUMN name TEXT');
     if (!existingCols.has('is_admin')) db.run('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0');
     if (!existingCols.has('credits')) db.run('ALTER TABLE users ADD COLUMN credits INTEGER NOT NULL DEFAULT 0');
+    // Ranking sistem (korisnikov zahtev 2026-09-10) — ELO-stil bodovi,
+    // default 1000 za nove/postojece igrace (isti obrazac kao credits).
+    if (!existingCols.has('rating')) db.run('ALTER TABLE users ADD COLUMN rating INTEGER NOT NULL DEFAULT 1000');
 
     const creditLogTable = db.exec(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='credit_log'"
@@ -82,4 +85,21 @@ export function all<T = Record<string, unknown>>(
   }
   stmt.free();
   return rows;
+}
+
+// Ranking sistem (korisnikov zahtev 2026-09-10) — citanje/pisanje trajnog
+// ELO-stil rejtinga po korisniku.
+export function getUserRating(userId: number): number {
+  const row = get<{ rating: number }>('SELECT rating FROM users WHERE id = ?', [userId]);
+  return row?.rating ?? 1000;
+}
+
+export function getUsersRatings(userIds: number[]): Map<number, number> {
+  const result = new Map<number, number>();
+  for (const id of userIds) result.set(id, getUserRating(id));
+  return result;
+}
+
+export function updateUserRating(userId: number, newRating: number): void {
+  run('UPDATE users SET rating = ? WHERE id = ?', [newRating, userId]);
 }

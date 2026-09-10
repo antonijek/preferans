@@ -14,6 +14,8 @@ import {
   calculateSupaForFollower,
   calculateBetlSupa,
   calculateWriteOff,
+  calculateWriteOffWithFrozenSeat,
+  calculateMatchScores,
   type Multiplier,
 } from './scoring.js';
 import { CONTRA_MULTIPLIERS, REFE_MULTIPLIER, STANDARD_GAMES, IGRA_GAMES, GAME_VALUES } from './constants.js';
@@ -99,6 +101,8 @@ export class Game {
       igraCompetitors: null,
       igraDeclarations: {},
       lastHandResult: null,
+      debtMatrix: [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
+      matchEndReason: null,
     };
   }
 
@@ -497,6 +501,7 @@ private checkBiddingEnd(): void {
       const capped = this.capHandToMatchEnd(this.state.bulas, bulasRaw, [0, 0, 0]);
       this.state.bulas = capped.bulas;
       this.state.phase = capped.matchOver ? 'MATCH_OVER' : 'GAME_OVER';
+      if (capped.matchOver) this.state.matchEndReason = 'natural';
       this.state.lastHandResult = {
         bulas: [...capped.bulas] as [number, number, number],
         supeDelta: capped.supeDelta,
@@ -676,6 +681,7 @@ private checkBiddingEnd(): void {
     const capped = this.capHandToMatchEnd(this.state.bulas, bulasRaw, [0, 0, 0]);
     this.state.bulas = capped.bulas;
     this.state.phase = capped.matchOver ? 'MATCH_OVER' : 'GAME_OVER';
+    if (capped.matchOver) this.state.matchEndReason = 'natural';
     this.state.lastHandResult = {
       bulas: [...capped.bulas] as [number, number, number],
       supeDelta: capped.supeDelta,
@@ -1112,6 +1118,15 @@ private checkBiddingEnd(): void {
     const capped = this.capHandToMatchEnd(this.state.bulas, bulas, supeDelta);
     this.state.bulas = capped.bulas;
     this.state.phase = capped.matchOver ? 'MATCH_OVER' : 'GAME_OVER';
+    if (capped.matchOver) this.state.matchEndReason = 'natural';
+    // Ranking sistem (korisnikov zahtev 2026-09-10): declarer duguje
+    // svakom pratiocu koji je zaradio supu ovom rukom — akumulirano kroz
+    // CELU partiju za calculateMatchScores().
+    for (const f of [0, 1, 2] as Position[]) {
+      if (f !== declarer && capped.supeDelta[f] > 0) {
+        this.state.debtMatrix[declarer][f] += capped.supeDelta[f];
+      }
+    }
 
     const result: EndOfHandResult = {
       bulas: [...this.state.bulas] as [number, number, number],
@@ -1338,6 +1353,35 @@ private checkBiddingEnd(): void {
   // Otpisivanje ako partija ne može da se završi
   writeOff(): { writeOff: [number, number, number]; finalBule: [number, number, number] } {
     return calculateWriteOff(this.state.bulas);
+  }
+
+  // Korisnikov zahtev (2026-09-10) — "Predlog za kraj": SVI aktivni igraci
+  // se slazu da zavrse partiju pre nego sto bule prirodno padnu na 0.
+  // Isti RULES 9.6 otpis kao writeOff(), ali OVDE se stvarno PRIMENJUJE
+  // (writeOff() gore samo racuna, ne menja state) — partija se odmah
+  // zavrsava.
+  applyAgreedEnd(): void {
+    const { finalBule } = calculateWriteOff(this.state.bulas);
+    this.state.bulas = finalBule;
+    this.state.phase = 'MATCH_OVER';
+    this.state.matchEndReason = 'agreed';
+  }
+
+  // Korisnikov zahtev (2026-09-10) — preostala dva igraca se slazu da
+  // zavrse posto je treci napustio sto. `frozenSeat` ostaje NA BULI KOJU
+  // TRENUTNO IMA (cita se state.bulas[frozenSeat] BAS SAD, ne neka stara
+  // "leave-time" vrednost) — otpis ide samo izmedju preostale dvojice.
+  applyLeaveEnd(frozenSeat: Position): void {
+    const { finalBule } = calculateWriteOffWithFrozenSeat(this.state.bulas, frozenSeat);
+    this.state.bulas = finalBule;
+    this.state.phase = 'MATCH_OVER';
+    this.state.matchEndReason = 'leave';
+  }
+
+  // Plasman (1./2./3. mesto) za ranking/bodovanje — vidi
+  // calculateMatchScores komentar (bulas*10 + neto supe).
+  getMatchScores(): [number, number, number] {
+    return calculateMatchScores(this.state.bulas, this.state.debtMatrix);
   }
 }
 

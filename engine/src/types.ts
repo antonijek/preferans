@@ -215,6 +215,15 @@ export interface GameState {
   igraCompetitors: Position[] | null;
   igraDeclarations: Partial<Record<Position, Game>>;
   lastHandResult: EndOfHandResult | null;
+  // Korisnikov zahtev (2026-09-10, ranking sistem): koliko je "X" (kao
+  // nosilac koji je pao) dužan "Y"-u, akumulirano kroz CELU partiju —
+  // debtMatrix[X][Y] += supeDelta[Y] svaki put kad X padne kao nosilac.
+  // Server-autoritativna zamena za ono sto je ranije zivelo SAMO
+  // klijent-side (app.js recordHandIfNew) — potrebno za calculateMatchScores.
+  debtMatrix: [[number, number, number], [number, number, number], [number, number, number]];
+  // Zasto je partija zavrsena (MATCH_OVER) — korisnikov zahtev za "predlog
+  // za kraj"/napustanje-pa-kraj tokove, klijent ovo koristi za tacnu poruku.
+  matchEndReason: 'natural' | 'agreed' | 'leave' | null;
 }
 
 export interface ScoreUpdate {

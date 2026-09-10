@@ -45,6 +45,18 @@ export interface RoomState {
   // aktivni (ne napusteni) igraci kliknu, ili istekne auto-tajmer. Resetuje
   // se u dealNextHand() cim sledeca ruka stvarno pocne.
   dealNextReady: Set<Position>;
+  // Korisnikov zahtev (2026-09-10) — "Predlog za kraj": ista logika kao
+  // dealNextReady, ali za glasanje o ranom zavrsetku partije. Prazan Set
+  // znaci "nema aktivnog predloga".
+  endMatchReady: Set<Position>;
+  // Rejting (ELO-stil bodovi) po sedistu, keshiran iz baze pri ulasku u
+  // sobu i osvezen posle svakog kraja partije — broadcastRoomState() ga
+  // ubacuje u redigovano stanje da klijent moze da prikaze "Ime (rejting)".
+  seatRatings: [number, number, number];
+  // Sprecava dupli obracun rejtinga ako broadcastRoomState() bude pozvan
+  // vise puta dok je phase vec MATCH_OVER (isti obrazac kao
+  // nextHandScheduled za GAME_OVER).
+  matchRankingResolved: boolean;
 }
 
 export interface RoomOptions {
@@ -68,5 +80,8 @@ export function createRoomState(code: string, options: RoomOptions = {}): RoomSt
     nextHandScheduled: false,
     nextHandTimeout: null,
     dealNextReady: new Set(),
+    endMatchReady: new Set(),
+    seatRatings: [1000, 1000, 1000],
+    matchRankingResolved: false,
   };
 }

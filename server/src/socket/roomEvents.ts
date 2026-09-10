@@ -17,6 +17,8 @@ import { applyAction, withAuthenticatedActor } from './gameEvents.js';
 import type { GameAction } from './gameEvents.js';
 import { listOnlineUsers, getSocketIdsForUser } from '../presence.js';
 import { computeAiAction } from '../ai/aiSeat.js';
+import { getUserRating, updateUserRating } from '../db.js';
+import { calculateRatingDeltas } from '../../../engine/dist/scoring.js';
 
 type Ack = (response: Record<string, unknown>) => void;
 
@@ -51,7 +53,11 @@ function buildClientState(room: RoomState, viewer: Viewer) {
   const players = redacted.players.map((p, i) => ({
     ...p,
     name: room.seatNames[i] ?? p.name,
-  })) as typeof redacted.players;
+    // Ranking sistem (korisnikov zahtev 2026-09-10) — rejting keshiran u
+    // room.seatRatings (osvezen na ulazak u sobu i posle svakog kraja
+    // partije), ubacen ovde da klijent moze da prikaze "Ime (rejting)".
+    rating: room.seatRatings[i]!,
+  }));
   return {
     ...redacted,
     players,
@@ -84,6 +90,14 @@ function broadcastRoomState(room: RoomState): void {
       buildClientState(room, { type: 'spectator', kibicSeats: spectator.kibicSeats })
     );
   });
+  // Ranking sistem (korisnikov zahtev 2026-09-10) — ovo je JEDINO mesto gde
+  // se rezultat partije trajno upisuje, bez obzira KOJI put je doveo do
+  // MATCH_OVER (prirodan kraj, "predlog za kraj", napustanje-pa-kraj) —
+  // izbegava dupli obracun ako bi vise poziva slucajno oba vodila ovamo.
+  if (room.game.state.phase === 'MATCH_OVER' && !room.matchRankingResolved) {
+    room.matchRankingResolved = true;
+    resolveMatchRanking(room);
+  }
   maybeDriveAiTurn(room);
   maybeAutoAdvanceHand(room);
 }
@@ -119,6 +133,33 @@ function dealNextHand(room: RoomState): void {
 // preuzeo) ne moze kliknuti nista, pa se ne racuna.
 function activeSeatsForRoom(room: RoomState): Position[] {
   return ([0, 1, 2] as Position[]).filter((s) => s !== room.abandonedSeat);
+}
+
+// Korisnikov zahtev (2026-09-10) — kraj partije (bilo prirodan, "predlog za
+// kraj", ili napustanje-pa-kraj) uvek zavrsava istim korakom: izracunaj
+// plasman, azuriraj trajni rejting sve trojice (ukljucujuci eventualno
+// napustenog — i on dobija/gubi bodove), i obavesti sobu.
+function resolveMatchRanking(room: RoomState): void {
+  const scores = room.game.getMatchScores();
+  const ratings: [number, number, number] = [0, 0, 0];
+  for (const seat of [0, 1, 2] as Position[]) {
+    const uid = room.seatUserIds[seat];
+    ratings[seat] = uid !== null ? getUserRating(uid) : 1000;
+  }
+  const deltas = calculateRatingDeltas(scores, ratings);
+  const newRatings: [number, number, number] = [0, 0, 0];
+  for (const seat of [0, 1, 2] as Position[]) {
+    const uid = room.seatUserIds[seat];
+    const updated = ratings[seat]! + deltas[seat]!;
+    newRatings[seat] = updated;
+    if (uid !== null) {
+      updateUserRating(uid, updated);
+      room.seatRatings[seat] = updated;
+    }
+  }
+  const payload = { scores, deltas, newRatings };
+  room.sockets.forEach((socket) => socket?.emit('game:matchRankingResult', payload));
+  room.spectators.forEach((spectator) => spectator.socket?.emit('game:matchRankingResult', payload));
 }
 
 function maybeAutoAdvanceHand(room: RoomState): void {
@@ -167,6 +208,7 @@ function joinAsPlayer(room: RoomState, userId: number, socket: Socket, name: str
     room.seatUserIds[seat] = userId;
   }
   room.seatNames[seat] = name;
+  room.seatRatings[seat] = getUserRating(userId);
   room.sockets[seat] = socket;
   socket.join(room.code);
   setUserLocation(userId, { code: room.code, role: 'player', seat });
@@ -499,6 +541,61 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
       dealNextHand(room);
     } else {
       io.to(room.code).emit('game:dealNextStatus', { ready: Array.from(room.dealNextReady) });
+    }
+    ack?.({ ok: true });
+  });
+
+  // Korisnikov zahtev (2026-09-10) — "Predlog za kraj": bilo koji aktivni
+  // igrac predlaze da se partija odmah zavrsi (otpis RULES 9.6) umesto da
+  // ceka da bule prirodno padnu na 0. Ako je neko vec napustio sto,
+  // aktivni su samo preostala dva (activeSeatsForRoom vec to iskljucuje) —
+  // ta grana koristi applyLeaveEnd umesto applyAgreedEnd, vidi
+  // game:endMatchVote ispod.
+  socket.on('game:proposeEndMatch', (_payload: unknown, ack?: Ack) => {
+    const room = currentRoom();
+    if (!room || room.game.state.phase === 'WAITING' || room.game.state.phase === 'MATCH_OVER') {
+      ack?.({ error: 'Partija nije u toku' });
+      return;
+    }
+    const loc = getUserLocation(userId);
+    if (!loc || loc.role !== 'player' || loc.seat === null || loc.seat === room.abandonedSeat) {
+      ack?.({ error: 'Samo aktivan igrac moze predloziti kraj' });
+      return;
+    }
+    room.endMatchReady = new Set([loc.seat]);
+    io.to(room.code).emit('game:endMatchProposed', { byPosition: loc.seat, ready: Array.from(room.endMatchReady) });
+    ack?.({ ok: true });
+  });
+
+  socket.on('game:endMatchVote', (payload: { accept?: boolean }, ack?: Ack) => {
+    const room = currentRoom();
+    if (!room || room.endMatchReady.size === 0) {
+      ack?.({ error: 'Nema aktivnog predloga za kraj' });
+      return;
+    }
+    const loc = getUserLocation(userId);
+    if (!loc || loc.role !== 'player' || loc.seat === null) {
+      ack?.({ error: 'Samo igraci mogu glasati' });
+      return;
+    }
+    if (payload?.accept === false) {
+      room.endMatchReady = new Set();
+      io.to(room.code).emit('game:endMatchCancelled', { byPosition: loc.seat });
+      ack?.({ ok: true });
+      return;
+    }
+    room.endMatchReady.add(loc.seat);
+    const active = activeSeatsForRoom(room);
+    if (active.every((s) => room.endMatchReady.has(s))) {
+      room.endMatchReady = new Set();
+      if (room.abandonedSeat === null) {
+        room.game.applyAgreedEnd();
+      } else {
+        room.game.applyLeaveEnd(room.abandonedSeat);
+      }
+      broadcastRoomState(room);
+    } else {
+      io.to(room.code).emit('game:endMatchStatus', { ready: Array.from(room.endMatchReady) });
     }
     ack?.({ ok: true });
   });

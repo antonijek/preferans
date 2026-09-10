@@ -1,3 +1,5 @@
+import { getUserRating } from './db.js';
+
 // Tracks every currently-connected authenticated socket, independent of
 // room membership — the "who's online right now" list on the lobby
 // screen, separate from listOpenRooms()/listAllRoomsDetailed() which only
@@ -12,14 +14,14 @@ export function markOffline(socketId: string): void {
   online.delete(socketId);
 }
 
-export function listOnlineUsers(): { userId: number; name: string }[] {
+export function listOnlineUsers(): { userId: number; name: string; rating: number }[] {
   // A user connected in multiple tabs shouldn't appear twice.
   const seen = new Set<number>();
-  const result: { userId: number; name: string }[] = [];
+  const result: { userId: number; name: string; rating: number }[] = [];
   for (const { userId, name } of online.values()) {
     if (seen.has(userId)) continue;
     seen.add(userId);
-    result.push({ userId, name });
+    result.push({ userId, name, rating: getUserRating(userId) });
   }
   return result;
 }

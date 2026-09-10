@@ -264,7 +264,13 @@ const POS_LABELS = new Proxy(POS_LABELS_LOCAL, {
     if (Number.isInteger(idx) && idx >= 0 && idx <= 2) {
       const raw = mode === 'online' ? (game.state?.players?.[idx]?.name || target[idx]) : target[idx];
       const isAbandoned = mode === 'online' && game.state?.abandonedSeat === idx;
-      return escapeHtml(raw) + (isAbandoned ? ' (AI)' : '');
+      // Ranking sistem (korisnikov zahtev 2026-09-10, dikirano 2026-09-04):
+      // ELO-stil bodovi pored imena SVUDA — server ih vec ubacuje u
+      // game.state.players[i].rating (buildClientState), isti Proxy choke
+      // point propagira na svih 30+ mesta odjednom.
+      const rating = mode === 'online' ? game.state?.players?.[idx]?.rating : null;
+      const ratingTxt = typeof rating === 'number' ? ` (${rating})` : '';
+      return escapeHtml(raw) + ratingTxt + (isAbandoned ? ' (AI)' : '');
     }
     return target[prop];
   },
@@ -402,6 +408,8 @@ function resetHandHistoryForNewRoom() {
   lastRecordedRound = null;
   lastRefeSum = 0;
   lastRefePendingSum = 0;
+  lastMatchRankingResult = null;
+  endMatchProposerSeat = null;
 }
 
 // Kumulativni neto odnos izmedju DVA igraca: pozitivno = "other" duguje
@@ -1739,6 +1747,11 @@ function aiPlayCard(player) {
 // pa server sad ceka da SVI aktivni igraci kliknu (ili istekne auto-tajmer).
 // Ovo samo prikazuje status, server je izvor istine.
 let dealNextReadySeats = [];
+// Korisnikov zahtev (2026-09-10) — "Predlog za kraj": ko je predlozio
+// (za banner tekst na status-update-ima koji ne nose byPosition ponovo),
+// i poslednji rezultat rangiranja (za MATCH_OVER prikaz).
+let endMatchProposerSeat = null;
+let lastMatchRankingResult = null;
 
 function renderResult() {
   const s = game.state;
@@ -1794,22 +1807,45 @@ function renderResult() {
     // plasmana. Plasman NIJE samo najniza bula: supe (ko kome duguje) se
     // moraju neto uracunati, jer igrac sa niskom bulom ali velikim dugom
     // prema drugima moze biti efektivno losiji od nekog sa visom bulom kome
-    // se duguje. Efektivni rezultat = bula + (sta duguje) - (sta mu duguju),
-    // nize je bolje (isti smer kao gola bula ranije).
+    // se duguje. Efektivni rezultat = bula*10 + (sta duguje) - (sta mu
+    // duguju), nize je bolje. BAG (otkriven 2026-09-10 dok se pravio
+    // ranking sistem): ovde je ranije stajalo golo "bulas[p]" bez *10 —
+    // ne slaze se sa formulom koju je korisnik uzivo potvrdio primerom
+    // (memorija project-preferans-ranking-system-design) i sa server-side
+    // calculateMatchScores koji sad odredjuje STVARNE bodove. Ispravljeno
+    // da se plasman ovde i stvarni bodovi UVEK slazu.
     const effective = [0, 1, 2].map(p =>
-      s.bulas[p] - (netSupeBetween(p, leftNeighborOf(p)) + netSupeBetween(p, rightNeighborOf(p)))
+      s.bulas[p] * 10 - (netSupeBetween(p, leftNeighborOf(p)) + netSupeBetween(p, rightNeighborOf(p)))
     );
     const ranking = [0, 1, 2].slice().sort((a, b) => effective[a] - effective[b]);
     const winnerPos = ranking[0];
     let html = `<div class="score-players-row">`;
     for (const p of ranking) {
+      // lastMatchRankingResult stize SAMO online (server-autoritativan) —
+      // offline/lokalni mod nema trajni rejting, prikaz se gracefully
+      // izostavlja.
+      const delta = lastMatchRankingResult?.deltas?.[p];
+      const newRating = lastMatchRankingResult?.newRatings?.[p];
+      const deltaTxt = typeof delta === 'number'
+        ? `<div class="score-player-row" style="margin-top:2px;font-size:0.85em">
+             <span style="color:${delta > 0 ? '#a5d6a7' : delta < 0 ? '#ff8a80' : 'inherit'}">${delta > 0 ? '+' : ''}${delta} bodova</span>
+             ${typeof newRating === 'number' ? `<span style="opacity:0.6">(rejting: ${newRating})</span>` : ''}
+           </div>`
+        : '';
       html += `<div class="score-player-card ${p === winnerPos ? 'winner' : ''}">
         <div class="score-player-name">${POS_LABELS[p]}${p === winnerPos ? ' 🏆' : ''}</div>
         <div class="score-player-row"><span class="score-player-bula">${s.bulas[p]}</span></div>
+        ${deltaTxt}
       </div>`;
     }
     html += `</div>`;
     html += `<p style="text-align:center;margin-top:14px">🏆 <strong style="color:#ffeb3b">${POS_LABELS[winnerPos]} pobeđuje!</strong></p>`;
+    // Korisnikov zahtev: razlog kraja partije (prirodan/dogovor/napustanje)
+    // vidljiv na ekranu, ne samo implicitno.
+    const reasonTxt = s.matchEndReason === 'agreed' ? 'Partija je završena po dogovoru svih igrača.'
+      : s.matchEndReason === 'leave' ? 'Partija je završena dogovorom preostalih igrača posle napuštanja stola.'
+      : '';
+    if (reasonTxt) html += `<p class="muted-line" style="text-align:center">${reasonTxt}</p>`;
     $('resultMsg').innerHTML = html;
     return;
   }
@@ -2307,6 +2343,7 @@ async function connectOnlineSocket() {
       $('setupScreen').classList.remove('active');
       $('chatToggleBtn').style.display = '';
       $('leaveMatchBtn').style.display = '';
+      $('proposeEndBtn').style.display = '';
       $('peekHomeBtn').style.display = '';
       document.querySelector('.top-actions [onclick="restart()"]')?.style.setProperty('display', 'none');
       stopRoomListPolling();
@@ -2353,6 +2390,21 @@ async function connectOnlineSocket() {
     dealNextReadySeats = p?.ready ?? [];
     renderResult();
   });
+  onlineSocket.on('game:endMatchProposed', (p) => {
+    endMatchProposerSeat = p?.byPosition ?? null;
+    renderEndMatchBanner(p?.ready ?? [], endMatchProposerSeat);
+  });
+  onlineSocket.on('game:endMatchStatus', (p) => {
+    renderEndMatchBanner(p?.ready ?? [], endMatchProposerSeat);
+  });
+  onlineSocket.on('game:endMatchCancelled', () => {
+    $('endMatchBanners').innerHTML = '';
+    showAppToast('Predlog za kraj partije je odbijen.');
+  });
+  onlineSocket.on('game:matchRankingResult', (p) => {
+    lastMatchRankingResult = p;
+    renderResult();
+  });
   onlineSocket.on('chat:backlog', (msgs) => {
     $('chatLog').innerHTML = '';
     msgs.forEach((m) => appendChatMessageOnline(m, false));
@@ -2375,6 +2427,7 @@ function backToSetup() {
   $('chatScreen').classList.remove('open');
   $('chatToggleBtn').style.display = 'none';
   $('leaveMatchBtn').style.display = 'none';
+    $('proposeEndBtn').style.display = 'none';
   $('peekHomeBtn').style.display = 'none';
   $('backToTableBtn').style.display = 'none';
   $('kibicRequestPanel').style.display = 'none';
@@ -2438,6 +2491,7 @@ function logoutOnline() {
   $('chatScreen').classList.remove('open');
   $('chatToggleBtn').style.display = 'none';
   $('leaveMatchBtn').style.display = 'none';
+    $('proposeEndBtn').style.display = 'none';
   $('peekHomeBtn').style.display = 'none';
   $('backToTableBtn').style.display = 'none';
   $('kibicRequestPanel').style.display = 'none';
@@ -2550,7 +2604,7 @@ function renderOnlineUsers(users) {
         const row = document.createElement('div');
         row.className = 'room-list-row';
         const span = document.createElement('span');
-        span.textContent = u.name;
+        span.textContent = typeof u.rating === 'number' ? `${u.name} (${u.rating})` : u.name;
         row.appendChild(span);
         // Korisnikov zahtev: "mogucnost poziva odredjenog igraca" — salje
         // pozivnicu preko servera (server vec zna MOJU trenutnu sobu, ne
@@ -2579,7 +2633,7 @@ function renderOnlineUsers(users) {
         avatar.textContent = (u.name || '?').trim().charAt(0).toUpperCase();
         const name = document.createElement('div');
         name.className = 'uname';
-        name.textContent = u.name; // textContent — isti XSS razlog kao gore
+        name.textContent = typeof u.rating === 'number' ? `${u.name} (${u.rating})` : u.name; // textContent — isti XSS razlog kao gore
         card.appendChild(avatar);
         card.appendChild(name);
         grid.appendChild(card);
@@ -2773,6 +2827,7 @@ function doLeaveMatch() {
     if (res?.error) { console.warn('[online] game:leave odbijen:', res.error); return; }
     document.body.classList.remove('online-in-game');
     $('leaveMatchBtn').style.display = 'none';
+    $('proposeEndBtn').style.display = 'none';
     $('peekHomeBtn').style.display = 'none';
     $('backToTableBtn').style.display = 'none';
     $('chatToggleBtn').style.display = 'none';
@@ -2783,6 +2838,61 @@ function doLeaveMatch() {
     goToHomeScreen();
     showAppToast(`Napustio si partiju na buli ${res.frozenBula}.`);
   });
+}
+
+// === ONLINE: predlog za kraj partije ===
+// Korisnikov zahtev (2026-09-10): bilo koji aktivan igrac moze predloziti
+// da se partija odmah zavrsi (otpis RULES 9.6) umesto da se ceka da bule
+// prirodno padnu na 0 — ili (ako je neko vec napustio sto) da preostala
+// dva igraca zavrse partiju medjusobno, zamrzavajuci napustenog na
+// njegovoj trenutnoj buli. Isti "banner + status dok se ne skupe svi
+// glasovi" obrazac kao showKibicRequestBanner/leaveMatch, server je
+// autoritativan (activeSeatsForRoom vec iskljucuje napusteno sediste).
+
+function proposeEndMatch() {
+  if (mode !== 'online' || !onlineSocket || mySeat === null) return;
+  onlineSocket.emit('game:proposeEndMatch', {}, (res) => {
+    if (res?.error) { showAppToast(`⚠️ ${res.error}`); return; }
+  });
+}
+window.proposeEndMatch = proposeEndMatch;
+
+function renderEndMatchBanner(readySeats, proposerSeat) {
+  const container = $('endMatchBanners');
+  if (!container) return;
+  container.innerHTML = '';
+  if (!readySeats || readySeats.length === 0) return;
+  const iAmReady = mySeat !== null && readySeats.includes(mySeat);
+  const readyNames = readySeats.map(s => seatDisplayName(s)).join(', ');
+
+  const banner = document.createElement('div');
+  banner.className = 'end-match-banner';
+  const span = document.createElement('span');
+  span.textContent = iAmReady
+    ? `Predlog za rani kraj partije — čeka se: svi ostali aktivni igrači.`
+    : `${seatDisplayName(proposerSeat)} predlaže da se partija odmah završi (otpis po pravilima). Slažeš li se?`;
+  banner.appendChild(span);
+  const status = document.createElement('div');
+  status.className = 'end-match-status';
+  status.textContent = `Prihvatili: ${readyNames}`;
+  banner.appendChild(status);
+
+  if (!iAmReady) {
+    const actions = document.createElement('div');
+    actions.className = 'end-match-actions';
+    const acceptBtn = document.createElement('button');
+    acceptBtn.className = 'bid-btn primary';
+    acceptBtn.textContent = 'Prihvati';
+    acceptBtn.onclick = () => onlineSocket.emit('game:endMatchVote', { accept: true });
+    const declineBtn = document.createElement('button');
+    declineBtn.className = 'bid-btn danger';
+    declineBtn.textContent = 'Odbij';
+    declineBtn.onclick = () => onlineSocket.emit('game:endMatchVote', { accept: false });
+    actions.appendChild(acceptBtn);
+    actions.appendChild(declineBtn);
+    banner.appendChild(actions);
+  }
+  container.appendChild(banner);
 }
 
 // === ONLINE: chat ===
