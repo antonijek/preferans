@@ -1082,6 +1082,31 @@
   .chat-msg.p1 .chat-msg-name { color: #ff8a80; }
   .chat-msg.p2 .chat-msg-name { color: #ffe082; }
   .chat-msg.spectator .chat-msg-name { color: rgba(255,255,255,0.55); font-style: italic; }
+
+  /* Korisnikov zahtev (2026-09-10): "prikaz karata posle ruke je los,
+     taman i previse jednostavan" — isti zeleni pravac kao Tabela (umesto
+     dosadne deljene braon .box), i svaki red (talon + po igracu) dobija
+     karticu sa istim bojama koje vec koristi chat (.chat-msg.p0/p1/p2) —
+     dosledno kroz sajt, umesto inline stilova bez ikakve vizuelne
+     hijerarhije koje su ovde ranije bile. */
+  .revealed-hands-box {
+    background: linear-gradient(180deg, #1e4d22 0%, #0d2410 100%);
+    border-color: rgba(76, 175, 80, 0.6);
+  }
+  .revealed-hand-row {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    text-align: left;
+  }
+  .revealed-hand-label { font-family: 'Cinzel', serif; font-size: 1.05em; font-weight: 700; margin-bottom: 8px; }
+  .revealed-hand-row.p0 .revealed-hand-label { color: #4fc3f7; }
+  .revealed-hand-row.p1 .revealed-hand-label { color: #ff8a80; }
+  .revealed-hand-row.p2 .revealed-hand-label { color: #ffe082; }
+  .revealed-hand-row.talon .revealed-hand-label { color: #ffeb3b; }
+  .revealed-hand-cards { display: flex; flex-wrap: wrap; gap: 6px; }
   /* Tanja scroll traka (korisnikov utisak "presiroke, ne uklapaju se") —
      Chrome/Edge/Safari (::-webkit-*) + Firefox (scrollbar-width/-color). */
   .chat-log { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.35) transparent; }
@@ -1960,7 +1985,7 @@
      overlay (isti .screen obrazac kao login/room), sa PRAVim kartama
      (cardEl(), isti izgled kao za vreme igranja) grupisanim po igraču. -->
 <div class="screen" id="revealedHandsScreen">
-  <div class="box" style="max-width:960px;width:100%;max-height:92vh;overflow-y:auto">
+  <div class="box revealed-hands-box" style="max-width:960px;width:100%;max-height:92vh;overflow-y:auto">
     <h2>Sve karte ove ruke</h2>
     <div id="revealedHandsContent"></div>
     <button class="mode-btn primary" style="min-height:48px;margin-top:14px" onclick="closeRevealedHands()">Zatvori</button>
@@ -1989,6 +2014,6 @@
      je jedini NEPOBITAN nacin — to je BUKVALNO nov URL koji nijedan keš
      ikad nije video, ne postoji nacin da posluzi staru kopiju. UBUDUCE:
      bump-ovati ?v=N ovde pri SVAKOM deploy-u koji dira app.js. -->
-<script type="module" src="./app.js?v=1"></script>
+<script type="module" src="./app.js?v=2"></script>
 </body>
 </html>

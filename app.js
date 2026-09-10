@@ -2164,25 +2164,19 @@ function renderRevealedHands(hands, talon) {
   // sa ovog ekrana — bez njega se ne vidi "sta je bilo u talonu" prilikom
   // pregleda cele ruke.
   if (talon && talon.length > 0) {
-    const row = el('div', 'revealed-hand-row');
-    row.style.cssText = 'margin-bottom:20px;text-align:left';
-    const label = el('div', '', 'Talon');
-    label.style.cssText = 'font-family:"Cinzel",serif;font-size:1.1em;font-weight:700;margin-bottom:8px;color:#ffeb3b';
+    const row = el('div', 'revealed-hand-row talon');
+    const label = el('div', 'revealed-hand-label', 'Talon');
     row.appendChild(label);
-    const cardsWrap = el('div');
-    cardsWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px';
+    const cardsWrap = el('div', 'revealed-hand-cards');
     for (const c of talon) cardsWrap.appendChild(cardEl(c, { size: 'small' }));
     row.appendChild(cardsWrap);
     content.appendChild(row);
   }
   for (const h of hands) {
-    const row = el('div', 'revealed-hand-row');
-    row.style.cssText = 'margin-bottom:20px;text-align:left';
-    const label = el('div', '', escapeHtml(h.name ?? POS_LABELS[h.seat]));
-    label.style.cssText = 'font-family:"Cinzel",serif;font-size:1.1em;font-weight:700;margin-bottom:8px;color:#ffeb3b';
+    const row = el('div', `revealed-hand-row p${h.seat}`);
+    const label = el('div', 'revealed-hand-label', escapeHtml(h.name ?? POS_LABELS[h.seat]));
     row.appendChild(label);
-    const cardsWrap = el('div');
-    cardsWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px';
+    const cardsWrap = el('div', 'revealed-hand-cards');
     for (const c of sortHand(h.cards)) {
       cardsWrap.appendChild(cardEl(c, { size: 'small' }));
     }
