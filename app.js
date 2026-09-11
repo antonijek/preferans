@@ -2143,6 +2143,16 @@ function resultAction() {
       awayFromTable = false;
       disconnectedSeats.clear();
       $('resultScreen').classList.remove('active');
+      // BAG (uzivo prijavljen: "ne mogu da pocnem novu partiju, stalno me
+      // vraca na tabelu") — game.state.phase je OVDE ostajao zaglavljen na
+      // 'MATCH_OVER' (ovaj proksi objekat se ne dira dok ne stigne SVEZ
+      // game:state za NOVU sobu). Svaki naredni render() poziv (bilo sta ga
+      // pokrenulo — polling liste soba, socket event...) je gledao TAJ stari
+      // phase i ponovo prikazivao $('resultScreen') PREKO svega, izgledalo je
+      // kao da se korisnik ne moze pomeriti sa "kraj partije" ekrana. Postavi
+      // na WAITING (bezbedno, TERMINAL_PHASES ga ne prepoznaje) dok stvarno
+      // svez state ne stigne za sledecu sobu/partiju.
+      game.state.phase = 'WAITING';
       goToHomeScreen();
     } else {
       onlineSocket.emit('game:dealNext', {}, (res) => {
@@ -2154,6 +2164,10 @@ function resultAction() {
   if (game.state.phase === 'MATCH_OVER') {
     $('setupScreen').classList.add('active');
     $('resultScreen').classList.remove('active');
+    // Isti bag/ista popravka kao gore, za lokalni mod — bez ovoga bi
+    // render() (npr. neki odlozen setTimeout) mogao ponovo iskociti na
+    // "kraj partije" ekran dok korisnik jos gleda setup ekran.
+    game.state.phase = 'WAITING';
   } else {
     nextRound();
   }
