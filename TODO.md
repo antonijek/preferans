@@ -1,5 +1,27 @@
 # TODO — Preferans projekat
 
+> ⚠️ **Ako si nova AI sesija, NE ČITAJ OVAJ FAJL.** Pročitaj **`STATUS.md`** umesto toga — on je kratak, tačan i ima sve što trebaš.
+>
+> Ovaj fajl (845 linija) je **istorijski rezime** svih sesija od početka. Koristan samo za arhivski kontekst.
+
+---
+
+## 🆕 SIGURNA TAČKA — v0.9.0-multiplayer-baseline (2026-09-11)
+
+Kreiran **annotated tag** pre nove sesije. Vraćanje:
+
+```bash
+git checkout v0.9.0-multiplayer-baseline    # detached, za pregled
+# ili:
+git reset --hard v0.9.0-multiplayer-baseline # trajno
+```
+
+Backup na disku: `C:\Users\mb-com\.local\share\kilo\tool-output\preferans-v0.9.0-baseline.zip` (1.8 MB).
+
+Push-ovan na https://github.com/antonijek/preferans
+
+---
+
 ## 🟢 PREDAJA NOVOJ SESIJI (2026-09-08) — PROČITAJ OVO PRVO
 
 **Predaja ispod (2026-09-07 i starije) je pročitana i uklopljena — ne treba
