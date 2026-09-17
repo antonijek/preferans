@@ -34,6 +34,13 @@ import {
   type LegalAction,
   type EndOfHandResult,
 } from './types.js';
+import {
+  nextPlayer,
+  getFirstPlayerForState,
+  isPlayerActive as isPlayerActiveForState,
+  nextActivePlayer as nextActivePlayerForState,
+  activePlayerCount as activePlayerCountForState,
+} from './turnOrder.js';
 
 export interface GameConfig {
   playerNames?: [string, string, string];
@@ -45,10 +52,6 @@ export interface GameConfig {
 export type { EndOfHandResult };
 
 const POS_LABELS = ['Jug', 'Istok', 'Zapad'] as const;
-
-function nextPlayer(p: Position): Position {
-  return ((p + 1) % 3) as Position;
-}
 
 export class Game {
   state: GameState;
@@ -890,40 +893,11 @@ private checkBiddingEnd(): void {
     this.state.currentTrick = [];
   }
 
+  // Podeljeno u turnOrder.ts (nizak-rizik cluster — pure state reads, bez
+  // cross-phase-transition poziva). Delegator drzi javni API klase
+  // byte-identican.
   private getFirstPlayer(): Position {
-    const game = this.state.declaredGame!;
-    // Sans specifican (RULES 8.1.3): igra pratilac koji je NEPOSREDNO PRE
-    // nosioca u redosledu bacanja karata (Jug->Istok->Zapad->Jug, potvrdjeno
-    // uzivo od korisnika) — "igra se kroz nosioca", nosilac je izmedju druga
-    // dva poteza te runde. "Pre nosioca" u ovom smeru = (winner + 2) % 3
-    // (inverz od nextPlayer()). ISPRAVKA 2026-09-05: ranije ove sesije ovo je
-    // pogresno promenjeno na (winner+1)%3 oslanjajuci se na naziv "levo" iz
-    // OVOG ENGINE-A koriscen za RULES 5.1 (kontra redosled) — ta konvencija
-    // NIJE ista stvar kao "levo od nosioca" u svakodnevnom/RULES.md smislu za
-    // 8.1.3. Uzivo prijavljen bag (Zapad nosilac, pogresan igrac na potezu)
-    // je potvrdio da je ORIGINALNA (winner+2)%3 formula bila tacna.
-    if (game === 'Sans' || game === 'Igra-Sans') {
-      const beforeWinner = ((this.state.winner! + 2) % 3) as Position;
-      if (this.isPlayerActive(beforeWinner)) return beforeWinner;
-      // beforeWinner ne ucestvuje u ovoj ruci (npr. samo jedan pratilac je
-      // dosao i to nije on) — nosilac NIKAD ne sme da vodi u Sansu (RULES
-      // 8.1.3, "nosilac je U SREDINI"), pa nextActivePlayer() ovde ne sme da
-      // se koristi (moze vratiti samog nosioca, koji je uvek "aktivan").
-      // Postoje samo dve ne-nosilac pozicije — jedini preostali kandidat je
-      // afterWinner, i on MORA biti aktivan (odigrana ruka znaci bar jedan
-      // pratilac ucestvuje).
-      return ((this.state.winner! + 1) % 3) as Position;
-    }
-    // Betl i ostale: prvo licitirao
-    let candidate: Position;
-    if (this.state.players[this.state.bidStartPlayer]!.bidLevel > 0) {
-      candidate = this.state.bidStartPlayer;
-    } else {
-      candidate = nextPlayer(this.state.bidStartPlayer);
-    }
-    // Preskoci NE_DODJEM koji nije zvan
-    if (this.isPlayerActive(candidate)) return candidate;
-    return this.nextActivePlayer(candidate);
+    return getFirstPlayerForState(this.state);
   }
 
 // IGRA KARTE
@@ -991,35 +965,17 @@ private checkBiddingEnd(): void {
     return opponentTricks >= TRICKS_PER_HAND - required + 1;
   }
 
-// Broj aktivnih igraca (ne NE_DODJEM koji nije zvan)
+// Podeljeno u turnOrder.ts — vidi getFirstPlayer() komentar iznad.
   activePlayerCount(): number {
-    let count = 0;
-    for (let i = 0; i < 3; i++) {
-      if (this.isPlayerActive(i as Position)) count++;
-    }
-    return count;
+    return activePlayerCountForState(this.state);
   }
 
-  // Da li igrac ucestvuje u ovoj ruci
-  // Aktivan: winner + DODJEM + pozvani NE_DODJEM (callee)
   isPlayerActive(player: Position): boolean {
-    const s = this.state;
-    if (s.winner === player) return true;
-    if (s.followChoices[player] === 'DODJEM') return true;
-    if (s.followChoices[player] === 'NE_DODJEM' && s.callee === player) return true;
-    return false;
+    return isPlayerActiveForState(this.state, player);
   }
 
-  // Sledeci aktivni igrac (preskace NE_DODJEM koji sedi)
   nextActivePlayer(from: Position): Position {
-    let next = nextPlayer(from);
-    let safety = 0;
-    while (safety < 3) {
-      if (this.isPlayerActive(next)) return next;
-      next = nextPlayer(next);
-      safety++;
-    }
-    return next;
+    return nextActivePlayerForState(this.state, from);
   }
   // KRAJ PARTIJE
   endHand(): EndOfHandResult {
