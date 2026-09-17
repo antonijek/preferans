@@ -2131,6 +2131,14 @@ function resultAction() {
       // stanja od (sad mrtve) sobe je ostajao zakacen, pa je sledeci "Igraj
       // online"/room:info mogao da zavrsi u nekonzistentnom stanju. Isti
       // reset kao doLeaveMatch().
+      // BAG (uzivo prijavljen: zatvorio MATCH_OVER modal, otisao na Moje
+      // partije, vratio se — modal se OPET otvorio) — server je i dalje
+      // mislio da je ovaj korisnik u toj (vec zavrsenoj) sobi, jer reconnect
+      // rezervise sediste neograniceno dok se eksplicitno ne oslobodi. Sledeci
+      // page reload (npr. bas ta poseta /matches.html) je reconnect-ovao pravo
+      // nazad u istu MATCH_OVER sobu. Obavesti server da je ovaj korisnik
+      // gotov sa ovom (zavrsenom) sobom, ne cekaj da se to samo desi.
+      onlineSocket.emit('game:leaveFinishedMatch', {});
       document.body.classList.remove('online-in-game');
       myRoomCode = null;
       $('chatToggleBtn').style.display = 'none';

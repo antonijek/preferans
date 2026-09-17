@@ -755,6 +755,33 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     broadcastRoomState(room);
   });
 
+  // Uzivo prijavljen bag: zatvaranje MATCH_OVER ekrana je ranije SAMO
+  // menjalo klijentsko stanje (goToHomeScreen) — server je i dalje mislio
+  // da je ovaj korisnik u toj (vec zavrsenoj) sobi, jer M6 reconnect (gore)
+  // rezervise sediste "neograniceno" dok se eksplicitno ne oslobodi. Bilo
+  // koji SLEDECI page reload (npr. odlazak na /matches.html pa nazad) je
+  // reconnect-ovao pravo u TU istu MATCH_OVER sobu i odmah ponovo prikazao
+  // vec-zatvoren modal. Ne sme se koristiti game:leave za ovo — ono je za
+  // napustanje USRED partije (AI preuzimanje, frozenBula, chat obavestenje)
+  // koje ovde nema smisla, partija je vec gotova za sve. Ovo samo oslobodi
+  // OVOG korisnika iz zavrsene sobe, bez ikakvog efekta na ostale.
+  socket.on('game:leaveFinishedMatch', (_payload: unknown, ack?: Ack) => {
+    const room = currentRoom();
+    const loc = getUserLocation(userId);
+    if (!room || loc?.role !== 'player') {
+      ack?.({ ok: true });
+      return;
+    }
+    if (room.game.state.phase !== 'MATCH_OVER') {
+      ack?.({ error: 'Match is not over' });
+      return;
+    }
+    room.sockets[loc.seat] = null;
+    socket.leave(room.code);
+    clearUserLocation(userId);
+    ack?.({ ok: true });
+  });
+
   socket.on('disconnect', () => {
     const loc = getUserLocation(userId);
     if (!loc) return;

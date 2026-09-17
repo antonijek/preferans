@@ -885,7 +885,14 @@ private checkBiddingEnd(): void {
     if (game === 'Sans' || game === 'Igra-Sans') {
       const beforeWinner = ((this.state.winner! + 2) % 3) as Position;
       if (this.isPlayerActive(beforeWinner)) return beforeWinner;
-      return this.nextActivePlayer(beforeWinner);
+      // beforeWinner ne ucestvuje u ovoj ruci (npr. samo jedan pratilac je
+      // dosao i to nije on) — nosilac NIKAD ne sme da vodi u Sansu (RULES
+      // 8.1.3, "nosilac je U SREDINI"), pa nextActivePlayer() ovde ne sme da
+      // se koristi (moze vratiti samog nosioca, koji je uvek "aktivan").
+      // Postoje samo dve ne-nosilac pozicije — jedini preostali kandidat je
+      // afterWinner, i on MORA biti aktivan (odigrana ruka znaci bar jedan
+      // pratilac ucestvuje).
+      return ((this.state.winner! + 1) % 3) as Position;
     }
     // Betl i ostale: prvo licitirao
     let candidate: Position;

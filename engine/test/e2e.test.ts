@@ -962,6 +962,32 @@ test('e2e: Sans — prvi igrač je onaj NEPOSREDNO PRE nosioca u redosledu bacan
   assert.equal(game.state.currentPlayer, 0, 'pratilac neposredno pre nosioca (u redosledu bacanja) kreće prvi u Sansu');
 });
 
+test('e2e: Sans — kad pratilac NEPOSREDNO PRE nosioca ne igra, nosilac NIKAD ne vodi (RULES 8.1.3)', () => {
+  // Uzivo prijavljen bag (vise puta): kad SAMO JEDAN pratilac dodje i to nije
+  // onaj "neposredno pre nosioca" (beforeWinner), getFirstPlayer() je ranije
+  // pozivao nextActivePlayer(beforeWinner) — koji hoda unapred i zavrsi na
+  // SAMOM NOSIOCU (uvek "aktivan"), krseci pravilo da nosilac nikad ne vodi
+  // u Sansu ("nosilac je U SREDINI"). Jedini ispravan kandidat kad
+  // beforeWinner ne ucestvuje je preostala ne-nosilac pozicija (afterWinner).
+  const game = new Game({ seed: 1100 });
+  game.newHand(0);
+  game.bid(1, 2);
+  game.pass(2);
+  game.pass(0);
+  const hand = game.state.players[1]!.hand;
+  game.discard(1, [hand[0]!.id, hand[1]!.id]);
+  game.declareGame(1, 'Sans');
+  assert.equal(game.state.winner, 1); // Istok nosilac
+  // beforeWinner = (1+2)%3 = 0 (Jug) — NE dolazi. afterWinner = 2 (Zapad) — dolazi sam, bez poziva.
+  game.follow(0, 'NE_DODJEM');
+  game.follow(2, 'DODJEM');
+  game.continueWithoutCall();
+  assert.equal(game.state.phase, 'KONTRA_DECLARING');
+  game.moze(2);
+  assert.equal(game.state.phase, 'PLAYING');
+  assert.equal(game.state.currentPlayer, 2, 'jedini aktivni pratilac (Zapad) vodi, ne nosilac (Istok)');
+});
+
 test('e2e: Betl — kontra: OBA pratioca upisuju fiksne supe, ne samo kontraš (RULES 9.4.1)', () => {
   const game = new Game({ seed: 1000 });
   game.newHand(0);

@@ -338,6 +338,8 @@
   function renderMatchDetail(m) {
     // Security fix: korisnicki unos, escape pre upotrebe u innerHTML.
     const seatNames = [m.player0_name || '?', m.player1_name || '?', m.player2_name || '?'].map(escapeHtml);
+    // Korisnikov zahtev: kompasna pozicija sama nista ne znaci, mora uz nju ime.
+    const seatLabel = (p) => SEAT_LABELS[p] + ' (' + seatNames[p] + ')';
     const bulas = JSON.parse(m.final_bulas);
     const scores = JSON.parse(m.final_scores);
     const deltas = JSON.parse(m.rating_deltas);
@@ -378,23 +380,23 @@
         const kontraLabel = h.kontraLevel ? (' × ' + (KONTRA_LABELS[h.kontraLevel] || h.kontraLevel)) : '';
         const followInfo = h.followChoices.map((fc, idx) => {
           if (fc === null) return null;
-          return SEAT_LABELS[idx] + ': ' + (FOLLOW_LABELS[fc] || fc);
+          return seatLabel(idx) + ': ' + (FOLLOW_LABELS[fc] || fc);
         }).filter(Boolean).join(', ') || '—';
         const callerInfo = h.caller !== null && h.callee !== null
-          ? SEAT_LABELS[h.caller] + ' zvao ' + SEAT_LABELS[h.callee]
-          : (h.caller !== null ? SEAT_LABELS[h.caller] + ' zvao (niko)' : '—');
+          ? seatLabel(h.caller) + ' zvao ' + seatLabel(h.callee)
+          : (h.caller !== null ? seatLabel(h.caller) + ' zvao (niko)' : '—');
 
         html.push('<div class="hand-block">');
         html.push('<h3>Runda ' + (i + 1) + ' — ' + (h.declaredGame || '?') + kontraLabel + '</h3>');
         html.push('<div class="hand-meta">');
-        html.push('<span>Nosilac: ' + SEAT_LABELS[h.declarer] + ' (' + seatNames[h.declarer] + ')</span>');
+        html.push('<span>Nosilac: ' + seatLabel(h.declarer) + '</span>');
         html.push('<span>Pratioci: ' + followInfo + '</span>');
         html.push('<span>Poziv: ' + callerInfo + '</span>');
         html.push('<span>Završnica: ' + passedLabel + '</span>');
         html.push('<span>Bule posle: ' + h.bulasAfter.join(' / ') + '</span>');
         html.push('<span>Supe Δ: ' + h.supeDelta.join(' / ') + '</span>');
         html.push('</div>');
-        html.push('<div class="hand-meta">Štihovi: ' + h.tricksWon[0] + ' / ' + h.tricksWon[1] + ' / ' + h.tricksWon[2] + '</div>');
+        html.push('<div class="hand-meta">Štihovi: ' + [0, 1, 2].map(p => seatLabel(p) + ': ' + h.tricksWon[p]).join(', ') + '</div>');
 
         if (h.talon && h.talon.length > 0) {
           html.push('<div class="hand-meta">Talon: ');
