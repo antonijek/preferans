@@ -11,7 +11,7 @@
 // nacin da se stari klijenti odmah prebace: promeniti SADRZAJ ovog fajla
 // (bump verzije), sto tera browser da primeti razliku i instalira NOVI SW.
 // UBUDUCE: bump-ovati OVDE pri SVAKOM deploy-u koji dira app.js/preferans.html.
-const CACHE_NAME = 'preferans-v8';
+const CACHE_NAME = 'preferans-v9';
 const SHELL_FILES = [
   '/',
   '/preferans.html',
@@ -75,6 +75,6 @@ self.addEventListener('fetch', (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
       }
       return response;
-    }).catch(() => caches.match(event.request))
+    }).catch(() => caches.match(event.request, { ignoreSearch: true }))
   );
 });
