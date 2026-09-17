@@ -826,6 +826,56 @@ test('e2e: Kontra — svi kažu Moze, nema kontre', () => {
   assert.equal(game.state.kontraLevel, null);
 });
 
+test('e2e: solo pratilac (bez poziva) NE sme dati kontru, samo Moze', () => {
+  // Korisnikov zahtev (2026-09-17): "posto kontra zahteva igru sve 3
+  // igraca, nema smisla ako jedan igrac sam dolazi da ima opciju kontra,
+  // jer da je htio kontru zvao bi prvo" — pratilac koji je dosao SAM (bez
+  // pozivanja NE_DODJEM partnera, continueWithoutCall()) ne sme dati kontru.
+  const game = new Game({ seed: 800 });
+  game.newHand(0);
+  game.bid(1, 2);
+  game.pass(2);
+  game.pass(0);
+  const hand = game.state.players[1]!.hand;
+  game.discard(1, [hand[0]!.id, hand[1]!.id]);
+  game.declareGame(1, 'Tref');
+  game.follow(0, 'NE_DODJEM');
+  game.follow(2, 'DODJEM');
+  game.continueWithoutCall();
+  assert.equal(game.state.phase, 'KONTRA_DECLARING');
+  assert.equal(game.expectedKontraPlayerPublic(), 2);
+  // Pokusaj kontre mora biti odbijen (engine nivo)
+  assert.equal(game.kontra(2, 'KONTRA'), false, 'solo pratilac ne sme dati kontru');
+  assert.equal(game.state.kontraLevel, null, 'kontraLevel ostaje nepromenjen posle odbijene kontre');
+  // Legal-actions API (koje UI/AI koriste) ne sme ni nuditi kontru
+  const actions = game.getLegalActions();
+  assert.ok(!actions.some(a => a.type === 'kontra'), 'kontra ne sme biti medju legalnim akcijama');
+  assert.ok(actions.some(a => a.type === 'moze'), 'moze mora biti ponudjeno');
+  // Moze i dalje normalno radi
+  assert.equal(game.moze(2), true);
+  assert.equal(game.state.phase, 'PLAYING');
+});
+
+test('e2e: solo pratilac (bez poziva) SME dati kontru ako je dosao POZIVOM (call)', () => {
+  // Kontrast test — kad je solo DODJEM igrac EKSPLICITNO pozvao NE_DODJEM
+  // partnera (call, ne continueWithoutCall), kontra je i dalje dozvoljena
+  // (caller !== null iskljucuje isSoloFollowerWithoutCall()).
+  const game = new Game({ seed: 800 });
+  game.newHand(0);
+  game.bid(1, 2);
+  game.pass(2);
+  game.pass(0);
+  const hand = game.state.players[1]!.hand;
+  game.discard(1, [hand[0]!.id, hand[1]!.id]);
+  game.declareGame(1, 'Tref');
+  game.follow(0, 'NE_DODJEM');
+  game.follow(2, 'DODJEM');
+  game.call(2, 0);
+  assert.equal(game.state.phase, 'KONTRA_DECLARING');
+  assert.equal(game.kontra(2, 'KONTRA'), true, 'pozvani partner ne menja pravo na kontru pozivaoca');
+  assert.equal(game.state.kontraLevel, 'KONTRA');
+});
+
 test('e2e: declareGame validacija — igra mora biti >= contract', () => {
   const game = new Game({ seed: 900 });
   game.newHand(0);

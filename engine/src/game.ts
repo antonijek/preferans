@@ -759,6 +759,11 @@ private checkBiddingEnd(): void {
     if (this.state.phase !== 'KONTRA_DECLARING') return false;
     const expected = this.expectedKontraPlayer();
     if (expected === null || player !== expected) return false;
+    // Solo pratilac (bez poziva) sme samo "Moze" — vidi isSoloFollowerWithoutCall().
+    // Ovo se prakticki tice samo prvog nivoa (KONTRA): current===null vec
+    // zahteva level==='KONTRA' (provera ispod), pa ako se ovde blokira,
+    // kontraPlayer se nikad ne postavi i rekontra/subkontra lanac ni ne pocinje.
+    if (this.isSoloFollowerWithoutCall(player)) return false;
     // Validacija nivoa
     const current = this.state.kontraLevel;
     if (current === null && level !== 'KONTRA') return false;
@@ -804,6 +809,21 @@ private checkBiddingEnd(): void {
     const right = ((winner + 2) % 3) as Position; // desni od nosioca
     const third = ((winner + 1) % 3) as Position;
     return [right, third].filter(p => this.state.followChoices[p] === 'DODJEM');
+  }
+
+  // Korisnikov zahtev (2026-09-17): pratilac koji je dosao SAM, bez
+  // pozivanja NE_DODJEM partnera (continueWithoutCall()), ne sme dati
+  // kontru — kontra uvek znaci igru u troje (RULES 6.8), pa ko stvarno hoce
+  // kontru bi prvo pozvao partnera umesto da igra sam. Iskljucuje SAMO
+  // slucaj "tacno jedan DODJEM, nema poziva" — dva DODJEM pratioca (bez
+  // ikakvog pozivanja) i dalje normalno oboje mogu dati kontru.
+  private isSoloFollowerWithoutCall(player: Position): boolean {
+    if (this.state.winner === null) return false;
+    if (this.state.followChoices[player] !== 'DODJEM') return false;
+    if (this.state.caller !== null) return false;
+    const followers = ([0, 1, 2] as Position[]).filter(p => p !== this.state.winner);
+    const neDodjemCount = followers.filter(p => this.state.followChoices[p] === 'NE_DODJEM').length;
+    return neDodjemCount === 1;
   }
 
   private expectedKontraPlayer(): Position | null {
@@ -1334,9 +1354,10 @@ private checkBiddingEnd(): void {
       case 'KONTRA_DECLARING': {
         const expected = this.expectedKontraPlayer();
         if (expected !== null) {
-          // Kontra dugme
+          // Kontra dugme — solo pratilac (bez poziva) sme samo Moze,
+          // vidi isSoloFollowerWithoutCall().
           const nextLevel = this.nextKontraLevel();
-          if (nextLevel !== null) {
+          if (nextLevel !== null && !this.isSoloFollowerWithoutCall(expected)) {
             actions.push({ type: 'kontra', player: expected, level: nextLevel, label: nextLevel });
           }
           // Moze dugme

@@ -1391,15 +1391,25 @@ function renderKontra() {
   log.innerHTML = s.kontraLevel ? `<span class="bid-entry"><strong>Nivo: ${s.kontraLevel}</strong></span>` : '';
 
   if (isHumanTurn) {
+    // Korisnikov zahtev: pratilac koji je dosao SAM (bez pozivanja NE_DODJEM
+    // partnera) ne sme dati kontru — kontra uvek znaci igru u troje, ko
+    // stvarno hoce kontru bi prvo pozvao partnera (isti uslov kao engine-ov
+    // isSoloFollowerWithoutCall(), racunat ovde direktno iz vidljivog state-a
+    // jer online proksi nema tu metodu).
+    const followers = [0, 1, 2].filter((p) => p !== s.winner);
+    const neDodjemCount = followers.filter((p) => s.followChoices[p] === 'NE_DODJEM').length;
+    const soloNoCall = s.kontraLevel === null && s.caller === null && neDodjemCount === 1 && s.followChoices[expected] === 'DODJEM';
     const nextLevel = {
       null: 'KONTRA',
       'KONTRA': 'REKONTRA',
       'REKONTRA': 'SUBKONTRA',
       'SUBKONTRA': 'MORTKONTRA',
     }[s.kontraLevel ?? 'null'];
-    const kontraBtn = el('button', 'bid-btn danger', nextLevel);
-    kontraBtn.onclick = (e) => { logTrustedAction(`userKontra level=${nextLevel}`, e); game.kontra(expected, nextLevel); render(); };
-    ctrl.appendChild(kontraBtn);
+    if (!soloNoCall) {
+      const kontraBtn = el('button', 'bid-btn danger', nextLevel);
+      kontraBtn.onclick = (e) => { logTrustedAction(`userKontra level=${nextLevel}`, e); game.kontra(expected, nextLevel); render(); };
+      ctrl.appendChild(kontraBtn);
+    }
     const mozeBtn = el('button', 'bid-btn primary', 'Moze');
     mozeBtn.onclick = (e) => { logTrustedAction('userMoze', e); game.moze(expected); render(); };
     ctrl.appendChild(mozeBtn);
@@ -1411,7 +1421,13 @@ function renderKontra() {
     // (deterministicki prag, ne slucajno pogadjanje).
     const hand = s.players[expected].hand;
     const levelNum = { KONTRA: 1, REKONTRA: 2, SUBKONTRA: 3, MORTKONTRA: 4 }[s.kontraLevel] ?? 0;
-    const willKontra = s.kontraLevel !== 'MORTKONTRA' &&
+    // Solo pratilac (bez poziva) ne sme kontru — inace game.kontra() tiho
+    // odbija akciju (engine ogranicenje) i ovaj AI blok bi se beskonacno
+    // ponavljao pokusavajuci istu, uvek-odbijenu akciju.
+    const aiFollowers = [0, 1, 2].filter((p) => p !== s.winner);
+    const aiNeDodjemCount = aiFollowers.filter((p) => s.followChoices[p] === 'NE_DODJEM').length;
+    const aiSoloNoCall = s.kontraLevel === null && s.caller === null && aiNeDodjemCount === 1 && s.followChoices[expected] === 'DODJEM';
+    const willKontra = !aiSoloNoCall && s.kontraLevel !== 'MORTKONTRA' &&
       aiChooseKontra({ hand, trump: s.trump, currentLevel: levelNum }) === 'KONTRA';
     const gen = handGeneration;
     setTimeout(() => {
