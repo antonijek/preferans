@@ -4,6 +4,9 @@
   "private": true,
   "description": "Multiplayer backend for Preferans (auth, rooms, real-time sync, chat)",
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsc && node dist/index.js",

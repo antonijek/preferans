@@ -44,7 +44,30 @@ ssh root@antonije.dev "rm -rf /var/www/preferans && cp -r /var/www/preferans.bac
 
 ---
 
-## DEPLOY PROBLEM — 2026-09-11 (za narednog agenta)
+## ✅ REŠENO — 2026-09-17: Node verzija na serveru nadograđena na 24
+
+Server je nadograđen sa Node 20.20.2 → **Node 24.21.0** (preko NodeSource apt
+repoa, isti mehanizam kao ranije — `curl -fsSL https://deb.nodesource.com/setup_24.x | bash -`
+pa `apt-get install -y nodejs`). Sad je identičan lokalnoj mašini, "Cannot
+find module" build greška (vidi ispod) više se ne javlja — potvrđeno čistim
+`npm ci && npm run build` na serveru posle nadogradnje.
+
+Dodato `.nvmrc` (sadrži `24`) i `"engines": {"node": ">=24"}` u
+`server/package.json` da se ovo ne ponovi tiho ubuduće. **Ubuduće pri
+deploy-u koristiti `npm ci` (ne `npm install`)** — koristi tačno ono što
+piše u `package-lock.json`, bez obzira kad je poslednji put ko instalirao
+šta na kojoj mašini (to je bio deo istog problema — dve mašine su vremenom
+mogle da instaliraju blago različite verzije istog `^` opsega paketa).
+
+Pošto je ovo sad rešeno, **match-history feature (`istorija partija`,
+commit `1be2982` lokalno, još nije push-ovan) više nema tehničku prepreku
+za deploy** — samo treba `git push`, pa na serveru `git pull && cd server
+&& npm ci && npm run build && pm2 restart pref-server`, plus provera da
+migracija `002_match_log.sql` prođe čisto na produkcionoj bazi.
+
+---
+
+## DEPLOY PROBLEM — 2026-09-11 (ISTORIJSKI, rešeno gore — ostavljeno kao kontekst)
 
 **Simptom**: Kolega pokušao deploy novog koda (admin/matches istorija partija). Svi fajlovi uspešno upload-ovani, ali `npm run build` na serveru pada sa 10+ TS grešaka. Isti kod **lokalno radi** (0 grešaka).
 
