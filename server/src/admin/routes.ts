@@ -3,7 +3,7 @@ import { get, all, run, getAllMatches, getMatchById, updateUserRating } from '..
 import { requireAdmin } from '../auth/middleware.js';
 import type { AuthedRequest } from '../auth/middleware.js';
 import { listAllRoomsDetailed, getRoomByCode, getUserLocation, clearUserLocation } from '../rooms/RoomManager.js';
-import { adminKickSeat, adminCloseRoom } from '../socket/roomEvents.js';
+import { adminKickSeat, adminCloseRoom } from '../socket/roomAdmin.js';
 import { forceDisconnectUser } from '../socket/index.js';
 import { listOnlineUsers } from '../presence.js';
 
