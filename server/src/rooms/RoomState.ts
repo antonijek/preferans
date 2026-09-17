@@ -81,8 +81,6 @@ export interface HandSnapshot {
   followChoices: [string | null, string | null, string | null];
   // Kontrin nivo na kraju (KONTRA/REKONTRA/SUBKONTRA/MORTKONTRA/null)
   kontraLevel: string | null;
-  // Da li se refa koristila u ovoj ruci
-  refeOccurred: boolean;
   // Ko je pobedio ruku (nosilac prosao ili pao)
   passed: boolean;
   // Finalne bule i supe delte POSLE ove ruke

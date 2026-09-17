@@ -292,7 +292,6 @@
       hands.forEach((h, i) => {
         const passedLabel = h.passed ? '✅ prošao' : '❌ pao';
         const kontraLabel = h.kontraLevel ? (' × ' + (KONTRA_LABELS[h.kontraLevel] || h.kontraLevel)) : '';
-        const refeLabel = h.refeOccurred ? ' +REFA' : '';
         const followInfo = h.followChoices.map((fc, idx) => {
           if (fc === null) return null;
           return SEAT_LABELS[idx] + ': ' + (FOLLOW_LABELS[fc] || fc);
@@ -302,7 +301,7 @@
           : (h.caller !== null ? SEAT_LABELS[h.caller] + ' zvao (niko)' : '—');
 
         html.push('<div class="hand-block">');
-        html.push('<h3>Runda ' + (i + 1) + ' — ' + (h.declaredGame || '?') + kontraLabel + refeLabel + '</h3>');
+        html.push('<h3>Runda ' + (i + 1) + ' — ' + (h.declaredGame || '?') + kontraLabel + '</h3>');
         html.push('<div class="hand-meta">');
         html.push('<span>Nosilac: ' + SEAT_LABELS[h.declarer] + ' (' + seatNames[h.declarer] + ')</span>');
         html.push('<span>Pratioci: ' + followInfo + '</span>');

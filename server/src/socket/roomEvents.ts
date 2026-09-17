@@ -128,7 +128,6 @@ function captureHandSnapshot(room: RoomState): HandSnapshot {
     callee: s.callee,
     followChoices: [s.followChoices[0], s.followChoices[1], s.followChoices[2]],
     kontraLevel: s.kontraLevel,
-    refeOccurred: s.refeOccurred,
     passed: s.lastHandResult?.passed ?? false,
     bulasAfter: [...s.bulas] as [number, number, number],
     supeDelta: s.lastHandResult?.supeDelta ?? [0, 0, 0],
