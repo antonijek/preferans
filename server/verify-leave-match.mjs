@@ -112,9 +112,9 @@ async function main() {
   await A.waitForFunction(() => document.getElementById('roomCodeInput').value.length === 5, { timeout: 5000 });
   const code = await A.inputValue('#roomCodeInput');
   await B.fill('#roomCodeInput', code);
-  await B.click('#roomScreen >> text=Pridruži se');
+  await B.click('#roomJoinBtn');
   await C.fill('#roomCodeInput', code);
-  await C.click('#roomScreen >> text=Pridruži se');
+  await C.click('#roomJoinBtn');
 
   await A.waitForFunction(() => window.game?.state?.phase && window.game.state.phase !== 'WAITING', { timeout: 5000 });
   console.log('Hand started, driving to PLAYING phase before A leaves...');
@@ -129,7 +129,11 @@ async function main() {
   check('reached PLAYING before leaving (not stuck earlier)', phaseBeforeLeave === 'PLAYING');
 
   console.log('--- A clicks Napusti partiju ---');
-  await A.click('#leaveMatchBtn');
+  // Consolidated into a single icon that opens a small menu (commit
+  // "Fix end-match UX" / "ne trebaju nam 2 ikonice za zastavicom") — no
+  // more standalone #leaveMatchBtn.
+  await A.click('#matchMenuBtn');
+  await A.click('text=🏳️ Napusti svakako');
   await A.waitForSelector('#leaveConfirmBtn', { timeout: 3000 });
   await A.click('#leaveConfirmBtn');
 
@@ -168,11 +172,20 @@ async function main() {
   );
 
   console.log('--- A should be free to create/join a DIFFERENT room now ---');
+  console.log('A current screen before retry:', await A.evaluate(() =>
+    [...document.querySelectorAll('.screen.active')].map((e) => e.id)
+  ));
   await A.click('text=🎮 Sobe — napravi ili se pridruži');
   await A.waitForSelector('#roomScreen.active', { timeout: 5000 });
+  await A.fill('#roomCodeInput', ''); // clear stale value from the room this page created earlier
   await A.click('text=Napravi novu sobu');
-  await A.waitForFunction(() => document.getElementById('roomCodeInput').value.length === 5, { timeout: 5000 });
+  try {
+    await A.waitForFunction(() => document.getElementById('roomCodeInput').value.length === 5, { timeout: 5000 });
+  } catch (e) {
+    console.log('waitForFunction failed:', e.message);
+  }
   const newCode = await A.inputValue('#roomCodeInput');
+  console.log('newCode:', JSON.stringify(newCode), 'old code:', code);
   check('A (freed via clearUserLocation) can create a brand new, different room', !!newCode && newCode !== code);
 
   check('no uncaught JS errors across the whole flow', consoleErrors.length === 0);

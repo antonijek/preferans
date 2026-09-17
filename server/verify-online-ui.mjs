@@ -50,9 +50,9 @@ async function main() {
   const code = await pageA.inputValue('#roomCodeInput');
 
   await pageB.fill('#roomCodeInput', code);
-  await pageB.click('#roomScreen >> text=Pridruži se');
+  await pageB.click('#roomJoinBtn');
   await pageC.fill('#roomCodeInput', code);
-  await pageC.click('#roomScreen >> text=Pridruži se');
+  await pageC.click('#roomJoinBtn');
 
   await pageA.waitForFunction(() => window.game?.state?.phase && window.game.state.phase !== 'WAITING', { timeout: 5000 });
   const phaseA = await pageA.evaluate(() => window.game.state.phase);

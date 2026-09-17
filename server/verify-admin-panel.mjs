@@ -40,6 +40,11 @@ async function main() {
   check('non-admin sees an access-denied message', errText.length > 0);
 
   console.log('--- credit adjustment ---');
+  // Dashboard redesign (commit f75a628) moved the users table behind a
+  // "Korisnici" tab — it's textContent-readable while hidden (checks above
+  // still passed) but .fill() needs it actually visible.
+  await page.click('button[data-tab="korisnici"]');
+  await page.waitForSelector('#usersBody tr', { state: 'visible', timeout: 5000 });
   page.once('dialog', (d) => d.accept('test top-up'));
   const rows = page.locator('#usersBody tr');
   const rowCount = await rows.count();

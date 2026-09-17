@@ -37,9 +37,9 @@ async function main() {
   await A.waitForFunction(() => document.getElementById('roomCodeInput').value.length === 5, { timeout: 5000 });
   const code = await A.inputValue('#roomCodeInput');
   await B.fill('#roomCodeInput', code);
-  await B.click('#roomScreen >> text=Pridruži se');
+  await B.click('#roomJoinBtn');
   await C.fill('#roomCodeInput', code);
-  await C.click('#roomScreen >> text=Pridruži se');
+  await C.click('#roomJoinBtn');
   await A.waitForFunction(() => window.game?.state?.phase && window.game.state.phase !== 'WAITING', { timeout: 5000 });
 
   const bulas = await A.evaluate(() => window.game.state.bulas);
@@ -66,9 +66,9 @@ async function main() {
   await D.waitForFunction(() => document.getElementById('roomCodeInput').value.length === 5, { timeout: 5000 });
   const code2 = await D.inputValue('#roomCodeInput');
   await E.fill('#roomCodeInput', code2);
-  await E.click('#roomScreen >> text=Pridruži se');
+  await E.click('#roomJoinBtn');
   await F.fill('#roomCodeInput', code2);
-  await F.click('#roomScreen >> text=Pridruži se');
+  await F.click('#roomJoinBtn');
   await D.waitForFunction(() => window.game?.state?.phase && window.game.state.phase !== 'WAITING', { timeout: 5000 });
   const bulas2 = await D.evaluate(() => window.game.state.bulas);
   console.log('bulas with out-of-range input:', bulas2);

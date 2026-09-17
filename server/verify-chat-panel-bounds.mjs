@@ -37,9 +37,9 @@ async function main() {
   await A.waitForFunction(() => document.getElementById('roomCodeInput').value.length === 5, { timeout: 5000 });
   const code = await A.inputValue('#roomCodeInput');
   await B.fill('#roomCodeInput', code);
-  await B.click('#roomScreen >> text=Pridruži se');
+  await B.click('#roomJoinBtn');
   await C.fill('#roomCodeInput', code);
-  await C.click('#roomScreen >> text=Pridruži se');
+  await C.click('#roomJoinBtn');
   // chatToggleBtn only becomes visible once the game actually starts (3 players).
   await A.waitForFunction(() => window.game?.state?.phase && window.game.state.phase !== 'WAITING', { timeout: 5000 });
 
