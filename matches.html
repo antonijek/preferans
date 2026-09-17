@@ -2,7 +2,7 @@
 <html lang="sr">
 <head>
 <meta charset="utf-8">
-<title>Preferans Admin</title>
+<title>Moje partije — Preferans</title>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -20,33 +20,31 @@
     border-radius: 12px;
     padding: 18px 20px;
     margin-bottom: 24px;
-    max-width: 1000px;
+    max-width: 1100px;
   }
   .card h2 { font-size: 1.1em; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
-  .card h2 button { font-size: 0.6em; }
   table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
   th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); }
   th { color: #9fb3a7; font-weight: 600; font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.04em; }
   tr:last-child td { border-bottom: none; }
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75em; background: rgba(212,169,79,0.2); color: #d4a94f; }
   button {
     background: linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 100%);
     border: 1px solid rgba(255,255,255,0.2);
     color: white; border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 0.85em;
   }
   button:hover { background: rgba(255,255,255,0.2); }
-  button.danger { border-color: rgba(211,90,90,0.5); color: #ff8a80; }
-  input[type="number"], input[type="text"] {
+  input[type="text"], input[type="password"] {
     background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
-    color: white; border-radius: 6px; padding: 5px 8px; width: 70px; font-size: 0.85em;
+    color: white; border-radius: 6px; padding: 8px; width: 100%;
+    margin-bottom: 10px;
   }
   #loginBox { max-width: 360px; }
-  #loginBox input { width: 100%; margin-bottom: 10px; padding: 8px; }
   .err { color: #ff8a80; font-size: 0.85em; margin-top: 6px; }
   .muted { color: #9fb3a7; font-size: 0.85em; }
-  .row-actions { display: flex; gap: 6px; align-items: center; }
   .clickable { cursor: pointer; color: #d4a94f; text-decoration: underline dotted; }
   .clickable:hover { color: #f0c870; }
+  .back-link { color: #9fb3a7; font-size: 0.85em; text-decoration: none; }
+  .back-link:hover { color: white; }
   .modal-bg {
     position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100;
     display: none; align-items: center; justify-content: center; padding: 24px;
@@ -73,47 +71,34 @@
     display: inline-block; padding: 2px 8px; border-radius: 4px; margin-right: 4px;
     background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
   }
+  .win { color: #8be78b; font-weight: 600; }
+  .lose { color: #ff8a80; }
 </style>
 </head>
 <body>
 
 <div id="loginBox" class="card">
-  <h2>Admin login</h2>
+  <h2>Prijava</h2>
   <input type="text" id="email" placeholder="email">
   <input type="password" id="password" placeholder="lozinka">
   <button onclick="doLogin()">Uloguj se</button>
   <div class="err" id="loginErr"></div>
+  <a class="back-link" href="/preferans.html">← nazad na igru</a>
 </div>
 
-<div id="adminBox" style="display:none">
-  <h1>🃏 Preferans — Admin</h1>
+<div id="matchesBox" style="display:none">
+  <h1>🃏 Moje partije</h1>
   <div class="sub" id="whoami"></div>
 
   <div class="card">
-    <h2><span>Korisnici</span><button onclick="loadUsers()">🔄 Osveži</button></h2>
+    <h2><span>Istorija partija</span><button onclick="loadMatches()">🔄 Osveži</button></h2>
     <table>
-      <thead><tr><th>ID</th><th>Ime</th><th>Email</th><th>Krediti</th><th>Admin</th><th>Registrovan</th><th>Akcije</th></tr></thead>
-      <tbody id="usersBody"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2><span>Sobe (uživo)</span><button onclick="loadRooms()">🔄 Osveži</button></h2>
-    <table>
-      <thead><tr><th>Kod</th><th>Faza</th><th>Jug</th><th>Istok</th><th>Zapad</th><th>Kibiceri</th><th>Zaključana</th><th>Napravljena</th></tr></thead>
-      <tbody id="roomsBody"></tbody>
-    </table>
-    <div class="muted" id="roomsEmpty" style="display:none;margin-top:8px">Trenutno nema aktivnih soba.</div>
-  </div>
-
-  <div class="card">
-    <h2><span>Partije (istorijat)</span><button onclick="loadMatches()">🔄 Osveži</button></h2>
-    <table>
-      <thead><tr><th>ID</th><th>Soba</th><th>Kraj</th><th>Razlog</th><th>Rundi</th><th>Jug</th><th>Istok</th><th>Zapad</th><th>Bule</th><th>Pobednik</th><th>Detalji</th></tr></thead>
+      <thead><tr><th>ID</th><th>Soba</th><th>Kraj</th><th>Razlog</th><th>Rundi</th><th>Protivnici</th><th>Moja bule</th><th>Rejting Δ</th><th>Detalji</th></tr></thead>
       <tbody id="matchesBody"></tbody>
     </table>
     <div class="muted" id="matchesEmpty" style="display:none;margin-top:8px">Još nema završenih partija.</div>
   </div>
+  <a class="back-link" href="/preferans.html">← nazad na igru</a>
 </div>
 
 <div class="modal-bg" id="matchModal" onclick="if(event.target===this)closeMatchModal()">
@@ -125,12 +110,15 @@
 
 <script>
   let token = null;
+  let myUserId = null;
   try { token = localStorage.getItem('pref_token'); } catch (e) {}
 
   // Security fix (2026-09-17, kodni pregled): imena igraca su korisnicki
-  // unos (bez sanitizacije pri registraciji) — renderMatchDetail ih
-  // ubacuje u innerHTML, MORAJU biti escape-ovana (isto kao app.js
-  // escapeHtml) da spreci stored XSS na admin nalogu (token u localStorage).
+  // unos (bez sanitizacije pri registraciji, vidi auth/routes.ts) — ova
+  // stranica ih ubacuje u innerHTML, pa MORAJU biti escape-ovana isto kao
+  // svuda drugde u projektu (app.js escapeHtml) da spreci stored XSS
+  // (zlonamerno ime tipa "<img src=x onerror=...>" bi se izvrsilo u
+  // browseru svakog ko otvori tu partiju).
   function escapeHtml(str) {
     return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
@@ -158,154 +146,76 @@
       if (!data.token) throw new Error(data.error || 'Greška');
       token = data.token;
       try { localStorage.setItem('pref_token', token); } catch (e) {}
-      await tryEnterAdmin();
+      await tryEnter();
     } catch (e) {
       document.getElementById('loginErr').textContent = e.message;
     }
   }
 
-  async function tryEnterAdmin() {
+  async function tryEnter() {
     try {
       const me = await api('/api/me');
       if (!me.user) throw new Error('Nije prijavljen');
-      // /api/me ne vraca is_admin — probaj admin poziv direktno, 403 znaci nije admin.
-      await loadUsers();
-      await loadRooms();
+      myUserId = me.user.id;
       await loadMatches();
       document.getElementById('loginBox').style.display = 'none';
-      document.getElementById('adminBox').style.display = 'block';
+      document.getElementById('matchesBox').style.display = 'block';
       document.getElementById('whoami').textContent = 'Prijavljen kao: ' + (me.user.name || me.user.email);
-      setInterval(loadRooms, 5000);
     } catch (e) {
-      document.getElementById('loginErr').textContent = 'Nemaš admin pristup ili nisi prijavljen (' + e.message + ').';
+      document.getElementById('loginErr').textContent = 'Nisi prijavljen (' + e.message + ').';
       document.getElementById('loginBox').style.display = 'block';
-      document.getElementById('adminBox').style.display = 'none';
+      document.getElementById('matchesBox').style.display = 'none';
     }
   }
 
-  async function loadUsers() {
-    const { users } = await api('/api/admin/users');
-    const body = document.getElementById('usersBody');
-    body.innerHTML = '';
-    for (const u of users) {
-      const tr = document.createElement('tr');
-
-      const tdId = document.createElement('td'); tdId.textContent = u.id;
-      const tdName = document.createElement('td'); tdName.textContent = u.name || '(bez imena)';
-      const tdEmail = document.createElement('td'); tdEmail.textContent = u.email;
-      const tdCredits = document.createElement('td'); tdCredits.textContent = u.credits;
-      const tdAdmin = document.createElement('td');
-      if (u.is_admin) { const b = document.createElement('span'); b.className = 'badge'; b.textContent = 'admin'; tdAdmin.appendChild(b); }
-      const tdCreated = document.createElement('td'); tdCreated.textContent = u.created_at;
-
-      const tdActions = document.createElement('td');
-      const actions = document.createElement('div'); actions.className = 'row-actions';
-
-      const deltaInput = document.createElement('input');
-      deltaInput.type = 'number'; deltaInput.placeholder = '±';
-      const addBtn = document.createElement('button');
-      addBtn.textContent = 'Primeni kredit';
-      addBtn.onclick = () => adjustCredits(u.id, deltaInput.value);
-      const delBtn = document.createElement('button');
-      delBtn.textContent = 'Obriši';
-      delBtn.className = 'danger';
-      delBtn.onclick = () => deleteUser(u.id, u.email);
-
-      actions.appendChild(deltaInput);
-      actions.appendChild(addBtn);
-      actions.appendChild(delBtn);
-      tdActions.appendChild(actions);
-
-      tr.append(tdId, tdName, tdEmail, tdCredits, tdAdmin, tdCreated, tdActions);
-      body.appendChild(tr);
-    }
+  // Pronadji moje sediste u partiji (0/1/2) na osnovu user_id
+  function mySeat(m) {
+    if (m.player0_user_id === myUserId) return 0;
+    if (m.player1_user_id === myUserId) return 1;
+    if (m.player2_user_id === myUserId) return 2;
+    return -1;
   }
 
-  async function adjustCredits(id, deltaStr) {
-    const delta = parseInt(deltaStr, 10);
-    if (!Number.isInteger(delta) || delta === 0) { alert('Unesi ceo broj razlicit od 0 (npr. 50 ili -20).'); return; }
-    const reason = prompt('Razlog (opciono):') || '';
-    try {
-      await api('/api/admin/users/' + id + '/credits', { method: 'POST', body: JSON.stringify({ delta, reason }) });
-      await loadUsers();
-    } catch (e) { alert('Greška: ' + e.message); }
+  function opponentNames(m, mySeat) {
+    const names = [m.player0_name, m.player1_name, m.player2_name];
+    return [0, 1, 2].filter((i) => i !== mySeat).map((i) => names[i] || '?').join(' / ');
   }
 
-  async function deleteUser(id, email) {
-    if (!confirm('Obrisati nalog ' + email + '? Ovo je nepovratno.')) return;
-    try {
-      await api('/api/admin/users/' + id, { method: 'DELETE' });
-      await loadUsers();
-    } catch (e) { alert('Greška: ' + e.message); }
-  }
-
-  async function loadRooms() {
-    const { rooms } = await api('/api/admin/rooms');
-    const body = document.getElementById('roomsBody');
-    body.innerHTML = '';
-    document.getElementById('roomsEmpty').style.display = rooms.length === 0 ? 'block' : 'none';
-    for (const r of rooms) {
-      const tr = document.createElement('tr');
-      const cells = [
-        r.code,
-        r.phase,
-        r.seatNames[0] || '—',
-        r.seatNames[1] || '—',
-        r.seatNames[2] || '—',
-        String(r.spectatorCount),
-        r.locked ? '🔒' : '—',
-        new Date(r.createdAt).toLocaleString('sr-RS'),
-      ];
-      for (const c of cells) {
-        const td = document.createElement('td');
-        td.textContent = c;
-        tr.appendChild(td);
-      }
-      body.appendChild(tr);
-    }
-  }
-
-  if (token) tryEnterAdmin();
-
-  // Istorija partija (korisnikov zahtev 2026-09-11) — admin vidi SVE
-  // zavrsene partije. Klik na red otvara modal sa runda-po-runda detaljima.
   async function loadMatches() {
     try {
-      const { matches } = await api('/api/admin/matches?limit=200');
+      const { matches } = await api('/api/matches?limit=200');
       const body = document.getElementById('matchesBody');
       body.innerHTML = '';
       document.getElementById('matchesEmpty').style.display = matches.length === 0 ? 'block' : 'none';
       for (const m of matches) {
-        const tr = document.createElement('tr');
+        const seat = mySeat(m);
+        if (seat < 0) continue;
         const bulas = JSON.parse(m.final_bulas);
-        const scores = JSON.parse(m.final_scores);
-        // Bag (kodni pregled 2026-09-17): Math.max je birao GUBITNIKA —
-        // nizi score pobedjuje (vidi objasnjenje kod renderMatchDetail).
-        const winnerIdx = scores.indexOf(Math.min(...scores));
-        const winnerNames = [m.player0_name, m.player1_name, m.player2_name];
+        const deltas = JSON.parse(m.rating_deltas);
         const reasonLabel = { natural: 'prirodan', agreed: 'dogovor', leave: 'napustio' }[m.match_end_reason] || m.match_end_reason;
+        const deltaClass = deltas[seat] > 0 ? 'win' : (deltas[seat] < 0 ? 'lose' : '');
 
+        const tr = document.createElement('tr');
         const cells = [
           String(m.id),
           m.room_code,
           new Date(m.ended_at + 'Z').toLocaleString('sr-RS'),
           reasonLabel,
           String(m.rounds_played),
-          m.player0_name || '—',
-          m.player1_name || '—',
-          m.player2_name || '—',
-          bulas.join(' / '),
-          winnerNames[winnerIdx] || '?',
+          opponentNames(m, seat),
+          String(bulas[seat]),
+          (deltas[seat] >= 0 ? '+' : '') + deltas[seat],
         ];
         for (let i = 0; i < cells.length; i++) {
           const td = document.createElement('td');
           td.textContent = cells[i];
+          if (i === 7) td.className = deltaClass;
           tr.appendChild(td);
         }
         const tdAction = document.createElement('td');
         const btn = document.createElement('span');
         btn.className = 'clickable';
-        btn.textContent = '📋 otvori';
+        btn.textContent = '📋';
         btn.onclick = () => openMatchModal(m.id);
         tdAction.appendChild(btn);
         tr.appendChild(tdAction);
@@ -319,7 +229,7 @@
 
   async function openMatchModal(id) {
     try {
-      const { match } = await api('/api/admin/matches/' + id);
+      const { match } = await api('/api/matches/' + id);
       renderMatchDetail(match);
       document.getElementById('matchModal').classList.add('open');
     } catch (e) {
@@ -336,41 +246,47 @@
   const KONTRA_LABELS = { KONTRA: '×2', REKONTRA: '×4', SUBKONTRA: '×8', MORTKONTRA: '×16' };
 
   function renderMatchDetail(m) {
-    // Security fix: korisnicki unos, escape pre upotrebe u innerHTML.
+    // Security fix: imena su korisnicki unos, escape-uj PRE bilo kakve
+    // upotrebe u html.push(...) nizu ispod (sve ide u innerHTML).
     const seatNames = [m.player0_name || '?', m.player1_name || '?', m.player2_name || '?'].map(escapeHtml);
+    const mySeat = (function () {
+      if (m.player0_user_id === myUserId) return 0;
+      if (m.player1_user_id === myUserId) return 1;
+      if (m.player2_user_id === myUserId) return 2;
+      return 0;
+    })();
     const bulas = JSON.parse(m.final_bulas);
     const scores = JSON.parse(m.final_scores);
     const deltas = JSON.parse(m.rating_deltas);
     const newRatings = JSON.parse(m.new_ratings);
     const hands = JSON.parse(m.hands_json || '[]');
-    // Bag (kodni pregled 2026-09-17): Math.max je birao GUBITNIKA — nizi
-    // score pobedjuje (bula*10 + duguje - potrazuje).
+    // Bag (kodni pregled 2026-09-17): Math.max je birao GUBITNIKA — ceo
+    // projekat (engine calculateMatchScores, klijent renderResult) je
+    // uskladjen da NIZI score pobedjuje (bula*10 + duguje - potrazuje,
+    // potvrdjeno korisnikovim primerom 2026-09-04).
     const winnerIdx = scores.indexOf(Math.min(...scores));
+    const iWon = winnerIdx === mySeat;
     const reasonLabel = { natural: 'prirodan kraj', agreed: 'dogovor igrača', leave: 'napuštanje' }[m.match_end_reason] || m.match_end_reason;
 
     const html = [];
-    html.push('<h2>Partija #' + m.id + ' — ' + escapeHtml(m.room_code) + '</h2>');
+    html.push('<h2>Partija #' + m.id + ' — ' + escapeHtml(m.room_code) + ' ' + (iWon ? '🏆' : '') + '</h2>');
     html.push('<div class="hand-meta">');
     html.push('<span>Završena: ' + new Date(m.ended_at + 'Z').toLocaleString('sr-RS') + '</span>');
     html.push('<span>Razlog: ' + reasonLabel + '</span>');
     html.push('<span>Rundi: ' + m.rounds_played + '</span>');
     html.push('</div>');
 
-    html.push('<div class="hand-meta" style="color:#d4a94f;font-weight:600">');
-    html.push('🏆 Pobednik: ' + seatNames[winnerIdx] + ' (skor ' + scores[winnerIdx] + ')');
-    html.push('</div>');
-
     html.push('<h3>Finalni rezultat</h3>');
     html.push('<table style="margin-bottom:16px"><thead><tr><th></th><th>Jug</th><th>Istok</th><th>Zapad</th></tr></thead><tbody>');
-    html.push('<tr><td><b>Ime</b></td><td>' + seatNames[0] + '</td><td>' + seatNames[1] + '</td><td>' + seatNames[2] + '</td></tr>');
+    html.push('<tr><td><b>Ime</b></td><td>' + seatNames[0] + (mySeat === 0 ? ' (ti)' : '') + '</td><td>' + seatNames[1] + (mySeat === 1 ? ' (ti)' : '') + '</td><td>' + seatNames[2] + (mySeat === 2 ? ' (ti)' : '') + '</td></tr>');
     html.push('<tr><td><b>Bule</b></td><td>' + bulas[0] + '</td><td>' + bulas[1] + '</td><td>' + bulas[2] + '</td></tr>');
     html.push('<tr><td><b>Skor</b></td><td>' + scores[0] + '</td><td>' + scores[1] + '</td><td>' + scores[2] + '</td></tr>');
-    html.push('<tr><td><b>Δ rejting</b></td><td>' + (deltas[0] >= 0 ? '+' : '') + deltas[0] + '</td><td>' + (deltas[1] >= 0 ? '+' : '') + deltas[1] + '</td><td>' + (deltas[2] >= 0 ? '+' : '') + deltas[2] + '</td></tr>');
+    html.push('<tr><td><b>Δ rejting</b></td><td class="' + (deltas[0] > 0 ? 'win' : deltas[0] < 0 ? 'lose' : '') + '">' + (deltas[0] >= 0 ? '+' : '') + deltas[0] + '</td><td class="' + (deltas[1] > 0 ? 'win' : deltas[1] < 0 ? 'lose' : '') + '">' + (deltas[1] >= 0 ? '+' : '') + deltas[1] + '</td><td class="' + (deltas[2] > 0 ? 'win' : deltas[2] < 0 ? 'lose' : '') + '">' + (deltas[2] >= 0 ? '+' : '') + deltas[2] + '</td></tr>');
     html.push('<tr><td><b>Novi rejting</b></td><td>' + newRatings[0] + '</td><td>' + newRatings[1] + '</td><td>' + newRatings[2] + '</td></tr>');
     html.push('</tbody></table>');
 
     if (hands.length === 0) {
-      html.push('<div class="muted">Nema detalja po rundama (ili partija bez odigranih rundi).</div>');
+      html.push('<div class="muted">Nema detalja po rundama.</div>');
     } else {
       html.push('<h3>Runde (' + hands.length + ')</h3>');
       hands.forEach((h, i) => {
@@ -410,7 +326,8 @@
           h.tricks.forEach((trick, ti) => {
             html.push('<div class="trick-row"><span class="trick-num">' + (ti + 1) + '.</span>');
             trick.forEach((tc) => {
-              html.push('<span class="seat-label">' + SEAT_LABELS[tc.position] + ':</span>');
+              const isMine = tc.position === mySeat;
+              html.push('<span class="seat-label" style="' + (isMine ? 'color:#8be78b' : '') + '">' + SEAT_LABELS[tc.position] + ':</span>');
               html.push('<span class="card-pill">' + tc.rank + tc.suit + '</span>');
             });
             html.push('</div>');
@@ -422,6 +339,8 @@
 
     document.getElementById('matchDetail').innerHTML = html.join('');
   }
+
+  if (token) tryEnter();
 </script>
 </body>
 </html>

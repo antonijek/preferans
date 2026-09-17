@@ -48,13 +48,29 @@ export async function initDb(): Promise<void> {
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       )`);
     }
+
+    // Istorija partija (korisnikov zahtev 2026-09-11) — zasebna migracija
+    // 002_match_log.sql, primenjuje se isto kao i 001.
+    const matchLogTable = db.exec(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='match_log'"
+    );
+    if (matchLogTable.length === 0) {
+      const migrationPath = path.join(process.cwd(), 'src', 'migrations', '002_match_log.sql');
+      db.run(fs.readFileSync(migrationPath, 'utf-8'));
+    }
   }
 
   persist();
 }
 
+let persistTimer: NodeJS.Timeout | null = null;
+
 export function persist(): void {
-  fs.writeFileSync(DB_PATH, Buffer.from(db.export()));
+  if (persistTimer) return;
+  persistTimer = setTimeout(() => {
+    fs.writeFileSync(DB_PATH, Buffer.from(db.export()));
+    persistTimer = null;
+  }, 2000);
 }
 
 export function run(sql: string, params: (string | number | null)[] = []): void {
@@ -102,4 +118,91 @@ export function getUsersRatings(userIds: number[]): Map<number, number> {
 
 export function updateUserRating(userId: number, newRating: number): void {
   run('UPDATE users SET rating = ? WHERE id = ?', [newRating, userId]);
+}
+
+// Istorija partija (korisnikov zahtev 2026-09-11) — JSON serijalizovani
+// nizovi (bulas/scores/deltas/newRatings) cuvaju sve podatke o rundi bez
+// dodatnih join tabela. Za 50 korisnika × 3 partije/dan = ~750 KB/dan,
+// zanemarivo opterecenje baze.
+export interface MatchLogEntry {
+  room_code: string;
+  match_end_reason: 'natural' | 'agreed' | 'leave';
+  rounds_played: number;
+  player0_user_id: number | null;
+  player1_user_id: number | null;
+  player2_user_id: number | null;
+  player0_name: string | null;
+  player1_name: string | null;
+  player2_name: string | null;
+  final_bulas: [number, number, number];
+  final_scores: [number, number, number];
+  rating_deltas: [number, number, number];
+  new_ratings: [number, number, number];
+  hands_json: string;
+}
+
+export function saveMatchLog(entry: MatchLogEntry): void {
+  run(
+    `INSERT INTO match_log (
+      room_code, match_end_reason, rounds_played,
+      player0_user_id, player1_user_id, player2_user_id,
+      player0_name, player1_name, player2_name,
+      final_bulas, final_scores, rating_deltas, new_ratings,
+      hands_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      entry.room_code,
+      entry.match_end_reason,
+      entry.rounds_played,
+      entry.player0_user_id,
+      entry.player1_user_id,
+      entry.player2_user_id,
+      entry.player0_name,
+      entry.player1_name,
+      entry.player2_name,
+      JSON.stringify(entry.final_bulas),
+      JSON.stringify(entry.final_scores),
+      JSON.stringify(entry.rating_deltas),
+      JSON.stringify(entry.new_ratings),
+      entry.hands_json,
+    ]
+  );
+}
+
+export function getMatchById(id: number): MatchLogRow | undefined {
+  return get<MatchLogRow>('SELECT * FROM match_log WHERE id = ?', [id]);
+}
+
+export interface MatchLogRow {
+  id: number;
+  room_code: string;
+  ended_at: string;
+  match_end_reason: string;
+  rounds_played: number;
+  player0_user_id: number | null;
+  player1_user_id: number | null;
+  player2_user_id: number | null;
+  player0_name: string | null;
+  player1_name: string | null;
+  player2_name: string | null;
+  final_bulas: string;
+  final_scores: string;
+  rating_deltas: string;
+  new_ratings: string;
+}
+
+export function getAllMatches(limit = 100): MatchLogRow[] {
+  return all<MatchLogRow>(
+    'SELECT * FROM match_log ORDER BY ended_at DESC LIMIT ?',
+    [limit]
+  );
+}
+
+export function getMatchesForUser(userId: number, limit = 100): MatchLogRow[] {
+  return all<MatchLogRow>(
+    `SELECT * FROM match_log
+     WHERE player0_user_id = ? OR player1_user_id = ? OR player2_user_id = ?
+     ORDER BY ended_at DESC LIMIT ?`,
+    [userId, userId, userId, limit]
+  );
 }

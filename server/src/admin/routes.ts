@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { get, all, run } from '../db.js';
+import { get, all, run, getAllMatches, getMatchById } from '../db.js';
 import { requireAdmin } from '../auth/middleware.js';
 import type { AuthedRequest } from '../auth/middleware.js';
 import { listAllRoomsDetailed } from '../rooms/RoomManager.js';
@@ -73,4 +73,28 @@ adminRouter.post('/users/:id/credits', (req: AuthedRequest, res) => {
 
 adminRouter.get('/rooms', (_req, res) => {
   res.json({ rooms: listAllRoomsDetailed() });
+});
+
+// Istorija partija (korisnikov zahtev 2026-09-11) — admin vidi SVE partije.
+// `limit` je opcionalan (default 100, max 500). JSON polja ostaju stringovi
+// — admin frontend ih parsira (ili salje sirove, svejedno).
+adminRouter.get('/matches', (req, res) => {
+  const limitParam = Number(req.query.limit);
+  const limit = Number.isInteger(limitParam) ? Math.min(Math.max(1, limitParam), 500) : 100;
+  res.json({ matches: getAllMatches(limit) });
+});
+
+// Detalji jedne partije — ukljucuje hands_json (niz rundi) za replay.
+adminRouter.get('/matches/:id', (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    res.status(400).json({ error: 'Invalid match id' });
+    return;
+  }
+  const match = getMatchById(id);
+  if (!match) {
+    res.status(404).json({ error: 'Match not found' });
+    return;
+  }
+  res.json({ match });
 });

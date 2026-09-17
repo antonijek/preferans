@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { get, run } from '../db.js';
+import { get, run, getMatchesForUser, getMatchById } from '../db.js';
 import { hashPassword, verifyPassword } from './password.js';
 import { signToken, requireAuth } from './middleware.js';
 import type { AuthedRequest } from './middleware.js';
@@ -61,4 +61,36 @@ authRouter.get('/me', requireAuth, (req: AuthedRequest, res) => {
   res.json({
     user: user ? { ...user, name: user.name || user.email, is_admin: !!user.is_admin } : null,
   });
+});
+
+// Istorija partija (korisnikov zahtev 2026-09-11) — igrac vidi SAMO partije
+// u kojima je ucestvovao. Admin vidi sve preko /api/admin/matches.
+authRouter.get('/matches', requireAuth, (req: AuthedRequest, res) => {
+  const limitParam = Number(req.query.limit);
+  const limit = Number.isInteger(limitParam) ? Math.min(Math.max(1, limitParam), 500) : 100;
+  res.json({ matches: getMatchesForUser(req.userId!, limit) });
+});
+
+// Detalji jedne partije — samo ako je korisnik bio igrac u njoj.
+authRouter.get('/matches/:id', requireAuth, (req: AuthedRequest, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    res.status(400).json({ error: 'Invalid match id' });
+    return;
+  }
+  const match = getMatchById(id);
+  if (!match) {
+    res.status(404).json({ error: 'Match not found' });
+    return;
+  }
+  const userId = req.userId!;
+  const participated =
+    match.player0_user_id === userId ||
+    match.player1_user_id === userId ||
+    match.player2_user_id === userId;
+  if (!participated) {
+    res.status(403).json({ error: 'Not a participant in this match' });
+    return;
+  }
+  res.json({ match });
 });

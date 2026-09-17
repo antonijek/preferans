@@ -7,6 +7,7 @@ import { initDb } from './db.js';
 import { authRouter } from './auth/routes.js';
 import { adminRouter } from './admin/routes.js';
 import { registerSocketHandlers } from './socket/index.js';
+import { removeAbandonedWaitingRooms } from './rooms/RoomManager.js';
 
 // dist/index.js -> server/dist -> server -> project root, where
 // preferans.html/app.js/engine/dist all live. Serving them same-origin
@@ -52,6 +53,12 @@ async function main(): Promise<void> {
   httpServer.listen(port, () => {
     console.log(`Preferans server listening on port ${port}`);
   });
+
+  // Svakih 5 minuta ocisti WAITING sobe bez aktivnih igraca starije od 30 min.
+  setInterval(() => {
+    const removed = removeAbandonedWaitingRooms();
+    if (removed > 0) console.log(`[CLEANUP] Removed ${removed} abandoned waiting room(s)`);
+  }, 5 * 60 * 1000);
 }
 
 main().catch((err) => {

@@ -57,6 +57,43 @@ export interface RoomState {
   // vise puta dok je phase vec MATCH_OVER (isti obrazac kao
   // nextHandScheduled za GAME_OVER).
   matchRankingResolved: boolean;
+  // Istorija partija (korisnikov zahtev 2026-09-11) — push-uje se snapshot
+  // GameState-a na kraj SVAKE ruke (u roomEvents posle endHand-a),
+  // konzumira u resolveMatchRanking i upisuje u match_log kao hands_json.
+  // Cuvamo samo ključna polja (ne celokupan state — ima nepotrebne runtime
+  // stvari), dovoljno za replay analizu sporne partije.
+  handsHistory: HandSnapshot[];
+  // Flag za sprečavanje duplog push-a handHistory-a ako se
+  // broadcastRoomState pozove vise puta dok je phase GAME_OVER.
+  handSnapshotTaken: boolean;
+}
+
+export interface HandSnapshot {
+  round: number;
+  endedAt: string;
+  // Ko je bio nosilac (deklarant)
+  declarer: Position;
+  // Koja igra (Pik/Herc/Betl/Sans/Igra-...)
+  declaredGame: string;
+  // Ko je sve dosao (pozivalac, pratioci)
+  caller: Position | null;
+  callee: Position | null;
+  followChoices: [string | null, string | null, string | null];
+  // Kontrin nivo na kraju (KONTRA/REKONTRA/SUBKONTRA/MORTKONTRA/null)
+  kontraLevel: string | null;
+  // Da li se refa koristila u ovoj ruci
+  refeOccurred: boolean;
+  // Ko je pobedio ruku (nosilac prosao ili pao)
+  passed: boolean;
+  // Finalne bule i supe delte POSLE ove ruke
+  bulasAfter: [number, number, number];
+  supeDelta: [number, number, number];
+  // Kompletni štihovi ove ruke — svaki je niz karata sa pozicijama
+  tricks: Array<Array<{ position: Position; suit: string; rank: string }>>;
+  // Poeni po igracu (koliko stihova je svaki uzeo)
+  tricksWon: [number, number, number];
+  // Seed i talon — za rekonstrukciju deljenja
+  talon: Array<{ suit: string; rank: string }>;
 }
 
 export interface RoomOptions {
@@ -83,5 +120,7 @@ export function createRoomState(code: string, options: RoomOptions = {}): RoomSt
     endMatchReady: new Set(),
     seatRatings: [1000, 1000, 1000],
     matchRankingResolved: false,
+    handsHistory: [],
+    handSnapshotTaken: false,
   };
 }

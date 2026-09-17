@@ -30,8 +30,79 @@ C:\Users\mb-com\.local\share\kilo\tool-output\preferans-v0.9.0-baseline.zip
 ```
 1.8 MB, sadrži ceo repo (bez node_modules, bez dist).
 
+**Server backup** (napravljen 2026-09-11 pre pokušaja deploya):
+- Lokacija: `/var/www/preferans.backup-prematchlog` (na serveru)
+- Sadrži celu `/var/www/preferans` strukturu pre izmena za istoriju partija
+
+**Restore sa server backupa**:
+```bash
+ssh root@antonije.dev "rm -rf /var/www/preferans && cp -r /var/www/preferans.backup-prematchlog /var/www/preferans && pm2 restart pref-server"
+```
+
 **Remote**: push-ovan na https://github.com/antonijek/preferans
 **Deploy**: https://pref.antonije.dev (live)
+
+---
+
+## DEPLOY PROBLEM — 2026-09-11 (za narednog agenta)
+
+**Simptom**: Kolega pokušao deploy novog koda (admin/matches istorija partija). Svi fajlovi uspešno upload-ovani, ali `npm run build` na serveru pada sa 10+ TS grešaka. Isti kod **lokalno radi** (0 grešaka).
+
+**Verovatni uzrok**: Razlika u Node verziji
+- Lokalno: **Node 24.18.0**, npm 11.16
+- Server: **Node 20.20.2**, npm 10.8
+
+TypeScript 5.9.3 + `moduleResolution: "Bundler"` + `noImplicitAny: true` se **drugačije ponaša** na Node 20 — TS ne vidi module import sa `.js` ekstenzijom iako fajlovi postoje (npr. `db.ts` na serveru postoji, ali TS kaže "Cannot find module '../db.js'").
+
+**Šta je pokušano** (sve bezuspešno):
+1. Upload starih fajlova — iste greške
+2. `noImplicitAny: false` — smanjilo sa 43 na 10 grešaka ali ne rešava "Cannot find module"
+3. `moduleResolution: "Node"` umesto "Bundler" — iste greške
+
+**Šta trenutno radi na serveru** (nakon povratka):
+- ✅ Server je na **staroj verziji** (`v0.9.0-multiplayer-baseline`) — sajt normalan za korisnike
+- ❌ Novi fajlovi (db.ts, roomEvents.ts, routes.ts, itd.) vraćeni na stare iz backupa
+- ❌ `tsconfig.json` vraćen na original (sa `noImplicitAny: true`, `moduleResolution: "Bundler"`)
+- 💾 Lokalno (kod korisnika): sve izmene sačuvane, build prolazi, 212/212 testova
+
+**Rešenje za budućnost** (hipoteze):
+- **A**: Nadograditi server na Node 24 (preporučeno ali zahteva akciju)
+- **B**: Lokalno prilagoditi kod da radi na oba Node-a (npr. ukloniti `.js` iz importa, ili preći na CJS)
+- **C**: Drugi agent verovatno ima već rešen ovaj problem — pogledaj njegov `tsconfig.json` ili skripte za deploy
+
+**HITAN FIX — 2026-09-11 14:57** (server je bio 502):
+- Simptom: nginx 502, PM2 "online" ali HTTP 000
+- Uzrok: `dist/` na serveru je bio parcijalan (samo 5 fajlova) jer build nije uspeo. PM2 pokrenuo ali bez `db.js`, `index.js`, `auth/*` itd.
+- Fix: `cp -r /var/www/preferans.backup-prematchlog/server/dist /var/www/preferans/server/dist && pm2 restart pref-server`
+- Posle: HTTP 200, sajt radi
+- **LEKCIJA**: nikad ne restartuj server ako build nije uspeo — uvek proveri `ls server/dist/ | wc -l` (mora biti ~9, ne 5)
+
+**Lokalno kod korisnika** radi normalno (Node 24). Ako deploy nije kritičan, izmene mogu da čekaju dok se ne reši Node razlika.
+
+---
+
+## 🆕 NOVI PROJEKAT — "Reč Dana" (Wordle na srpskom)
+
+**Status**: 2026-09-11, napravljen u `C:\Users\mb-com\AppData\Local\Temp\kilo\wordle` (temp, treba prebaciti na trajnu lokaciju).
+
+**Šta**: Web Wordle za srpsko tržište — dnevna srpska reč (5 slova, 6 pokušaja, boje kao Wordle), random mode, statistika, share button.
+
+**Fajlovi**:
+- `index.html` — UI shell
+- `style.css` — dizajn (tamna zelena, zlatna)
+- `app.js` — frontend logika (DOM, tastatura, modali)
+- `src/engine.js` — game engine (checkGuess, submitGuess, daily word)
+- `src/words.js` — 300+ srpskih reči (gradovi, države, životinje, hrana, predmeti...)
+
+**Zašto**: Korisnik shvatio da Preferans nema dovoljno veliko tržište za zaradu — Wordle na srpskom je 2-3 nedelje posla, viralni potencijal, malo konkurencije.
+
+**Deploy plan**: Vercel (besplatan), domen `rec-dana.rs` ili sličan.
+
+**Marketing**: Reddit (r/serbia), TikTok/Reels "rešavam srpski Wordle", Twitter dnevni post.
+
+**Monetizacija**: Google AdSense + Premium 2 EUR/mes.
+
+**Sledeći korak**: Korisnik da otvori `index.html` lokalno, testira, pa deploy na Vercel.
 
 ---
 
@@ -94,6 +165,7 @@ C:\Users\mb-com\.local\share\kilo\tool-output\preferans-v0.9.0-baseline.zip
 4. **AI igranje karte** — `choosePlayCard` nije kalibrisano Monte Carlo metodom
    - Korisnik dao konvenciju "vodi singleton vanadutsku boju" — NIJE ugrađena
 5. **Refa množilac (RULES 7.3)** — `state.refeUsed` se ne postavlja, samo placeholder
+6. **Istorija partija (kad je korisnik pitao 2026-09-11)** — nema tabele u bazi za gotove partije, ne mogu da se gledaju stare partije. Dodati: `hand_log` tabela (id, room_code, started_at, ended_at, players, winner, final_bulas, hands_json), INSERT posle kraja partije, GET endpoint + UI za pregled. **Procenjeno opterećenje baze**: ~5 KB po partiji × 50 korisnika × 3 partije = ~750 KB/dan, nema veze — minimalan uticaj. **Status 2026-09-11: ✅ IMPLEMENTIRANO** (db.ts + roomEvents.ts + admin.html + matches.html) — ali **NIJE DEPLOY-OVANO** zbog Node razlike (vidi dole). Lokalno radi, čeka deploy rešenje.
 
 ### 🔧 MANJE BITNO (radi, ali nije idealno)
 - 6 `console.log` debug-ova u serveru (`server/src/socket/roomEvents.ts`)

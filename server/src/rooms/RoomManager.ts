@@ -97,3 +97,25 @@ export function setUserLocation(userId: number, loc: UserLocation): void {
 export function clearUserLocation(userId: number): void {
   userLocation.delete(userId);
 }
+
+// WAITING soba (partija jos nije pocela) koja nema aktivnih konekcija se
+// automatski brise posle 30 min — sprecava curenje memorije kad igrac
+// napravi sobu i zaboravi na nju. Za sobe u toku partije NE vazi (M6
+// reconnect moze da ceka neograniceno).
+const ABANDONED_WAITING_MS = 30 * 60 * 1000;
+
+export function removeAbandonedWaitingRooms(): number {
+  const now = Date.now();
+  let removed = 0;
+  for (const [code, room] of roomsByCode) {
+    const anyoneConnected =
+      room.sockets.some((s) => s !== null) ||
+      Array.from(room.spectators.values()).some((s) => s.socket !== null);
+    const isWaiting = room.game.state.phase === 'WAITING';
+    if (isWaiting && !anyoneConnected && now - room.createdAt > ABANDONED_WAITING_MS) {
+      roomsByCode.delete(code);
+      removed++;
+    }
+  }
+  return removed;
+}
