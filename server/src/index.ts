@@ -3,7 +3,7 @@ import http from 'node:http';
 import path from 'node:path';
 import express from 'express';
 import { Server as SocketIOServer } from 'socket.io';
-import { initDb } from './db.js';
+import { initDb, flushPersist } from './db.js';
 import { authRouter } from './auth/routes.js';
 import { adminRouter } from './admin/routes.js';
 import { registerSocketHandlers } from './socket/index.js';
@@ -53,6 +53,17 @@ async function main(): Promise<void> {
   httpServer.listen(port, () => {
     console.log(`Preferans server listening on port ${port}`);
   });
+
+  // pm2 restart/redeploy sends SIGTERM — flush any debounced DB write
+  // (persist() batches writes over up to 2s) before the process actually
+  // exits, so a restart can't silently drop the last write.
+  const shutdown = (signal: string) => {
+    console.log(`[SHUTDOWN] ${signal} received, flushing DB before exit`);
+    flushPersist();
+    process.exit(0);
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 
   // Svakih 5 minuta ocisti WAITING sobe bez aktivnih igraca starije od 30 min.
   setInterval(() => {

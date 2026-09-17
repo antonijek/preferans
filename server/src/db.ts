@@ -73,6 +73,17 @@ export function persist(): void {
   }, 2000);
 }
 
+// Writes immediately, bypassing the debounce — call this on shutdown so a
+// pm2 restart/redeploy can't land inside the up-to-2s window where a write
+// has happened but not yet hit disk.
+export function flushPersist(): void {
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+  fs.writeFileSync(DB_PATH, Buffer.from(db.export()));
+}
+
 export function run(sql: string, params: (string | number | null)[] = []): void {
   db.run(sql, params);
   persist();
