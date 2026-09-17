@@ -4,6 +4,7 @@ CREATE TABLE users (
   password_hash TEXT NOT NULL,
   name TEXT NOT NULL,
   is_admin INTEGER NOT NULL DEFAULT 0,
+  banned INTEGER NOT NULL DEFAULT 0,
   credits INTEGER NOT NULL DEFAULT 0,
   rating INTEGER NOT NULL DEFAULT 1000,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))

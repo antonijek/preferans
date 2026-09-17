@@ -30,6 +30,9 @@ export async function initDb(): Promise<void> {
     // which SQLite's ADD COLUMN allows even on a non-empty table.
     if (!existingCols.has('name')) db.run('ALTER TABLE users ADD COLUMN name TEXT');
     if (!existingCols.has('is_admin')) db.run('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0');
+    // Admin panel "banuj nalog" (korisnikov zahtev 2026-09-17) — reversibilan
+    // suspend, za razliku od trajnog brisanja naloga koje vec postoji.
+    if (!existingCols.has('banned')) db.run('ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0');
     if (!existingCols.has('credits')) db.run('ALTER TABLE users ADD COLUMN credits INTEGER NOT NULL DEFAULT 0');
     // Ranking sistem (korisnikov zahtev 2026-09-10) — ELO-stil bodovi,
     // default 1000 za nove/postojece igrace (isti obrazac kao credits).

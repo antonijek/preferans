@@ -10,6 +10,7 @@ interface UserRow {
   password_hash: string;
   name: string | null;
   is_admin: number;
+  banned: number;
   rating: number;
 }
 
@@ -45,9 +46,13 @@ authRouter.post('/login', async (req, res) => {
     return;
   }
 
-  const user = get<UserRow>('SELECT id, password_hash FROM users WHERE email = ?', [email]);
+  const user = get<UserRow>('SELECT id, password_hash, banned FROM users WHERE email = ?', [email]);
   if (!user || !(await verifyPassword(password, user.password_hash))) {
     res.status(401).json({ error: 'Invalid email or password' });
+    return;
+  }
+  if (user.banned) {
+    res.status(403).json({ error: 'Nalog je suspendovan.' });
     return;
   }
   res.json({ token: signToken(user.id) });

@@ -2487,6 +2487,38 @@ async function connectOnlineSocket() {
     if (p.seat === mySeat) return;
     showAppToast(`✅ ${escapeHtml(p.name)} se vratio`);
   });
+  // Admin panel (2026-09-17) — isti reset kao uspesan doLeaveMatch(), samo
+  // bez emit-a (server je vec izvrsio izbacivanje pre nego sto je poslao ovo).
+  onlineSocket.on('room:kicked', () => {
+    document.body.classList.remove('online-in-game');
+    $('matchMenuBtn').style.display = 'none';
+    closeMatchMenu();
+    $('peekHomeBtn').style.display = 'none';
+    $('backToTableBtn').style.display = 'none';
+    $('chatToggleBtn').style.display = 'none';
+    $('chatScreen').classList.remove('open');
+    mySeat = null;
+    awayFromTable = false;
+    disconnectedSeats.clear();
+    goToHomeScreen();
+    showAppToast('Izbačen si iz partije od strane administratora.');
+  });
+  // Isto, ali stize SVIMA u prisilno zatvorenoj sobi (igraci + kibiceri),
+  // ne samo jednom sedistu — nema mySeat pretpostavke.
+  onlineSocket.on('room:closed', () => {
+    document.body.classList.remove('online-in-game');
+    $('matchMenuBtn').style.display = 'none';
+    closeMatchMenu();
+    $('peekHomeBtn').style.display = 'none';
+    $('backToTableBtn').style.display = 'none';
+    $('chatToggleBtn').style.display = 'none';
+    $('chatScreen').classList.remove('open');
+    mySeat = null;
+    awayFromTable = false;
+    disconnectedSeats.clear();
+    goToHomeScreen();
+    showAppToast('Administrator je zatvorio ovu sobu.');
+  });
   onlineSocket.on('game:dealNextStatus', (p) => {
     dealNextReadySeats = p?.ready ?? [];
     renderResult();
