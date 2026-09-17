@@ -11,7 +11,7 @@
 // nacin da se stari klijenti odmah prebace: promeniti SADRZAJ ovog fajla
 // (bump verzije), sto tera browser da primeti razliku i instalira NOVI SW.
 // UBUDUCE: bump-ovati OVDE pri SVAKOM deploy-u koji dira app.js/preferans.html.
-const CACHE_NAME = 'preferans-v7';
+const CACHE_NAME = 'preferans-v8';
 const SHELL_FILES = [
   '/',
   '/preferans.html',
@@ -23,6 +23,7 @@ const SHELL_FILES = [
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/engine/dist/game.js',
+  '/engine/dist/turnOrder.js',
   '/engine/dist/types.js',
   '/engine/dist/constants.js',
   '/engine/dist/cards.js',
@@ -36,6 +37,8 @@ const SHELL_FILES = [
   '/engine/dist/aiBidding.js',
   '/engine/dist/aiFollowKontra.js',
   '/engine/dist/aiDiscardPlay.js',
+  '/engine/dist/aiSearch.js',
+  '/engine/dist/aiAutoplay.js',
 ];
 
 self.addEventListener('install', (event) => {
