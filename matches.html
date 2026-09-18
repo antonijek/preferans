@@ -332,7 +332,7 @@
             html.push('<div class="trick-row"><span class="trick-num">' + (ti + 1) + '.</span>');
             trick.forEach((tc) => {
               const isMine = tc.position === mySeat;
-              html.push('<span class="seat-label" style="' + (isMine ? 'color:#8be78b' : '') + '">' + SEAT_LABELS[tc.position] + ':</span>');
+              html.push('<span class="seat-label" style="' + (isMine ? 'color:#8be78b' : '') + '">' + seatLabel(tc.position) + ':</span>');
               html.push('<span class="card-pill">' + tc.rank + tc.suit + '</span>');
             });
             html.push('</div>');
