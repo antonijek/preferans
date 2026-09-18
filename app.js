@@ -169,19 +169,18 @@ const POS_LABELS_LOCAL = ['Jug', 'Istok', 'Zapad'];
 // unos — korisnikov email — a desetine mesta ga ubacuju u innerHTML bez
 // sopstvenog escapovanja; sigurnije da PRIVREMENA VREDNOST sama bude
 // bezbedna nego oslanjati se da svako mesto to zapamti).
+// Korisnikov zahtev (2026-09-18): rejting SVUDA pored imena je zauzimao
+// previse mesta na ekranu, pogotovu na telefonu — uklonjen odavde (sad
+// samo "Ime", ne "Ime (1000)"). Rejting i dalje prikazan, ali SAMO u
+// tabeli (vidi renderScoreContent, koji cita game.state.players[].rating
+// direktno, ne preko ovog Proxy-ja).
 const POS_LABELS = new Proxy(POS_LABELS_LOCAL, {
   get(target, prop) {
     const idx = typeof prop === 'string' ? Number(prop) : NaN;
     if (Number.isInteger(idx) && idx >= 0 && idx <= 2) {
       const raw = mode === 'online' ? (game.state?.players?.[idx]?.name || target[idx]) : target[idx];
       const isAbandoned = mode === 'online' && game.state?.abandonedSeat === idx;
-      // Ranking sistem (korisnikov zahtev 2026-09-10, dikirano 2026-09-04):
-      // ELO-stil bodovi pored imena SVUDA — server ih vec ubacuje u
-      // game.state.players[i].rating (buildClientState), isti Proxy choke
-      // point propagira na svih 30+ mesta odjednom.
-      const rating = mode === 'online' ? game.state?.players?.[idx]?.rating : null;
-      const ratingTxt = typeof rating === 'number' ? ` (${rating})` : '';
-      return escapeHtml(raw) + ratingTxt + (isAbandoned ? ' (AI)' : '');
+      return escapeHtml(raw) + (isAbandoned ? ' (AI)' : '');
     }
     return target[prop];
   },
@@ -1813,11 +1812,19 @@ function renderResult() {
         if (owedBy > 0) parts.push(`+${owedBy}`);
         if (owedTo > 0) parts.push(`−${owedTo}`);
         const breakdown = `${parts.join(' ')} = ${scores[p]}`;
+        // Korisnikov zahtev (2026-09-18): kraj PARTIJE (za razliku od kraja
+        // svake pojedinacne ruke, koje vec prikazuje stihove) nije imao
+        // NIKAKAV podatak o stihovima — sabrano preko cele istorije partije
+        // (handHistory, klijentski akumulirano po ruci) umesto samo
+        // poslednje ruke (s.players[p].tricksWon), koje bi bilo besmisleno
+        // kao "totalno" jer se resetuje na svaku newHand().
+        const totalTricks = handHistory.reduce((sum, h) => sum + (h.tricksWon?.[p] ?? 0), 0);
         html += `<div class="score-player-card ${p === winnerPos ? 'winner' : ''}">
           <div class="score-player-rank">${RANK_LABELS[idx]}</div>
           <div class="score-player-name">${POS_LABELS[p]}${p === winnerPos ? ' 🏆' : ''}</div>
           <div class="score-player-row"><span class="score-player-bula">${s.bulas[p]}</span></div>
           <div class="score-breakdown">${breakdown}</div>
+          <div class="result-mini-tricks">🎴 ukupno ${totalTricks} štihova</div>
           ${deltaTxt}
         </div>`;
       });
@@ -1919,7 +1926,11 @@ function renderScoreContent() {
       <div class="score-focal-row">
         <span class="score-triple-side ${leftNet > 0 ? 'positive' : leftNet < 0 ? 'negative' : ''}">${fmt(leftNet)}</span>
         <span class="score-focal-center">
-          <span class="score-focal-name">${POS_LABELS[p]}</span>
+          <span class="score-focal-name">${POS_LABELS[p]}${
+            mode === 'online' && typeof s.players[p]?.rating === 'number'
+              ? `<span class="score-focal-rating">(${s.players[p].rating})</span>`
+              : ''
+          }</span>
           <span class="score-focal-bula">${s.bulas[p]}</span>
         </span>
         <span class="score-triple-side ${rightNet > 0 ? 'positive' : rightNet < 0 ? 'negative' : ''}">${fmt(rightNet)}</span>

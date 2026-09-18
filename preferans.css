@@ -1347,6 +1347,9 @@
   .score-focal-row .score-triple-side { font-size: 1.3em; min-width: 2.2em; }
   .score-focal-center { text-align: center; flex: 1; }
   .score-focal-name { display: block; font-weight: 700; font-size: 0.9em; opacity: 0.85; }
+  /* Korisnikov zahtev (2026-09-18): rejting samo u tabeli, ne svuda po
+     ekranu — mali, prigušen dodatak pored fokalnog imena. */
+  .score-focal-rating { font-weight: 400; opacity: 0.6; font-size: 0.85em; margin-left: 4px; }
   .score-focal-bula { display: block; font-family: 'Oswald', sans-serif; font-size: 2em; font-weight: 700; color: #ffeb3b; letter-spacing: 0.3px; }
   .score-focal-refe { text-align: center; font-size: 0.85em; opacity: 0.8; margin-top: 8px; }
   .score-focal-refe .refe-dot { margin-left: 2px; }
