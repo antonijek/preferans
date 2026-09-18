@@ -1493,7 +1493,15 @@
     .player-bule { font-size: 0.9em; }
     .player-tricks { font-size: 0.58em; }
     .bottom-panel { padding: 4px 8px; }
-    .hand-area { min-height: 60px; gap: 4px; }
+    /* Korisnikov zahtev (telefon landscape): posle uzimanja talona (12
+       karata umesto uobicajenih 10) poslednja karta u ruci zavrsavala je
+       tacno ispod .top-actions (fiksnih 5 ikonica u donjem desnom uglu —
+       position:fixed ne rezervise prostor, samo lebdi preko sadrzaja).
+       Ranija ispravka (visestruki red ikonica umesto jednog) nije bila
+       dovoljna za ovaj konkretniji (12-karata) slucaj — rezervisi prostor
+       direktno na .hand-area da karte NIKAD ne renderuju u tom uglu, bez
+       obzira koliko redova ikonice zauzmu. */
+    .hand-area { min-height: 60px; gap: 4px; padding-right: 150px; }
     .side-panel { padding: 6px; gap: 4px; }
     .card { width: 46px; height: 66px; }
     .card .rank { font-size: 1.2em; }
@@ -1595,7 +1603,10 @@
        zahtev: "tekst uzak, ima mnogo padinga sa leve i desne strane, ne
        treba uopste" — u koloni siroj 120px svaki px racuna. */
     .side-panel .bid-entry { padding: 2px 4px; }
-    .side-panel .defense-info, .side-panel .last-trick-info { padding: 6px 4px; }
+    /* Korisnikov zahtev (telefon landscape): tekst sa leve strane (Dodjem/Ne
+       dodjem, ko je zvao, poslednji stih) je bio prevelik za usku 120px
+       kolonu na niskom ekranu — smanjen sa baznog 0.85em. */
+    .side-panel .defense-info, .side-panel .last-trick-info { padding: 6px 4px; font-size: 0.72em; }
   }
 
   /* Portret uzan telefon: sto sto sire (skoro do ivica ekrana — korisnikov
