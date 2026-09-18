@@ -7,6 +7,7 @@ import { computeAiAction } from '../ai/aiSeat.js';
 import { getUserRating, updateUserRating, saveMatchLog } from '../db.js';
 import { calculateRatingDeltas } from '../../../engine/dist/scoring.js';
 import type { HandSnapshot } from '../rooms/RoomState.js';
+import { persistRoom } from '../rooms/RoomManager.js';
 
 // A couple of small values (whose turn it is to kontra, which of MY OWN
 // cards are currently legal to play) require private engine logic
@@ -86,6 +87,11 @@ export function broadcastRoomState(room: RoomState): void {
     room.matchRankingResolved = true;
     resolveMatchRanking(room);
   }
+  // Trajno cuvanje (korisnikov zahtev 2026-09-18) — ovaj choke point vec
+  // pokriva SVAKU stvarnu promenu partije, isto mesto gde se i klijentima
+  // salje sveze stanje. Jeftino (samo azurira in-memory sql.js, stvarni
+  // disk-upis je vec debounced preko db.ts persist()).
+  persistRoom(room);
   maybeDriveAiTurn(room);
   maybeAutoAdvanceHand(room);
 }

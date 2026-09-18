@@ -1395,6 +1395,16 @@ private checkBiddingEnd(): void {
   getMatchScores(): [number, number, number] {
     return calculateMatchScores(this.state.bulas, this.state.debtMatrix);
   }
+
+  // Server-side sobna perzistencija (korisnikov zahtev 2026-09-18: partija
+  // treba da prezivi restart servera) treba da rekonstruise Game instancu
+  // sa TACNIM refePerPlayer/initialBule vrednostima sa kojima je originalno
+  // napravljena (privatna polja, nisu deo `state`-a koji se vec cuva
+  // direktno) — bez ovoga bi npr. refePerPlayer pao nazad na default 2 za
+  // sobu koja je namerno napravljena sa drugom vrednoscu.
+  getConfig(): { refePerPlayer: number; initialBule: number } {
+    return { refePerPlayer: this.refePerPlayer, initialBule: this.initialBule };
+  }
 }
 
 function makeRng(seed: number): () => number {

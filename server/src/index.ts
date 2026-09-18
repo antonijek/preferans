@@ -7,7 +7,7 @@ import { initDb, flushPersist } from './db.js';
 import { authRouter } from './auth/routes.js';
 import { adminRouter } from './admin/routes.js';
 import { registerSocketHandlers } from './socket/index.js';
-import { removeAbandonedWaitingRooms } from './rooms/RoomManager.js';
+import { removeAbandonedWaitingRooms, loadPersistedRooms } from './rooms/RoomManager.js';
 
 // dist/index.js -> server/dist -> server -> project root, where
 // preferans.html/app.js/engine/dist all live. Serving them same-origin
@@ -17,6 +17,14 @@ const PROJECT_ROOT = path.resolve(import.meta.dirname, '../..');
 
 async function main(): Promise<void> {
   await initDb();
+
+  // Korisnikov zahtev (2026-09-18): "da se pamte ruke i partija koje nisu
+  // zavrsene, da se moze nastaviti u drugom terminu" — vraca sve
+  // nezavrsene sobe iz baze nazad u memoriju PRE nego sto server pocne da
+  // prima konekcije, tako da se M6 reconnect (registerRoomHandlers) desi
+  // transparentno kao da server nikad nije ni restartovan.
+  const loadedRooms = loadPersistedRooms();
+  if (loadedRooms > 0) console.log(`[STARTUP] Restored ${loadedRooms} active room(s) from disk`);
 
   const app = express();
   app.use(express.json());

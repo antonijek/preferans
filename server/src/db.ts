@@ -70,6 +70,23 @@ export async function initDb(): Promise<void> {
     db.run(fs.readFileSync(migrationPath, 'utf-8'));
   }
 
+  // Trajno cuvanje AKTIVNIH (nezavrsenih) soba (korisnikov zahtev
+  // 2026-09-18: "da se moze nastaviti u drugom terminu") — dosad su sobe
+  // zivele SAMO u memoriji (RoomManager.ts roomsByCode Map), pa je SVAKI
+  // restart servera (a deploy-ujemo cesto) potpuno brisao partije u toku,
+  // bez ikakvog traga. Van if/else-a iznad iz istog razloga kao match_log
+  // gore (mora da vazi i za svezu i za postojecu bazu).
+  const activeRoomsTable = db.exec(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='active_rooms'"
+  );
+  if (activeRoomsTable.length === 0) {
+    db.run(`CREATE TABLE active_rooms (
+      code TEXT PRIMARY KEY,
+      state_json TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+  }
+
   persist();
 }
 
@@ -226,4 +243,29 @@ export function getMatchesForUser(userId: number, limit = 100): MatchLogRow[] {
      ORDER BY ended_at DESC LIMIT ?`,
     [userId, userId, userId, limit]
   );
+}
+
+// === Trajno cuvanje aktivnih (nezavrsenih) soba ===
+// Korisnikov zahtev (2026-09-18): partija u toku treba da prezivi restart
+// servera (cest dogadjaj — svaki deploy). RoomManager.ts poziva ove
+// funkcije: saveActiveRoom() na svaku broadcastRoomState() (upsert, jeftino
+// — stvarni disk-upis je vec debounced preko postojeceg persist()),
+// deleteActiveRoom() cim se soba stvarno zatvori (removeRoom()),
+// getAllActiveRooms() JEDNOM pri startu servera da se sve nezavrsene sobe
+// vrate u memoriju pre nego sto httpServer pocne da prima konekcije.
+
+export function saveActiveRoom(code: string, stateJson: string): void {
+  run(
+    `INSERT INTO active_rooms (code, state_json, updated_at) VALUES (?, ?, datetime('now'))
+     ON CONFLICT(code) DO UPDATE SET state_json = excluded.state_json, updated_at = excluded.updated_at`,
+    [code, stateJson]
+  );
+}
+
+export function deleteActiveRoom(code: string): void {
+  run('DELETE FROM active_rooms WHERE code = ?', [code]);
+}
+
+export function getAllActiveRooms(): { code: string; state_json: string }[] {
+  return all<{ code: string; state_json: string }>('SELECT code, state_json FROM active_rooms');
 }
