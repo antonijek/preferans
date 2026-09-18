@@ -204,10 +204,12 @@ export function calculateWriteOff(bule: [number, number, number]): WriteOffResul
 }
 
 // Korisnikov zahtev (2026-09-10): "neko pobegne sa stola, druga dvojica
-// mogu da zavrse partiju" — napusteni igrac se zamrzava na svojoj TRENUTNOJ
-// buli (ne dira se), a otpis (isti RULES 9.6 algoritam — najgori ostaje
-// najdublje u minusu) se raspodeljuje SAMO izmedju preostala dva igraca,
-// tako da zbir sve tri bule (2 otpisane + 1 zamrznuta) ispadne 0.
+// mogu da zavrse partiju" — napusteni igrac se zamrzava na buli koju mu
+// pozivalac prosledi u `bule[frozenSeat]` (ne dira se ovde uopste — vidi
+// game.ts applyLeaveEnd, koji prosledjuje leave-TRENUTAK vrednost, ne
+// trenutnu), a otpis (isti RULES 9.6 algoritam — najgori ostaje najdublje
+// u minusu) se raspodeljuje SAMO izmedju preostala dva igraca, tako da
+// zbir sve tri bule (2 otpisane + 1 zamrznuta) ispadne 0.
 export function calculateWriteOffWithFrozenSeat(
   bule: [number, number, number],
   frozenSeat: Position,

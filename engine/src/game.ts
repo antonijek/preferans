@@ -1370,12 +1370,21 @@ private checkBiddingEnd(): void {
     this.state.matchEndReason = 'agreed';
   }
 
-  // Korisnikov zahtev (2026-09-10) — preostala dva igraca se slazu da
-  // zavrse posto je treci napustio sto. `frozenSeat` ostaje NA BULI KOJU
-  // TRENUTNO IMA (cita se state.bulas[frozenSeat] BAS SAD, ne neka stara
-  // "leave-time" vrednost) — otpis ide samo izmedju preostale dvojice.
-  applyLeaveEnd(frozenSeat: Position): void {
-    const { finalBule } = calculateWriteOffWithFrozenSeat(this.state.bulas, frozenSeat);
+  // Korisnikov zahtev (2026-09-10, ponovljeno i potvrdjeno 2026-09-18) —
+  // preostala dva igraca se slazu da zavrse posto je treci napustio sto.
+  // `frozenSeat` ostaje NA BULI KOJU JE IMAO U TRENUTKU NAPUSTANJA
+  // (frozenBulaValue, prosledjena od pozivaoca — server je cuva u
+  // room.frozenBula od samog game:leave/adminKickSeat trenutka), NE na
+  // trenutnoj buli — AI je mozda odigrao jos poneku ruku za njega izmedju
+  // napustanja i ovog poziva, i te promene se NE racunaju njemu ako se
+  // partija zavrsava ovde. (Ako se partija NE zavrsi ranije nego nastavi
+  // do kraja normalno, AI-driven promene ostaju normalno primenjene — ovo
+  // se tice SAMO ovog "zavrsi ranije" puta.) Otpis ide samo izmedju
+  // preostale dvojice, isti RULES 9.6 algoritam.
+  applyLeaveEnd(frozenSeat: Position, frozenBulaValue: number): void {
+    const bulasAtFreeze = [...this.state.bulas] as [number, number, number];
+    bulasAtFreeze[frozenSeat] = frozenBulaValue;
+    const { finalBule } = calculateWriteOffWithFrozenSeat(bulasAtFreeze, frozenSeat);
     this.state.bulas = finalBule;
     this.state.phase = 'MATCH_OVER';
     this.state.matchEndReason = 'leave';

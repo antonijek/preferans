@@ -133,17 +133,22 @@ test('applyAgreedEnd: otpisuje sve tri bule (RULES 9.6) i zavrsava partiju odmah
   assert.equal(game.state.bulas[0], 7, '10 - ceiling(3) (7/3 -> base=2,ceiling=3,remainder=1)');
 });
 
-// Korisnikov zahtev (2026-09-10) — neko napusti sto, preostala dva se slazu
-// da zavrse; napusteni ostaje NA TRENUTNOJ buli (ne staroj "leave-time"
-// vrednosti — applyLeaveEnd cita state.bulas[frozenSeat] BAS u trenutku
-// poziva).
-test('applyLeaveEnd: zamrzava napusteno sediste na TRENUTNOJ buli, otpisuje samo preostala dva', () => {
+// Korisnikov zahtev (2026-09-10, ponovljeno i potvrdjeno 2026-09-18) —
+// neko napusti sto, preostala dva se slazu da zavrse; napusteni ostaje NA
+// BULI KOJU JE IMAO U TRENUTKU NAPUSTANJA (frozenBulaValue, drugi
+// argument — server je cuva kao room.frozenBula od samog leave trenutka),
+// NE na trenutnoj buli, koja je mozda vec drugacija jer je AI odigrao jos
+// poneku rundu za njega izmedju napustanja i ovog poziva.
+test('applyLeaveEnd: zamrzava napusteno sediste na LEAVE-TRENUTAK buli (ne trenutnoj), otpisuje samo preostala dva', () => {
   const game = new Game({ seed: 1 });
-  game.state.bulas = [10, 2, -6]; // P2 (seat 2) je "napustio", trenutna bula -6
-  game.applyLeaveEnd(2 as Position);
+  // P2 je napustio kad mu je bula bila -6 (frozenBulaValue), ali AI je
+  // odigrao jos poneku rundu za njega otad pa mu je TRENUTNA bula sad -9 —
+  // ta razlika NE sme uticati na otpis, mora se koristiti -6.
+  game.state.bulas = [10, 2, -9];
+  game.applyLeaveEnd(2 as Position, -6);
   assert.equal(game.state.phase, 'MATCH_OVER');
   assert.equal(game.state.matchEndReason, 'leave');
-  assert.equal(game.state.bulas[2], -6, 'napusteno sediste NETAKNUTO');
+  assert.equal(game.state.bulas[2], -6, 'napusteno sediste na LEAVE-vrednosti, ne trenutnoj (-9)');
   assert.equal(game.state.bulas[0] + game.state.bulas[1] + game.state.bulas[2], 0);
 });
 

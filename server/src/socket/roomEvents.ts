@@ -432,7 +432,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
       if (room.abandonedSeat === null) {
         room.game.applyAgreedEnd();
       } else {
-        room.game.applyLeaveEnd(room.abandonedSeat);
+        room.game.applyLeaveEnd(room.abandonedSeat, room.frozenBula!);
       }
       broadcastRoomState(room);
     } else {
