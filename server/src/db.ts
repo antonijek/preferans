@@ -51,16 +51,23 @@ export async function initDb(): Promise<void> {
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       )`);
     }
+  }
 
-    // Istorija partija (korisnikov zahtev 2026-09-11) — zasebna migracija
-    // 002_match_log.sql, primenjuje se isto kao i 001.
-    const matchLogTable = db.exec(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name='match_log'"
-    );
-    if (matchLogTable.length === 0) {
-      const migrationPath = path.join(process.cwd(), 'src', 'migrations', '002_match_log.sql');
-      db.run(fs.readFileSync(migrationPath, 'utf-8'));
-    }
+  // Istorija partija (korisnikov zahtev 2026-09-11) — zasebna migracija
+  // 002_match_log.sql. BAG NADJEN 2026-09-18 (potvrdjeno padom servera na
+  // svezoj bazi tokom testiranja): ovo je ranije bilo UNUTAR else grane
+  // iznad, pa se NIKAD nije pokretalo na potpuno svezoj instalaciji (fresh
+  // `users` tabela ide granom iznad koja radi SAMO 001_init.sql) —
+  // saveMatchLog() bi pukao sa "no such table: match_log" i SRUSIO CEO
+  // SERVER PROCES cim bi PRVA partija na svezoj bazi dosla do kraja.
+  // Provera mora da vazi za OBE grane (svezа i postojeca baza), zato je
+  // sad IZVAN if/else-a iznad.
+  const matchLogTable = db.exec(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='match_log'"
+  );
+  if (matchLogTable.length === 0) {
+    const migrationPath = path.join(process.cwd(), 'src', 'migrations', '002_match_log.sql');
+    db.run(fs.readFileSync(migrationPath, 'utf-8'));
   }
 
   persist();
