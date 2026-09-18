@@ -1135,7 +1135,7 @@ function renderDeclaring() {
       setTimeout(() => {
         if (gen !== handGeneration || game.state.phase !== 'DECLARING' || game.state.winner !== winner) return;
         if (searchAiEnabled()) {
-          applyLegalAction(game, searchChooseAction(game.state, winner, 60));
+          applyLegalAction(game, searchChooseAction(game.state, winner, 150));
         } else {
           game.declareIgra(winner, aiChooseIgraGame(winner));
         }
@@ -1146,7 +1146,7 @@ function renderDeclaring() {
       setTimeout(() => {
         if (gen !== handGeneration || game.state.phase !== 'DECLARING' || game.state.winner !== winner) return;
         if (searchAiEnabled()) {
-          applyLegalAction(game, searchChooseAction(game.state, winner, 60));
+          applyLegalAction(game, searchChooseAction(game.state, winner, 150));
         } else {
           game.declareGame(winner, aiChooseGame(winner));
         }
@@ -1225,7 +1225,7 @@ function renderFollowing() {
       setTimeout(() => {
         if (gen !== handGeneration || game.state.phase !== 'FOLLOW_DECLARING' || game.state.followChoices[undecided] !== null) return;
         if (searchAiEnabled()) {
-          applyLegalAction(game, searchChooseAction(game.state, undecided, 120));
+          applyLegalAction(game, searchChooseAction(game.state, undecided, 300));
         } else {
           game.follow(undecided, willFollow ? 'DODJEM' : 'NE_DODJEM');
         }
@@ -1267,7 +1267,7 @@ function renderFollowing() {
       // inace igraj sam (RULES 5.3 — poziv ima smisla samo ako pozvani
       // stvarno moze pomoci).
       if (searchAiEnabled()) {
-        applyLegalAction(game, searchChooseAction(game.state, callerCandidate, 120));
+        applyLegalAction(game, searchChooseAction(game.state, callerCandidate, 300));
       } else {
         const neDodjemHand = game.state.players[neDodjem].hand;
         const action = aiChooseCallOrAlone({
@@ -1344,7 +1344,7 @@ function renderKontra() {
     setTimeout(() => {
       if (gen !== handGeneration || game.state.phase !== 'KONTRA_DECLARING' || game.expectedKontraPlayerPublic() !== expected) return;
       if (searchAiEnabled()) {
-        applyLegalAction(game, searchChooseAction(game.state, expected, 120));
+        applyLegalAction(game, searchChooseAction(game.state, expected, 300));
       } else if (willKontra) {
         const nextLevel = { null: 'KONTRA', 'KONTRA': 'REKONTRA', 'REKONTRA': 'SUBKONTRA', 'SUBKONTRA': 'MORTKONTRA' }[s.kontraLevel ?? 'null'];
         game.kontra(expected, nextLevel);
@@ -1491,9 +1491,11 @@ function aiBidTurn(player) {
     // Faza 3) — getLegalActions() vec ispravno kodira SVA pravila
     // licitacije (igraEligible, numericBidFrozen dok neko drzi Igra,
     // Mogu-sme-samo-jedan-igrac), pa nema potrebe za rucnim radnim-oko-om
-    // koji heuristicki put ispod zahteva. 80 uzoraka po kandidatu (obicno
-    // najvise 3-4 kandidata: dalje/mogu-ili-bid/igra).
-    const action = searchChooseAction(s, player, 80);
+    // koji heuristicki put ispod zahteva. 200 uzoraka po kandidatu
+    // (korisnikov zahtev 2026-09-18 "poboljsaj AI" — podignuto sa 80;
+    // bench-search.ts meri ~0.25ms/uzorak na ovoj masini, pa 3-4 kandidata
+    // x 200 ostaje ~150-200ms, bez primetnog kasnjenja).
+    const action = searchChooseAction(s, player, 200);
     applyLegalAction(game, action);
     render();
     return;
@@ -1653,9 +1655,11 @@ function aiPlayCard(player) {
   if (searchAiEnabled()) {
     // Monte Carlo determinizacija (plan "toasty-rolling-sparkle", Faza 1)
     // — uzorkuje verovatne tudje ruke i simulira ostatak ruke, umesto
-    // fiksne heuristike. 100 uzoraka po kandidatu — izmereno (bench-search)
-    // da za tipicnih 2-5 legalnih karata ovo staje u ~30-170ms.
-    const card = searchChoosePlayCard(s, player, 100);
+    // fiksne heuristike. 220 uzoraka po kandidatu (korisnikov zahtev
+    // 2026-09-18 "poboljsaj AI" — podignuto sa 100; bench-search.ts meri
+    // ~0.25ms/uzorak, pa tipicnih 2-5 legalnih karata ostaje ~110-275ms,
+    // ne primetno sporije, a igranje karata je najcesca AI odluka po ruci).
+    const card = searchChoosePlayCard(s, player, 220);
     return card ? card.id : legal[0].id;
   }
 
