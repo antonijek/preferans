@@ -110,6 +110,29 @@ export function choosePlayCard(args: {
         }
       }
     }
+    // Konvencija vodjenja "kroz nosioca slabom, kroz partnera jakom kartom"
+    // (istrazivanje 2026-09-18, preferans.hr signalizacija — korisnikov
+    // zahtev da se ugradi): kad pratilac vodi NOVI stih (bilo koji, ne samo
+    // prvi), sledeci na potezu je po fiksnom redosledu (myPosition+1)%3 —
+    // uvek ili nosilac ili partner, nikad nepoznato. Ako je nosilac sledeci,
+    // slaba karta ga ne "hrani" informacijom (postojece ponasanje ispod,
+    // nepromenjeno). Ako je PARTNER sledeci, vodi se NAJJACOM kartom u
+    // najboljoj vanadutskoj boji — partner iz toga cita da nosilac verovatno
+    // NEMA visu kartu te boje (inace bi je nosilac vec odigrao/pokrio),
+    // umesto da nagadja. Namerno SAMO za pratioca (nosilac ima drugaciju
+    // logiku — izvlacenje aduta/duge boje, ne signalizaciju partneru koji
+    // ne postoji za njega) i samo kad ranije, specificnije konvencije
+    // (Sans-izlazak, "suva" vanadutska boja) nisu vec odlucile.
+    if (!isDeclarer && myPosition != null && declarer != null) {
+      const nextToAct = ((myPosition + 1) % 3) as Position;
+      const leadingTowardPartner = nextToAct !== declarer;
+      if (leadingTowardPartner) {
+        const nonTrump = trump ? legal.filter(c => c.suit !== trump) : legal;
+        const pool = nonTrump.length > 0 ? nonTrump : legal;
+        const strongest = pool.slice().sort((a, b) => RANK_VALUE[b.rank] - RANK_VALUE[a.rank])[0]!;
+        return strongest;
+      }
+    }
     const sorted = legal.slice().sort((a, b) => {
       // Van aduta prioritet (čuvaj adute)
       if (trump) {
@@ -188,8 +211,15 @@ export function choosePlayCard(args: {
     const trumps = legal.filter(c => c.suit === trump);
     return trumps.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
   }
-  // Inače — najslabija
-  return legal.sort((a, b) => {
+  // Inače — najslabija, ali NIKAD as/kralj ako postoji alternativa bez njih
+  // (istrazivanje 2026-09-18, preferans.hr signalizacija: "nikad se ne
+  // odbacuje karta iz boje u kojoj bi izvodjac mogao pasti" — kao pratilac
+  // sam odbacaj, cuvaj eventualni stoper (as/kralj) u nekoj boji za
+  // kasnije, dok god imam bar jednu kartu koja NIJE as/kralj da bacim
+  // umesto toga).
+  const nonHonor = legal.filter(c => c.rank !== 'A' && c.rank !== 'K');
+  const pool = nonHonor.length > 0 ? nonHonor : legal;
+  return pool.sort((a, b) => {
     const pa = CARD_POINTS[a.rank] ?? 0;
     const pb = CARD_POINTS[b.rank] ?? 0;
     if (pa !== pb) return pa - pb;
