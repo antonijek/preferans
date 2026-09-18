@@ -601,14 +601,16 @@ function renderSeats() {
     $(`name-${seatOf(pos)}`).textContent = disconnectedSeats.has(pos) ? 'nije tu' : seatDisplayName(pos);
     $(`seat-${seatOf(pos)}`).classList.toggle('disconnected', disconnectedSeats.has(pos));
   }
-
-  // Update bule / tricks / cards
-  for (let pos = 0; pos < 3; pos++) {
-    const seat = seatOf(pos);
-    const p = game.state.players[pos];
-    $(`bule-${seat}`).textContent = p.bulas?.[0] ?? p.bula ?? 100; // fallback ako nema bula
-    // Bule će doći iz game.state.bulas; popravi dole
-  }
+  // Bug nadjen 2026-09-18 (korisnikov zahtev: "u boksu sa imenima pise bule
+  // svi po 100, a tabela kaze 100 60,70"): ovde je ranije stajao NEDOVRSEN
+  // pokusaj da se ispisu i bule (citao player.bulas/player.bula, polja koja
+  // NE POSTOJE — prava vrednost je game.state.bulas[pos], ne player.bulas),
+  // pa je UVEK padao na fallback 100. renderSeats() se poziva SAMOSTALNO
+  // (bez render()) iz room:playerDisconnected/room:playerReconnected —
+  // svaki put kad neko ispadne/vrati se sa mreze, ovo je PREPISIVALO
+  // ispravnu vrednost koju je renderState() vec postavila, sa laznim 100.
+  // renderState() je vec jedini ispravan izvor za bule (poziva se na svaki
+  // pravi render() ciklus) — ovde nema sta da se dira.
 }
 
 // Ko TRENUTNO treba da odluci Dodjem/Ne dodjem, pa Zovi/Igraj sam (RULES 5.3)
@@ -785,7 +787,15 @@ function defenseSummaryText(s) {
     const neDodjemCount = followers.filter(p => s.followChoices[p] === 'NE_DODJEM').length;
     if (neDodjemCount === 1) {
       const solo = followers.find(p => s.followChoices[p] === 'DODJEM');
-      extra = `<strong>${POS_LABELS[solo]} igra sam</strong>`;
+      // Bug nadjen 2026-09-18 (korisnikov zahtev: "sa leve strane vec pise
+      // igra sam, pa se promeni ako pozove"): continueWithoutCall() NIKAD
+      // ne postavlja s.caller (isto stanje null kao "jos nije odlucio") —
+      // jedini pouzdan signal da je odluka VEC pala (zovi vs. sam) je da je
+      // faza vec presla FOLLOW_DECLARING (proceedAfterFollow() menja fazu).
+      // Dok je jos u FOLLOW_DECLARING, "igra sam" je prevremeno nagadjanje.
+      extra = s.phase === 'FOLLOW_DECLARING'
+        ? `<em>${POS_LABELS[solo]} bira: zove ili igra sam...</em>`
+        : `<strong>${POS_LABELS[solo]} igra sam</strong>`;
     } else if (neDodjemCount === followers.length) {
       extra = `<strong>niko ne prati</strong>`;
     }
@@ -2130,7 +2140,10 @@ function viewCards() {
     const played = s.tricks.flatMap((trick) => trick.filter((tc) => tc.player === seat).map((tc) => tc.card));
     return { seat, name: POS_LABELS[seat], cards: [...played, ...s.players[seat].hand] };
   });
-  renderRevealedHands(hands, s.talon);
+  // Isti bag kao online strana (roomEvents.ts): s.talon je vec prazno u
+  // ovom trenutku (nosilac ga je uzeo tokom DISCARDING, prave karte su u
+  // s.lastTalon — vidi game.ts discard()).
+  renderRevealedHands(hands, s.lastTalon);
 }
 
 // Puna-ekranska preglednost (korisnikov zahtev 2026-09-07: "treba da bude

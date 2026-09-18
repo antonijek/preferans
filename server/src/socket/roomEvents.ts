@@ -341,8 +341,13 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     // u sobi cim BILO KO klikne. Auto-advance pauza iznad ostaje deljena
     // (razumno — dok neko cita, runda ne treba automatski da produzi), sama otkrivena
     // ruka je sad privatna, samo posiljaocu.
-    // Korisnikov zahtev: talon nije bio prikazan na ovom ekranu.
-    socket.emit('game:handsRevealed', { hands, talon: room.game.state.talon });
+    // Korisnikov zahtev: talon nije bio prikazan na ovom ekranu. Bug nadjen
+    // 2026-09-18 (korisnik i dalje prijavljivao isti problem): ranija
+    // "ispravka" je slala state.talon, koje je UVEK prazno do ovog trenutka
+    // — nosilac ga uzima tokom DISCARDING (vidi game.ts discard(): talon se
+    // kopira u lastTalon pa se sam talon ODMAH prazni). Prave uzete karte
+    // zive u lastTalon, ne u talon.
+    socket.emit('game:handsRevealed', { hands, talon: room.game.state.lastTalon });
     ack?.({ ok: true });
   });
 
