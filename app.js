@@ -2329,9 +2329,29 @@ async function connectOnlineSocket() {
     const prevAbandoned = game.state?.abandonedSeat ?? null;
     if (state.abandonedSeat !== prevAbandoned) {
       if (state.abandonedSeat !== null && state.abandonedSeat !== mySeat) {
-        showAppToast(`🏳️ ${escapeHtml(state.players[state.abandonedSeat]?.name ?? '')} je napustio partiju — AI igra umesto njega`);
-      } else if (state.abandonedSeat === null && prevAbandoned !== null && prevAbandoned !== mySeat) {
-        showAppToast(`↩️ ${escapeHtml(state.players[prevAbandoned]?.name ?? '')} se vratio za sto`);
+        // seatNames vec ima "(napustio)"/"(izbačen)" dodato server-side —
+        // skloni to ovde da se ne udvostruci sa "je napustio partiju" ispod.
+        const leaverName = (state.players[state.abandonedSeat]?.name ?? '')
+          .replace(/\s*\((napustio|izbačen)\)\s*$/, '');
+        showAppToast(`🏳️ ${escapeHtml(leaverName)} je napustio partiju — AI igra umesto njega`);
+        // Korisnikov zahtev (2026-09-18): dosad je toast+chat bio JEDINI
+        // signal — preostali igraci su morali SAMI da se sete da otvore
+        // meni (🏳️) i predloze kraj partije, opcija je bila "sakrivena".
+        // Ovaj banner aktivno pita: zavrsiti odmah ili nastaviti sa AI na
+        // napustenom mestu. Samo za sedece igrace (ne kibiceri, ne sam
+        // igrac koji je otisao — njemu mySeat vec postaje null pre ovoga).
+        if (mySeat !== null) {
+          showAbandonBanner(leaverName);
+        }
+      } else if (state.abandonedSeat === null && prevAbandoned !== null) {
+        if (prevAbandoned !== mySeat) {
+          showAppToast(`↩️ ${escapeHtml(state.players[prevAbandoned]?.name ?? '')} se vratio za sto`);
+        }
+        // Vratio se pre nego sto je iko odlucio "zavrsi/nastavi" — pitanje
+        // vise nema smisla, ukloni banner umesto da ostane zaglavljen sa
+        // zastarelim tekstom (ne dira endMatchBanners ako tamo trenutno
+        // stoji STVARAN glasanje-banner, samo ovaj konkretan marker).
+        document.querySelector('#endMatchBanners .abandon-notice-banner')?.remove();
       }
     }
     game.state = state;
@@ -2947,6 +2967,34 @@ function doProposeEndMatch() {
   onlineSocket.emit('game:proposeEndMatch', {}, (res) => {
     if (res?.error) { showAppToast(`⚠️ ${res.error}`); return; }
   });
+}
+
+// Korisnikov zahtev (2026-09-18): kad neko napusti/bude izbacen, preostali
+// igraci treba AKTIVNO da budu pitani da li zele da zavrse partiju ili da
+// nastave sa AI na tom mestu — ne samo pasivan toast + sakrivena opcija u
+// meniju. "Zavrsi partiju" ovde ide DIREKTNO na doProposeEndMatch() (bez
+// proposeEndMatch()-ovog sopstvenog "da li si siguran?" koraka) jer je ovaj
+// banner sam po sebi vec ta potvrda — dupli confirm bi bio nezgrapan.
+function showAbandonBanner(leaverName) {
+  const banner = document.createElement('div');
+  banner.className = 'end-match-banner abandon-notice-banner';
+  const span = document.createElement('span');
+  span.textContent = `${leaverName} je napustio partiju, AI igra umesto njega. Zavrsiti partiju odmah, ili nastaviti sa AI na njegovom mestu?`;
+  banner.appendChild(span);
+  const actions = document.createElement('div');
+  actions.className = 'end-match-actions';
+  const endBtn = document.createElement('button');
+  endBtn.className = 'bid-btn primary';
+  endBtn.textContent = '🤝 Završi partiju';
+  endBtn.onclick = () => { banner.remove(); doProposeEndMatch(); };
+  const continueBtn = document.createElement('button');
+  continueBtn.className = 'bid-btn';
+  continueBtn.textContent = '▶️ Nastavi sa AI';
+  continueBtn.onclick = () => banner.remove();
+  actions.appendChild(endBtn);
+  actions.appendChild(continueBtn);
+  banner.appendChild(actions);
+  $('endMatchBanners').appendChild(banner);
 }
 
 function renderEndMatchBanner(readySeats, proposerSeat) {
