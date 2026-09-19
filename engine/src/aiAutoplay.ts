@@ -219,6 +219,7 @@ export function applyHeuristicTurn(game: Game): AutoplayStepResult {
           myPosition: seat,
           declarer: s.winner,
           tricks: s.tricks,
+          nextActivePosition: game.nextActivePlayer(seat),
         });
         cardId = card ? card.id : legal[0]!.id;
       }

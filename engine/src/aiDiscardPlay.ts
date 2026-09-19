@@ -66,11 +66,17 @@ export function choosePlayCard(args: {
   // nosilac prepozna da li je neki pratilac vec pokazao da je bez aduta —
   // vidi konvenciju izvlacenja aduta ispod).
   tricks?: { player: Position; card: Card }[][];
+  // Stvarno SLEDECI AKTIVNI igrac posle mene (preskace pratioca koji sedi
+  // u solo odbrani — vidi Game.nextActivePlayer()/nextActivePlayer() iz
+  // turnOrder.ts). Bez ovoga se koristi naivno (myPosition+1)%3, sto je
+  // pogresno bas u solo-odbrani (jedini scenario gde razlika uopste
+  // postoji, jer se tad neko preskace).
+  nextActivePosition?: Position | null;
 }): Card | null {
   const {
     hand, currentTrick, trump, avoidTricks = false,
     isDeclarer = false, kontraLevel = null, trickCount = 0,
-    myPosition, declarer, tricks = [],
+    myPosition, declarer, tricks = [], nextActivePosition = null,
   } = args;
   const legal = hand.filter(c => isCardLegal(c, hand, currentTrick, trump));
   if (legal.length === 0) return null;
@@ -183,18 +189,25 @@ export function choosePlayCard(args: {
     // Konvencija vodjenja "kroz nosioca slabom, kroz partnera jakom kartom"
     // (istrazivanje 2026-09-18, preferans.hr signalizacija — korisnikov
     // zahtev da se ugradi): kad pratilac vodi NOVI stih (bilo koji, ne samo
-    // prvi), sledeci na potezu je po fiksnom redosledu (myPosition+1)%3 —
-    // uvek ili nosilac ili partner, nikad nepoznato. Ako je nosilac sledeci,
-    // slaba karta ga ne "hrani" informacijom (postojece ponasanje ispod,
-    // nepromenjeno). Ako je PARTNER sledeci, vodi se NAJJACOM kartom u
-    // najboljoj vanadutskoj boji — partner iz toga cita da nosilac verovatno
-    // NEMA visu kartu te boje (inace bi je nosilac vec odigrao/pokrio),
-    // umesto da nagadja. Namerno SAMO za pratioca (nosilac ima drugaciju
-    // logiku — izvlacenje aduta/duge boje, ne signalizaciju partneru koji
-    // ne postoji za njega) i samo kad ranije, specificnije konvencije
-    // (Sans-izlazak, "suva" vanadutska boja) nisu vec odlucile.
+    // prvi), sledeci na potezu je po REDOSLEDU AKTIVNIH igraca (vidi
+    // nextActivePosition ispod — NE prost (myPosition+1)%3, koji bi u SOLO
+    // odbrani (samo jedan pratilac dosao, drugi sedi) pogresno "video"
+    // sedeceg pratioca kao partnera na potezu, iako on uopste ne igra ovu
+    // ruku — bag nadjen analizom stvarne partije 2026-09-19, runda 11: Edge
+    // je solo branio Sans, kod (myPosition+1)%3 bi pokazivao na Antonija
+    // koji je rekao "Ne dodjem" i ne igra, umesto na stvarno sledeceg
+    // aktivnog igraca, nosioca Telefona) — uvek ili nosilac ili partner,
+    // nikad nepoznato. Ako je nosilac sledeci, slaba karta ga ne "hrani"
+    // informacijom (postojece ponasanje ispod, nepromenjeno). Ako je
+    // PARTNER sledeci, vodi se NAJJACOM kartom u najboljoj vanadutskoj
+    // boji — partner iz toga cita da nosilac verovatno NEMA visu kartu te
+    // boje (inace bi je nosilac vec odigrao/pokrio), umesto da nagadja.
+    // Namerno SAMO za pratioca (nosilac ima drugaciju logiku — izvlacenje
+    // aduta/duge boje, ne signalizaciju partneru koji ne postoji za njega)
+    // i samo kad ranije, specificnije konvencije (Sans-izlazak, "suva"
+    // vanadutska boja) nisu vec odlucile.
     if (!isDeclarer && myPosition != null && declarer != null) {
-      const nextToAct = ((myPosition + 1) % 3) as Position;
+      const nextToAct = nextActivePosition ?? (((myPosition + 1) % 3) as Position);
       const leadingTowardPartner = nextToAct !== declarer;
       if (leadingTowardPartner) {
         const nonTrump = trump ? legal.filter(c => c.suit !== trump) : legal;

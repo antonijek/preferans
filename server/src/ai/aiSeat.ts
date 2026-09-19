@@ -199,6 +199,7 @@ export function computeAiAction(game: Game, seat: Position): GameAction | null {
         myPosition: seat,
         declarer: s.winner,
         tricks: s.tricks as never,
+        nextActivePosition: game.nextActivePlayer(seat) as never,
       } as never);
       return { type: 'playCard', player: seat, cardId: card ? card.id : legal[0]!.id };
     }
