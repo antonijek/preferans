@@ -294,6 +294,55 @@ export function choosePlayCard(args: {
     const trumps = legal.filter(c => c.suit === trump);
     return trumps.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
   }
+  // Betl odbrana — signalizacija DUZINE boje kroz REDOSLED odbacivanja
+  // (istrazivanje 2026-09-18/19, profipreferans.blogspot.com Betl clanak —
+  // korisnikov zahtev da se probne signalni sistem uz oprezno testiranje):
+  // "sa tacno 2 karte u boji baci VELIKU pa MALU" (signalizuje kratkocu),
+  // "sa 3+ karte baci MALU pa VELIKU" (signalizuje duzinu, uzlazno). Ovo je
+  // konvencija IZMEDJU PRATIOCA — Betl deklarant nema kome da signalizira
+  // (njegova grana je avoidTricks gore, potpuno odvojen cilj: nikad ne
+  // uzeti stih). Takodje: nikad ne bacaj boju u kojoj JOS DRZIM zivu
+  // sedmicu/osmicu (te karte "hvataju" nosioca kasnije — cuvaj ih dok god
+  // postoji bezbednija alternativa).
+  const isBetlFamily = args.declaredGame === 'Betl' || args.declaredGame === 'Igra-Betl';
+  if (!isDeclarer && isBetlFamily) {
+    const bySuit = new Map<Suit, Card[]>();
+    for (const c of legal) {
+      if (!bySuit.has(c.suit)) bySuit.set(c.suit, []);
+      bySuit.get(c.suit)!.push(c);
+    }
+    const hasLiveLowCard = (suit: Suit) =>
+      hand.some(c => c.suit === suit && (c.rank === '7' || c.rank === '8'));
+    const safeSuits = [...bySuit.keys()].filter(s => !hasLiveLowCard(s));
+    const candidateSuits = safeSuits.length > 0 ? safeSuits : [...bySuit.keys()];
+    // Originalna duzina svake kandidat-boje (trenutno u ruci + vec
+    // odigrano MOJIM potezima ove ruke) — treba da prepoznam da li je
+    // boja "kratka" (=2) i da li je ovo PRVI put da je diram.
+    const myPlayedBySuit = new Map<Suit, number>();
+    for (const trick of tricks) {
+      const mine = trick.find(tc => tc.player === myPosition);
+      if (mine) myPlayedBySuit.set(mine.card.suit, (myPlayedBySuit.get(mine.card.suit) ?? 0) + 1);
+    }
+    let chosenCard: Card | null = null;
+    for (const suit of candidateSuits) {
+      const cardsNow = bySuit.get(suit)!;
+      const alreadyPlayed = myPlayedBySuit.get(suit) ?? 0;
+      const originalLength = cardsNow.length + alreadyPlayed;
+      if (originalLength === 2 && alreadyPlayed === 0) {
+        // Prvo od dva odbacivanja iz ove "kratke" boje — baci VELIKU.
+        chosenCard = cardsNow.slice().sort((a, b) => RANK_VALUE[b.rank] - RANK_VALUE[a.rank])[0]!;
+        break;
+      }
+    }
+    if (!chosenCard) {
+      // Nijedna "kratka-prva" prilika — podrazumevano MALU iz najbezbednije
+      // kandidat-boje (prirodno ostvaruje "malu pa veliku" uzlazni redosled
+      // za duge boje, i tacan prinudni ostatak za vec zapocete kratke boje).
+      const pool = candidateSuits.flatMap(s => bySuit.get(s)!);
+      chosenCard = pool.slice().sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
+    }
+    return chosenCard;
+  }
   // Inače — najslabija, ali NIKAD as/kralj ako postoji alternativa bez njih
   // (istrazivanje 2026-09-18, preferans.hr signalizacija: "nikad se ne
   // odbacuje karta iz boje u kojoj bi izvodjac mogao pasti" — kao pratilac
