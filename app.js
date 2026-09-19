@@ -226,6 +226,9 @@ function createGame(config) {
 }
 
 let handGeneration = 0;
+// Sprecava dupli auto-Moze (vidi renderKontra()) ako render() prodje kroz
+// isti solo-no-call trenutak vise puta pre nego stigne potvrda akcije.
+let lastAutoSoloMozeKey = null;
 let game = createGame({ seed: debugSeedOverride() ?? (Date.now() & 0xffff) });
 let mode = '1v2';
 
@@ -1319,17 +1322,34 @@ function renderKontra() {
     const followers = [0, 1, 2].filter((p) => p !== s.winner);
     const neDodjemCount = followers.filter((p) => s.followChoices[p] === 'NE_DODJEM').length;
     const soloNoCall = s.kontraLevel === null && s.caller === null && neDodjemCount === 1 && s.followChoices[expected] === 'DODJEM';
+    // Korisnikov zahtev (2026-09-19): kad je pratilac "sam" (bez poziva),
+    // Kontra dugme je vec uklonjeno gore — ostaje samo "Moze", sto NIJE
+    // stvarna odluka (nema druge opcije). Umesto da se ceka klik na
+    // besmisleno dugme, automatski odigraj Moze i predji dalje. Kljuc
+    // (generacija ruke + pozicija) sprecava da se isti moze() posalje vise
+    // puta ako render() opet prodje ovuda pre nego stigne potvrda (npr.
+    // online, dok se ceka odgovor sa servera).
+    const autoMozeKey = `${handGeneration}:${expected}`;
+    if (soloNoCall) {
+      if (lastAutoSoloMozeKey !== autoMozeKey) {
+        lastAutoSoloMozeKey = autoMozeKey;
+        // setTimeout(0) — NE zvati render() sinhrono odavde (renderKontra()
+        // je vec pozvan IZ render(), pa bi sinhroni re-entrant poziv gazio
+        // sopstveni pozivni okvir dok jos radi na zastareloj lokalnoj kopiji
+        // `s`; isti razlog zbog kog AI-grana ispod koristi setTimeout).
+        setTimeout(() => { game.moze(expected); render(); }, 0);
+      }
+      return;
+    }
     const nextLevel = {
       null: 'KONTRA',
       'KONTRA': 'REKONTRA',
       'REKONTRA': 'SUBKONTRA',
       'SUBKONTRA': 'MORTKONTRA',
     }[s.kontraLevel ?? 'null'];
-    if (!soloNoCall) {
-      const kontraBtn = el('button', 'bid-btn danger', nextLevel);
-      kontraBtn.onclick = (e) => { logTrustedAction(`userKontra level=${nextLevel}`, e); game.kontra(expected, nextLevel); render(); };
-      ctrl.appendChild(kontraBtn);
-    }
+    const kontraBtn = el('button', 'bid-btn danger', nextLevel);
+    kontraBtn.onclick = (e) => { logTrustedAction(`userKontra level=${nextLevel}`, e); game.kontra(expected, nextLevel); render(); };
+    ctrl.appendChild(kontraBtn);
     const mozeBtn = el('button', 'bid-btn primary', 'Moze');
     mozeBtn.onclick = (e) => { logTrustedAction('userMoze', e); game.moze(expected); render(); };
     ctrl.appendChild(mozeBtn);
@@ -1819,11 +1839,16 @@ function renderResult() {
         // poslednje ruke (s.players[p].tricksWon), koje bi bilo besmisleno
         // kao "totalno" jer se resetuje na svaku newHand().
         const totalTricks = handHistory.reduce((sum, h) => sum + (h.tricksWon?.[p] ?? 0), 0);
+        // Korisnikov zahtev (2026-09-19): KONACAN SKOR (scores[p] — supe +
+        // bule×10, ono sto stvarno odredjuje plasman) je bitniji od same
+        // bule ("igrac koji je -20 bula moze biti poslednji, to nije
+        // relevantno") — zato sad ide u veliki broj, a bula je sporedan
+        // detalj u breakdown-u ispod.
         html += `<div class="score-player-card ${p === winnerPos ? 'winner' : ''}">
           <div class="score-player-rank">${RANK_LABELS[idx]}</div>
           <div class="score-player-name">${POS_LABELS[p]}${p === winnerPos ? ' 🏆' : ''}</div>
-          <div class="score-player-row"><span class="score-player-bula">${s.bulas[p]}</span></div>
-          <div class="score-breakdown">${breakdown}</div>
+          <div class="score-player-row"><span class="score-player-bula">${scores[p]}</span></div>
+          <div class="score-breakdown">Bula: ${s.bulas[p]} · ${breakdown}</div>
           <div class="result-mini-tricks">🎴 ukupno ${totalTricks} štihova</div>
           ${deltaTxt}
         </div>`;
@@ -1865,7 +1890,11 @@ function renderResult() {
       <span class="result-game-badge ${gameOptionAccentClass(s.declaredGame)}">${gameOptionLabel(s.declaredGame)}</span>
       ${s.kontraLevel ? `<span class="result-kontra-badge">${kontraLabel[s.kontraLevel]} (${POS_LABELS[s.kontraPlayer]})</span>` : ''}
     </div>`;
-    html += `<div class="result-outcome ${s.lastHandResult.passed ? 'pass' : 'fail'}">${s.lastHandResult.passed ? '✓ PROŠAO' : '✗ PAO'}</div>`;
+    // Korisnikov zahtev (2026-09-19, ponovljen vise puta): broj stihova
+    // nosioca mora da stoji ODMAH pored PROSAO/PAO, ne samo posredno u
+    // mini-karticama ispod (gde je bio samo emoji bez teksta, lako
+    // previdljiv/nejasan).
+    html += `<div class="result-outcome ${s.lastHandResult.passed ? 'pass' : 'fail'}">${s.lastHandResult.passed ? '✓ PROŠAO' : '✗ PAO'} — ${s.players[s.winner].tricksWon} štihova</div>`;
     // Ko je dosao/zvao (isti rezime kao u statusnoj traci tokom igre) —
     // korisnikov zahtev: modal ne sme da preskoci ovaj podatak.
     const defenseTxt = defenseSummaryText(s);
@@ -1885,7 +1914,7 @@ function renderResult() {
     html += `<div class="result-mini-card">
       <div class="result-mini-name">${POS_LABELS[p]}</div>
       <div class="result-mini-bula">${s.bulas[p]}</div>
-      <div class="result-mini-tricks">🎴 ${s.players[p].tricksWon}</div>
+      <div class="result-mini-tricks">${s.players[p].tricksWon} štihova</div>
     </div>`;
   }
   html += `</div>`;
