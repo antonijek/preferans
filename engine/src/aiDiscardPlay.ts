@@ -1,7 +1,7 @@
 // AI heuristike za Preferans — odbacivanje karata u talon i odigravanje
 // karte u štihu. Koriste se iz app.js za AI igrače.
 
-import { RANK_VALUE } from './constants.js';
+import { RANK_VALUE, RANKS } from './constants.js';
 import { isCardLegal } from './trick.js';
 import type { Card, Game, Suit, Position, ContraLevel } from './types.js';
 import { CARD_POINTS } from './aiHandEval.js';
@@ -62,11 +62,15 @@ export function choosePlayCard(args: {
   // Pozicija nosioca partije — bez ovoga se ne moze utvrditi ciju kartu
   // trenutno "gazim" kad pokušavam da pobedim štih.
   declarer?: Position | null;
+  // Istorija zavrsenih stihova cele ruke (za sada koristi se samo da
+  // nosilac prepozna da li je neki pratilac vec pokazao da je bez aduta —
+  // vidi konvenciju izvlacenja aduta ispod).
+  tricks?: { player: Position; card: Card }[][];
 }): Card | null {
   const {
     hand, currentTrick, trump, avoidTricks = false,
     isDeclarer = false, kontraLevel = null, trickCount = 0,
-    myPosition, declarer,
+    myPosition, declarer, tricks = [],
   } = args;
   const legal = hand.filter(c => isCardLegal(c, hand, currentTrick, trump));
   if (legal.length === 0) return null;
@@ -107,6 +111,72 @@ export function choosePlayCard(args: {
         for (const suit of ['♠', '♥', '♦', '♣'] as Suit[]) {
           const cards = bySuit.get(suit);
           if (cards && cards.length === 1) return cards[0]!;
+        }
+      }
+    }
+    // Nosilac: izvlacenje aduta pre igranja duge/jake boje (korisnikova
+    // pravila uzivo, 2026-09-19): ako nosilac drzi 5+ aduta ukljucujuci
+    // asa, ILI tacno 4 aduta koji su sve cetiri casne (A,K,D,J), vodi
+    // adutom — SVE DOK nijedan pratilac jos nije pokazao da je bez aduta
+    // (odbacio van-adutsku kartu kad je adut vec vodjen). Korisnik: "ako
+    // poslije prve runde vidi da jedan pratilac nema nijedan adut, onda
+    // ne sme dalje" — dalje vucenje bi samo trosilo sopstvene adute bez
+    // ikakve koristi, jer taj pratilac vise ne moze biti isteran iz aduta.
+    if (isDeclarer && trump && myPosition != null) {
+      const myTrumpsNow = legal.filter(c => c.suit === trump);
+      // Kvalifikacija se racuna na osnovu ORIGINALNOG adutskog poseda (ne
+      // trenutnog, koji se smanjuje kako se aduti izvlace) — inace bi
+      // "qualifies" prestalo da vazi cim broj aduta u ruci padne ispod
+      // praga, tacno u trenutku kad treba preci na sledecu fazu (dugu
+      // boju) umesto da propadne na staro generalno ponasanje.
+      const trumpsIPlayedBefore: Card[] = [];
+      for (const trick of tricks) {
+        const mine = trick.find(tc => tc.player === myPosition);
+        if (mine && mine.card.suit === trump) trumpsIPlayedBefore.push(mine.card);
+      }
+      const originalTrumps = [...myTrumpsNow, ...trumpsIPlayedBefore];
+      const hasAce = originalTrumps.some(c => c.rank === 'A');
+      const hasAllFourHonors = (['A', 'K', 'Q', 'J'] as const).every(r =>
+        originalTrumps.some(c => c.rank === r)
+      );
+      const qualifies =
+        (originalTrumps.length >= 5 && hasAce) || (originalTrumps.length === 4 && hasAllFourHonors);
+      if (qualifies) {
+        // Zaustavljanje (korisnikova ispravka uzivo, 2026-09-19): NE stajem
+        // kad pratilac pokaze void (to je bezopasno, taj pratilac vise
+        // nema cime da sece) — stajem kad NEOTKRIVENI aduti kod pratilaca
+        // (oni koje nisam video ni u svojoj ruci ni odigrane) dostignu broj
+        // mojih preostalih aduta. To je najgori moguci slucaj — da su svi
+        // neotkriveni aduti kod JEDNOG pratioca, sto bi znacilo da taj
+        // pratilac drzi isto ili vise aduta od mene. Nema nacina da vidim
+        // ciju je tacno karta (protivnicke ruke su skrivene), pa branim se
+        // od najgoreg slucaja umesto da racunam na povoljniju raspodelu.
+        const trumpsPlayedByDefenders = tricks.reduce((count, trick) => {
+          const theirs = trick.filter(tc => tc.player !== myPosition && tc.card.suit === trump);
+          return count + theirs.length;
+        }, 0);
+        const undiscoveredDefenderTrumps = RANKS.length - originalTrumps.length - trumpsPlayedByDefenders;
+        if (undiscoveredDefenderTrumps < myTrumpsNow.length && myTrumpsNow.length > 0) {
+          return myTrumpsNow.slice().sort((a, b) => RANK_VALUE[b.rank] - RANK_VALUE[a.rank])[0]!;
+        }
+        // Adut je iscrpljen u mojoj ruci, ili bi neki pratilac mogao da
+        // drzi isto ili vise aduta od mene — vreme je da pređem na
+        // najdužu (pa najjaču) van-adutsku boju umesto na staro "uvek
+        // najslabija prvo" pravilo.
+        const bySuit = new Map<Suit, Card[]>();
+        for (const c of legal) {
+          if (c.suit === trump) continue;
+          if (!bySuit.has(c.suit)) bySuit.set(c.suit, []);
+          bySuit.get(c.suit)!.push(c);
+        }
+        if (bySuit.size > 0) {
+          const bestSuitCards = [...bySuit.values()].sort((a, b) => {
+            if (b.length !== a.length) return b.length - a.length;
+            const topA = Math.max(...a.map(c => RANK_VALUE[c.rank]));
+            const topB = Math.max(...b.map(c => RANK_VALUE[c.rank]));
+            return topB - topA;
+          })[0]!;
+          return bestSuitCards.slice().sort((a, b) => RANK_VALUE[b.rank] - RANK_VALUE[a.rank])[0]!;
         }
       }
     }
