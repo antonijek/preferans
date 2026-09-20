@@ -277,9 +277,6 @@ function createGame(config) {
 }
 
 let handGeneration = 0;
-// Sprecava dupli auto-Moze (vidi renderKontra()) ako render() prodje kroz
-// isti solo-no-call trenutak vise puta pre nego stigne potvrda akcije.
-let lastAutoSoloMozeKey = null;
 let game = createGame({ seed: debugSeedOverride() ?? (Date.now() & 0xffff) });
 let mode = '1v2';
 
@@ -1421,34 +1418,28 @@ function renderKontra() {
     const followers = [0, 1, 2].filter((p) => p !== s.winner);
     const neDodjemCount = followers.filter((p) => s.followChoices[p] === 'NE_DODJEM').length;
     const soloNoCall = s.kontraLevel === null && s.caller === null && neDodjemCount === 1 && s.followChoices[expected] === 'DODJEM';
-    // Korisnikov zahtev (2026-09-19): kad je pratilac "sam" (bez poziva),
-    // Kontra dugme je vec uklonjeno gore — ostaje samo "Moze", sto NIJE
-    // stvarna odluka (nema druge opcije). Umesto da se ceka klik na
-    // besmisleno dugme, automatski odigraj Moze i predji dalje. Kljuc
-    // (generacija ruke + pozicija) sprecava da se isti moze() posalje vise
-    // puta ako render() opet prodje ovuda pre nego stigne potvrda (npr.
-    // online, dok se ceka odgovor sa servera).
-    const autoMozeKey = `${handGeneration}:${expected}`;
-    if (soloNoCall) {
-      if (lastAutoSoloMozeKey !== autoMozeKey) {
-        lastAutoSoloMozeKey = autoMozeKey;
-        // setTimeout(0) — NE zvati render() sinhrono odavde (renderKontra()
-        // je vec pozvan IZ render(), pa bi sinhroni re-entrant poziv gazio
-        // sopstveni pozivni okvir dok jos radi na zastareloj lokalnoj kopiji
-        // `s`; isti razlog zbog kog AI-grana ispod koristi setTimeout).
-        setTimeout(() => { game.moze(expected); render(); }, 0);
-      }
-      return;
-    }
+    // VRACENO (2026-09-20): "auto-Moze" za solo-bez-poziva pratioca
+    // (dodato 2026-09-19, ideja da se preskoci besmisleno dugme) je
+    // vrlo verovatno UZROK ponovljenog "stuck, ne mogu da bacim kartu"
+    // bug-a — korisnik ga je prijavio VISE PUTA u istoj partiji, svaki
+    // put bas na ovom istom prelazu (solo odbrana, KONTRA_DECLARING ->
+    // PLAYING), popravljivo samo izlaskom/ulaskom. Tacan mehanizam
+    // razloga nije potvrdjen, ali korelacija je previse jaka da se
+    // rizikuje dalje — bolje da korisnik jednom klikne bezopasno dugme
+    // "Moze" nego da se partija zaglavi. Ako se stuck bug PONOVO pojavi
+    // i POSLE ovoga, uzrok je negde drugde (vidi memoriju
+    // project_preferans_stuck_solo_kontra_bug_2026_09_20).
     const nextLevel = {
       null: 'KONTRA',
       'KONTRA': 'REKONTRA',
       'REKONTRA': 'SUBKONTRA',
       'SUBKONTRA': 'MORTKONTRA',
     }[s.kontraLevel ?? 'null'];
-    const kontraBtn = el('button', 'bid-btn danger', nextLevel);
-    kontraBtn.onclick = (e) => { logTrustedAction(`userKontra level=${nextLevel}`, e); game.kontra(expected, nextLevel); render(); };
-    ctrl.appendChild(kontraBtn);
+    if (!soloNoCall) {
+      const kontraBtn = el('button', 'bid-btn danger', nextLevel);
+      kontraBtn.onclick = (e) => { logTrustedAction(`userKontra level=${nextLevel}`, e); game.kontra(expected, nextLevel); render(); };
+      ctrl.appendChild(kontraBtn);
+    }
     const mozeBtn = el('button', 'bid-btn primary', 'Moze');
     mozeBtn.onclick = (e) => { logTrustedAction('userMoze', e); game.moze(expected); render(); };
     ctrl.appendChild(mozeBtn);
