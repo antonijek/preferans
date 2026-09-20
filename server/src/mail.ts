@@ -30,10 +30,19 @@ export async function sendMail(to: string, subject: string, text: string): Promi
   const t = getTransporter();
   if (!t) throw new Error('SMTP nije podesen (SMTP_HOST/SMTP_USER/SMTP_PASS u .env)');
   const fromName = process.env.SMTP_FROM_NAME ?? 'Preferans online';
-  await t.sendMail({
-    from: `"${fromName}" <${process.env.SMTP_USER}>`,
-    to,
-    subject,
-    text,
-  });
+  try {
+    const info = await t.sendMail({
+      from: `"${fromName}" <${process.env.SMTP_USER}>`,
+      to,
+      subject,
+      text,
+    });
+    // Korisnikov zahtev (2026-09-20, "ne znam je li poslato stvarno"): bez
+    // ovoga jedini nacin da se proveri da li je slanje uspelo bio je rucni
+    // SMTP test preko SSH-a — sad ostaje trag u pm2 logovima.
+    console.log(`[mail] poslato ka ${to}, messageId=${info.messageId}`);
+  } catch (err) {
+    console.error(`[mail] GRESKA pri slanju ka ${to}:`, err);
+    throw err;
+  }
 }
