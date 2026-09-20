@@ -213,7 +213,15 @@ export function choosePlayCard(args: {
         const nonTrump = trump ? legal.filter(c => c.suit !== trump) : legal;
         const pool = nonTrump.length > 0 ? nonTrump : legal;
         const strongest = pool.slice().sort((a, b) => RANK_VALUE[b.rank] - RANK_VALUE[a.rank])[0]!;
-        return strongest;
+        // Prag "Dama ili bolje" (istrazivanje 2026-09-18, preferansklub.com:
+        // "sve manje od Dame je isto kao da bacate malu kartu") — ako mi je
+        // NAJJACA raspoloziva karta ispod Dame (J ili nize), ona zapravo ne
+        // nosi pouzdan signal "nosilac verovatno nema visu kartu" (previse
+        // karata iznad nje jos moze biti bilo gde), pa se ne isplati lazno
+        // predstavljati kao "jaka" — propadni na obican slab izlazak ispod.
+        if (RANK_VALUE[strongest.rank] >= RANK_VALUE['Q']) {
+          return strongest;
+        }
       }
     }
     const sorted = legal.slice().sort((a, b) => {

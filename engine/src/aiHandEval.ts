@@ -100,7 +100,7 @@ const RANK_ORDER_DESC = ['A', 'K', 'Q', 'J', '10', '9', '8', '7'] as const;
 // prvi "rupa" prekida niz). Koristi se i za Sans (bez aduta, gde SVE boje
 // rade po ovom principu) i za sporedne boje POSLE izvlacenja aduta (vidi
 // countDeclarerTricks — korisnikov zahtev, uzivo potvrdjeno 2026-09-06).
-function sequentialRunFromAce(hand: Card[], suit: Suit): number {
+export function sequentialRunFromAce(hand: Card[], suit: Suit): number {
   const ranksHeld = new Set(hand.filter(c => c.suit === suit).map(c => c.rank));
   let run = 0;
   for (const r of RANK_ORDER_DESC) {

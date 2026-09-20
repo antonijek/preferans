@@ -1,9 +1,9 @@
 // AI heuristike za Preferans — Dodjem/Ne dodjem (follow), Kontra, i
 // Zovem/Sam (call-or-alone). Koriste se iz app.js za AI igrače.
 
-import { RANK_VALUE } from './constants.js';
+import { RANK_VALUE, SUITS } from './constants.js';
 import type { Card, Game, Suit, Position, ContraLevel } from './types.js';
-import { trumpOnlySafeTricks, countSafeTricks, getTrumpSuitFromGame } from './aiHandEval.js';
+import { trumpOnlySafeTricks, countSafeTricks, getTrumpSuitFromGame, sequentialRunFromAce } from './aiHandEval.js';
 
 // === FOLLOW STRATEGIJA (Dodjem / Ne dodjem) ===
 //
@@ -32,6 +32,20 @@ export function chooseFollow(ctx: FollowContext): FollowAction {
     const trumpTricks = trumpOnlySafeTricks(ctx.hand, trump);
     const totalAces = ctx.hand.filter(c => c.rank === 'A').length;
     return (trumpTricks >= 2 || totalAces >= 2) ? 'DODJEM' : 'NE_DODJEM';
+  }
+  const isSans = ctx.declaredGame === 'Sans' || ctx.declaredGame === 'Igra-Sans';
+  if (isSans) {
+    // Sans (istrazivanje 2026-09-18, profipreferans.blogspot.com "prica o
+    // praznom pistolju"): "ne pratite sans ako imate zadrsku samo u jednoj
+    // boji" — bez aduta nema izvlacenja, pa odbrana koncentrisana u JEDNOJ
+    // boji (npr. As+Kralj iste boje = 2 sigurna stiha) ne pomaze: nosilac
+    // prosto izbegava tu boju dok se ne isprazni kod pratioca, ostatak
+    // ruke prolazi neometano. Treba sirina — sigurni stihovi rasprostranjeni
+    // kroz BAR 2 razlicite boje, ne samo ukupan broj.
+    const suitTricks = SUITS.map(s => sequentialRunFromAce(ctx.hand, s));
+    const total = suitTricks.reduce((sum, n) => sum + n, 0);
+    const suitsWithTricks = suitTricks.filter(n => n > 0).length;
+    return total >= 2 && suitsWithTricks >= 2 ? 'DODJEM' : 'NE_DODJEM';
   }
   const safe = countSafeTricks(ctx.hand, trump);
   // Dodji ako ima najmanje 2 sigurna stiha
