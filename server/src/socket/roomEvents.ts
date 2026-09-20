@@ -93,7 +93,19 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
   let resumed = false;
   if (existingLocation) {
     const room = getRoomByCode(existingLocation.code);
-    if (room) {
+    // Uzivo prijavljen bag (2026-09-20): "zavrsio partiju juce, danas udjem
+    // na sajt i umesto pocetne izbaci mi kraj partije od juce". game:leave-
+    // FinishedMatch (ispod) vec resava ovo AKO korisnik eksplicitno klikne
+    // "Nazad na pocetnu" — ali ako je samo zatvorio tab/browser odmah posle
+    // MATCH_OVER, taj event se nikad ne posalje, pa mesto ostaje rezervisano
+    // zauvek. Sledeci put kad se uloguje, M6 reconnect ga vraca pravo u tu
+    // (vec zavrsenu) sobu. Popravka: nikad ne "vraćaj" igraca u sobu koja je
+    // vec MATCH_OVER — istim putem oslobodi mu mesto kao da je sam kliknuo
+    // Nazad na pocetnu, pa mu posalji room:none kao da nema sta da nastavi.
+    if (room && room.game.state.phase === 'MATCH_OVER' && existingLocation.role === 'player') {
+      room.sockets[existingLocation.seat] = null;
+      clearUserLocation(userId);
+    } else if (room) {
       if (existingLocation.role === 'player') {
         const seat = joinAsPlayer(room, userId, socket, name);
         if (seat !== null) {
