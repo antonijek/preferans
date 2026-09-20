@@ -1838,7 +1838,15 @@ function renderResult() {
         // (handHistory, klijentski akumulirano po ruci) umesto samo
         // poslednje ruke (s.players[p].tricksWon), koje bi bilo besmisleno
         // kao "totalno" jer se resetuje na svaku newHand().
-        const totalTricks = handHistory.reduce((sum, h) => sum + (h.tricksWon?.[p] ?? 0), 0);
+        // Korisnikov zahtev (2026-09-20): "niko ne prati"/"Pik bez kontre"
+        // ruke imaju wasPlayed===false i tricksWon 0/0/0 (nijedna karta nije
+        // ni bacena) iako nosilac po pravilu automatski "dobija" svih 10 —
+        // bez ovoga bi ukupan zbir stihova nosioca kroz partiju bio manji
+        // nego sto stvarno treba (isto pravilo kao u renderResult() ispod).
+        const totalTricks = handHistory.reduce((sum, h) => {
+          if (!h.wasPlayed && h.passed && h.winner === p) return sum + 10;
+          return sum + (h.tricksWon?.[p] ?? 0);
+        }, 0);
         // Korisnikov zahtev (2026-09-19): KONACAN SKOR (scores[p] — supe +
         // bule×10, ono sto stvarno odredjuje plasman) je bitniji od same
         // bule ("igrac koji je -20 bula moze biti poslednji, to nije
@@ -1894,7 +1902,16 @@ function renderResult() {
     // nosioca mora da stoji ODMAH pored PROSAO/PAO, ne samo posredno u
     // mini-karticama ispod (gde je bio samo emoji bez teksta, lako
     // previdljiv/nejasan).
-    html += `<div class="result-outcome ${s.lastHandResult.passed ? 'pass' : 'fail'}">${s.lastHandResult.passed ? '✓ PROŠAO' : '✗ PAO'} — ${s.players[s.winner].tricksWon} štihova</div>`;
+    // Korisnikov zahtev (2026-09-20): kad niko ne prati (RULES 5.4) ili
+    // "Pik bez kontre" (RULES 7.1.1), ruka se NIKAD stvarno ne odigra —
+    // s.players[winner].tricksWon ostaje 0 jer nijedna karta nije ni
+    // bacena — ali pravilo kaze da nosilac "automatski dobija 10 stihova".
+    // Prikazivati "0 stihova" tu je pogresno/zbunjujuce iako je matematika
+    // bula ispravna. trickCount===0 pouzdano razlikuje ovaj slucaj od
+    // stvarno odigrane ruke (koja uvek zavrsi sa trickCount===10).
+    const unplayedAutoWin = s.lastHandResult.passed && s.trickCount === 0;
+    const declarerTricksTxt = unplayedAutoWin ? 10 : s.players[s.winner].tricksWon;
+    html += `<div class="result-outcome ${s.lastHandResult.passed ? 'pass' : 'fail'}">${s.lastHandResult.passed ? '✓ PROŠAO' : '✗ PAO'} — ${declarerTricksTxt} štihova</div>`;
     // Ko je dosao/zvao (isti rezime kao u statusnoj traci tokom igre) —
     // korisnikov zahtev: modal ne sme da preskoci ovaj podatak.
     const defenseTxt = defenseSummaryText(s);
@@ -1911,10 +1928,14 @@ function renderResult() {
   }
   html += `<div class="result-scoreboard">`;
   for (const p of [0, 1, 2]) {
+    // Ista "niko ne prati"/"Pik bez kontre" korekcija kao gore — samo za
+    // nosioca (pratioci nisu ni igrali, njihovih 0 je i dalje tacno).
+    const tricksTxt = (s.declaredGame && s.lastHandResult && p === s.winner &&
+      s.lastHandResult.passed && s.trickCount === 0) ? 10 : s.players[p].tricksWon;
     html += `<div class="result-mini-card">
       <div class="result-mini-name">${POS_LABELS[p]}</div>
       <div class="result-mini-bula">${s.bulas[p]}</div>
-      <div class="result-mini-tricks">${s.players[p].tricksWon} štihova</div>
+      <div class="result-mini-tricks">${tricksTxt} štihova</div>
     </div>`;
   }
   html += `</div>`;
