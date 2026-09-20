@@ -289,6 +289,19 @@ function createGame(config) {
   return g;
 }
 
+// Dijagnostika za "stuck, ne mogu da bacim kartu" bag (korisnikov zahtev
+// 2026-09-20, "osmisli drugo resenje ili otkrij problem" umesto samo
+// nagadjanja) — beleze se poslednjih 60 dogadjaja (game:state prijemi i
+// socket connect/disconnect/reconnect ciklus) u memoriji, dostupno preko
+// window.__prefDebug u konzoli (F12) kad se bag SLEDECI PUT desi. Namerno
+// NE salje se nigde automatski — cisto lokalni trag za rucnu proveru.
+window.__prefDebug = [];
+function debugLog(event, data) {
+  window.__prefDebug.push({ t: new Date().toISOString(), event, ...data });
+  if (window.__prefDebug.length > 60) window.__prefDebug.shift();
+  console.log('[prefDebug]', event, data);
+}
+
 let handGeneration = 0;
 let game = createGame({ seed: debugSeedOverride() ?? (Date.now() & 0xffff) });
 let mode = '1v2';
@@ -1535,8 +1548,10 @@ function renderHand() {
 
   const isMyTurn = (s.phase === 'PLAYING' && isHuman(s.currentPlayer));
 
+  let anyPlayable = false;
   for (const c of sortHand(s.players[handOwner].hand)) {
     const legal = !isMyTurn || isCardLegal(c, handOwner);
+    if (isMyTurn && legal) anyPlayable = true;
     const card = cardEl(c, { playable: isMyTurn && legal, disabled: isMyTurn && !legal });
     if (isMyTurn && legal) {
       card.onclick = (e) => userPlayCard(c.id, e, handOwner);
@@ -1544,6 +1559,16 @@ function renderHand() {
     handArea.appendChild(card);
   }
   applyHandFan(handArea);
+  // Dijagnostika (vidi debugLog definiciju) — ovo je TACNO simptom
+  // prijavljenog "stuck" bag-a: state kaze da sam ja na potezu, ali
+  // nijedna karta nije ispala kao playable.
+  if (mode === 'online' && isMyTurn && !anyPlayable && s.players[handOwner].hand.length > 0) {
+    debugLog('STUCK-SYMPTOM: isMyTurn ali nijedna karta playable', {
+      currentPlayer: s.currentPlayer, mySeat, handOwner,
+      handLen: s.players[handOwner].hand.length,
+      legalCardsFromServer: game.getLegalCards ? game.getLegalCards(handOwner) : null,
+    });
+  }
 }
 
 function isCardLegal(card, player = 0) {
@@ -2433,6 +2458,7 @@ async function connectOnlineSocket() {
   // pusti da se svoj automatski reconnect sam izbori.
   let hasConnectedOnce = false;
   onlineSocket.on('connect', () => {
+    debugLog('socket:connect', { wasConnectedBefore: hasConnectedOnce });
     hasConnectedOnce = true;
     // Uzivo prijavljen bag (mobilni korisnik, "svako malo ispadanje iz
     // sobe"): telefon ima nestabilnu vezu i/ili mobilni OS zna da potpuno
@@ -2455,7 +2481,17 @@ async function connectOnlineSocket() {
       })
       .catch(() => {});
   });
+  onlineSocket.on('disconnect', (reason) => {
+    debugLog('socket:disconnect', { reason });
+  });
+  // Manager-level dogadjaji (ne socket-level) — beleze SVAKI pokusaj
+  // ponovne konekcije, ne samo onaj koji na kraju uspe, da se vidi da li
+  // je bilo tihih ispadanja koja se nikad nisu obelodanila kroz 'connect'.
+  onlineSocket.io.on('reconnect_attempt', (n) => debugLog('socket:reconnect_attempt', { attempt: n }));
+  onlineSocket.io.on('reconnect', (n) => debugLog('socket:reconnect', { attempt: n }));
+  onlineSocket.io.on('reconnect_failed', () => debugLog('socket:reconnect_failed', {}));
   onlineSocket.on('connect_error', (err) => {
+    debugLog('socket:connect_error', { message: err?.message });
     if (!hasConnectedOnce) {
       // Prava, pocetna konekcija nije uspela (npr. istekao token) — tek
       // ovde ima smisla prekinuti i vratiti na login sa porukom.
@@ -2496,6 +2532,12 @@ async function connectOnlineSocket() {
     }
   });
   onlineSocket.on('game:state', (state) => {
+    debugLog('game:state', {
+      phase: state.phase, currentPlayer: state.currentPlayer, mySeat,
+      winner: state.winner, kontraLevel: state.kontraLevel,
+      expectedKontraPlayer: state.expectedKontraPlayer,
+      followChoices: state.followChoices, trickCount: state.trickCount,
+    });
     // Obavesti ostale kad neko NAPUSTI (abandonedSeat null → sediste) ili se
     // VRATI (sediste → null) — ranije nije postojao NIKAKAV signal, pa je
     // AI koji je preuzeo delovao kao da je stvarno TAJ igrac ("izgleda da
