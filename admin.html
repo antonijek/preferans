@@ -114,6 +114,14 @@
       <div class="stat-tile"><div class="num" id="statActiveRooms">—</div><div class="label">Aktivne sobe</div></div>
       <div class="stat-tile"><div class="num" id="statMatchesToday">—</div><div class="label">Partije danas</div></div>
     </div>
+    <div class="card">
+      <h2><span>Ko je online sada</span><button onclick="loadDashboard()">🔄 Osveži</button></h2>
+      <table>
+        <thead><tr><th>Ime</th><th>Email</th><th>Rejting</th><th>Registrovan</th><th>Online od</th></tr></thead>
+        <tbody id="onlineUsersBody"></tbody>
+      </table>
+      <div id="onlineUsersEmpty" class="muted" style="display:none">Trenutno niko nije online.</div>
+    </div>
   </div>
 
   <div class="tab-panel" data-tab="korisnici">
@@ -419,6 +427,30 @@
       document.getElementById('statActiveRooms').textContent = stats.activeRooms;
       document.getElementById('statMatchesToday').textContent = stats.matchesToday;
     } catch (e) { console.error('loadDashboard:', e); }
+    try {
+      const { users } = await api('/api/admin/online-users');
+      const body = document.getElementById('onlineUsersBody');
+      body.innerHTML = '';
+      document.getElementById('onlineUsersEmpty').style.display = users.length === 0 ? 'block' : 'none';
+      // Skoro-konektovani prvo — najverovatnije ono sto admin zeli da vidi.
+      users.sort((a, b) => new Date(b.connectedAt) - new Date(a.connectedAt));
+      for (const u of users) {
+        const tr = document.createElement('tr');
+        const cells = [
+          u.name,
+          u.email || '—',
+          u.rating != null ? String(u.rating) : '—',
+          u.registeredAt ? new Date(u.registeredAt + 'Z').toLocaleString('sr-RS') : '—',
+          new Date(u.connectedAt).toLocaleString('sr-RS'),
+        ];
+        for (const c of cells) {
+          const td = document.createElement('td');
+          td.textContent = c;
+          tr.appendChild(td);
+        }
+        body.appendChild(tr);
+      }
+    } catch (e) { console.error('loadDashboard (online users):', e); }
   }
 
   async function loadCreditLog() {

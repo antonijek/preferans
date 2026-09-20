@@ -4,10 +4,10 @@ import { getUserRating } from './db.js';
 // room membership — the "who's online right now" list on the lobby
 // screen, separate from listOpenRooms()/listAllRoomsDetailed() which only
 // know about people already inside a room.
-const online = new Map<string, { userId: number; name: string }>();
+const online = new Map<string, { userId: number; name: string; connectedAt: number }>();
 
 export function markOnline(socketId: string, userId: number, name: string): void {
-  online.set(socketId, { userId, name });
+  online.set(socketId, { userId, name, connectedAt: Date.now() });
 }
 
 export function markOffline(socketId: string): void {
@@ -24,6 +24,20 @@ export function listOnlineUsers(): { userId: number; name: string; rating: numbe
     result.push({ userId, name, rating: getUserRating(userId) });
   }
   return result;
+}
+
+// Admin dashboard "ko je online" (korisnikov zahtev 2026-09-20) — isto kao
+// listOnlineUsers() ali sa connectedAt (najranija konekcija ako je korisnik
+// otvorio vise tabova) tako da admin panel moze da prikaze "od kad".
+export function listOnlineUsersDetailed(): { userId: number; name: string; connectedAt: number }[] {
+  const byUser = new Map<number, { userId: number; name: string; connectedAt: number }>();
+  for (const { userId, name, connectedAt } of online.values()) {
+    const existing = byUser.get(userId);
+    if (!existing || connectedAt < existing.connectedAt) {
+      byUser.set(userId, { userId, name, connectedAt });
+    }
+  }
+  return [...byUser.values()];
 }
 
 // Za "pozovi igraca" (room:invite) — nadje SVE sokete tog korisnika (mozda

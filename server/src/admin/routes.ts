@@ -5,7 +5,7 @@ import type { AuthedRequest } from '../auth/middleware.js';
 import { listAllRoomsDetailed, getRoomByCode, getUserLocation, clearUserLocation } from '../rooms/RoomManager.js';
 import { adminKickSeat, adminCloseRoom } from '../socket/roomAdmin.js';
 import { forceDisconnectUser } from '../socket/index.js';
-import { listOnlineUsers } from '../presence.js';
+import { listOnlineUsers, listOnlineUsersDetailed } from '../presence.js';
 
 interface UserRow {
   id: number;
@@ -264,6 +264,30 @@ adminRouter.get('/credit-log', (req, res) => {
     hasUserFilter ? [userIdParam, limit] : [limit]
   );
   res.json({ entries });
+});
+
+// "Ko je online" (korisnikov zahtev 2026-09-20 — "zelim da vidim ko
+// dolazi na sajt", povodom novog posetioca koji je otisao pre nego sto
+// je iko stigao da mu se pridruzi) — spaja presence.ts (live konekcije)
+// sa users tabelom (email/rejting/datum registracije) da admin panel
+// pokaze KO je trenutno na sajtu, ne samo broj.
+adminRouter.get('/online-users', (_req, res) => {
+  const detailed = listOnlineUsersDetailed();
+  const users = detailed.map((u) => {
+    const row = get<{ email: string; rating: number; created_at: string }>(
+      'SELECT email, rating, created_at FROM users WHERE id = ?',
+      [u.userId]
+    );
+    return {
+      userId: u.userId,
+      name: u.name,
+      email: row?.email ?? null,
+      rating: row?.rating ?? null,
+      registeredAt: row?.created_at ?? null,
+      connectedAt: new Date(u.connectedAt).toISOString(),
+    };
+  });
+  res.json({ users });
 });
 
 // Dashboard "Pregled" tab — agregira iz vec postojecih izvora, bez nove tabele.
