@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <title>Preferans online — igraj uživo preferans sa drugarima</title>
 <meta name="description" content="Preferans online i uživo preferans na jednom mestu — igraj preferans uživo (balkanski preferans, preferanc) sa drugarima ili protiv AI-ja. Online preferans besplatan, u browseru na telefonu i računaru. Licitacija, refe, kontra, Betl, Sans po pravim pravilima.">
-<meta name="keywords" content="preferans, preferans online, online preferans, preferans uživo, uživo preferans, igraj preferans online, igraj preferans uživo, preferans besplatno online, preferans sa drugarima, preferans sa prijateljima online, preferans multiplayer, preferans na telefonu, preferans aplikacija, balkanski preferans, preferanc, srpski preferans, crnogorski preferans, bosanski preferans, preferans pravila, preferans besplatno, igraj preferans, betl, sans, refe, kontra">
+<meta name="keywords" content="preferans, preferans online, online preferans, preferans uživo, uživo preferans, igraj preferans online, igraj preferans uživo, preferans besplatno online, preferans sa drugarima, preferans sa prijateljima online, preferans multiplayer, preferans na telefonu, preferans aplikacija, preferans bez registracije, preferans protiv kompjutera, preferans protiv AI, preferans sa botovima, preferans 3 igrača, preferans karte online, igra karata preferans, preferans rejting, besplatan preferans, preferans na srpskom, preferans za početnike, balkanski preferans, preferanc, srpski preferans, crnogorski preferans, bosanski preferans, preferans pravila, preferans besplatno, igraj preferans, betl, sans, refe, kontra">
 <link rel="canonical" href="https://pref.antonije.dev/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Preferans online">
@@ -26,6 +26,21 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./preferans.css?v=1">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Preferans online",
+  "alternateName": ["Preferans uživo", "Online preferans", "Balkanski preferans"],
+  "url": "https://pref.antonije.dev/",
+  "description": "Preferans online i preferans uživo — igraj balkanski preferans (preferanc) sa drugarima ili protiv AI-ja, besplatno u browseru, bez preuzimanja. Radi i bez registracije u lokalnom modu (protiv računara).",
+  "applicationCategory": "GameApplication",
+  "operatingSystem": "Any (web browser)",
+  "inLanguage": "sr",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "RSD" }
+}
+</script>
 </head>
 <body>
 
@@ -205,8 +220,12 @@
   <!-- Korisnikov zahtev (2026-09-20): saopstenje da je sajt jos u izradi,
        dismissible (localStorage), da ne dosadjuje posle prvog citanja. -->
   <div class="site-notice-banner" id="siteNoticeBanner" style="display:none">
-    <span>🚧 Sajt je još u izradi — očekujemo zvanično pokretanje uskoro (za oko 15 dana). Hvala na strpljenju i probavanju!</span>
-    <button class="icon-btn" id="siteNoticeDismiss" title="Zatvori">✕</button>
+    <div class="site-notice-icon">🚧</div>
+    <div class="site-notice-body">
+      <strong>Sajt je još u izradi</strong>
+      <span>Zvanično pokretanje očekujemo uskoro (za oko 15 dana). Hvala na strpljenju i probavanju!</span>
+    </div>
+    <button class="site-notice-close" id="siteNoticeDismiss" title="Zatvori">✕</button>
   </div>
 
   <section class="home-hero">

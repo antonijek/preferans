@@ -768,12 +768,31 @@
   }
 
   .site-notice-banner {
-    max-width: 720px; margin: 0 auto; padding: 10px 16px;
-    background: rgba(33,150,243,0.1); border-bottom: 1px solid rgba(33,150,243,0.3);
-    display: flex; align-items: center; justify-content: center; gap: 10px;
-    font-size: 0.85em; color: rgba(255,255,255,0.9); text-align: center;
+    max-width: 680px; margin: 14px auto 0; padding: 14px 16px;
+    background: linear-gradient(135deg, rgba(212,169,79,0.14) 0%, rgba(212,169,79,0.05) 100%);
+    border: 1px solid rgba(212,169,79,0.35); border-radius: 14px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.25);
+    display: flex; align-items: center; gap: 14px;
   }
-  .site-notice-banner .icon-btn { flex-shrink: 0; min-width: 28px; min-height: 28px; padding: 2px; }
+  .site-notice-icon {
+    flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(212,169,79,0.18); border: 1px solid rgba(212,169,79,0.4);
+    display: flex; align-items: center; justify-content: center; font-size: 1.3em;
+  }
+  .site-notice-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; }
+  .site-notice-body strong { font-family: 'Cinzel', serif; font-size: 1em; color: #f0d896; letter-spacing: 0.2px; }
+  .site-notice-body span { font-size: 0.85em; color: rgba(255,255,255,0.75); line-height: 1.4; }
+  .site-notice-close {
+    flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+    background: transparent; border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.6);
+    cursor: pointer; font-size: 0.85em; line-height: 1; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, color 0.15s;
+  }
+  .site-notice-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
+  @media (max-width: 480px) {
+    .site-notice-banner { margin: 10px 12px 0; padding: 12px; }
+    .site-notice-icon { width: 32px; height: 32px; font-size: 1.1em; }
+  }
 
   .pwa-install-banner {
     max-width: 560px; margin: 18px auto 0; padding: 14px 16px;
