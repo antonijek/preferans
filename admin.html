@@ -126,7 +126,7 @@
 
   <div class="tab-panel" data-tab="korisnici">
     <div class="card">
-      <h2><span>Korisnici</span><button onclick="loadUsers()">🔄 Osveži</button></h2>
+      <h2><span>Korisnici</span><span><button onclick="openEmailDialog('all', null)">✉️ Pošalji svima</button> <button onclick="loadUsers()">🔄 Osveži</button></span></h2>
       <table>
         <thead><tr><th>ID</th><th>Ime</th><th>Email</th><th>Krediti</th><th>Rejting</th><th>Status</th><th>Registrovan</th><th>Akcije</th></tr></thead>
         <tbody id="usersBody"></tbody>
@@ -172,6 +172,19 @@
   <div class="modal">
     <span class="close" onclick="closeMatchModal()">✕</span>
     <div id="matchDetail"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="emailModal" onclick="if(event.target===this)closeEmailDialog()">
+  <div class="modal" style="max-width:520px">
+    <span class="close" onclick="closeEmailDialog()">✕</span>
+    <h2 id="emailModalTitle">Pošalji email</h2>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <input type="text" id="emailSubject" placeholder="Naslov">
+      <textarea id="emailBody" rows="8" placeholder="Poruka..." style="width:100%;box-sizing:border-box;background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:inherit;padding:10px;font-family:inherit;font-size:0.95em"></textarea>
+      <button onclick="submitEmailDialog()">Pošalji</button>
+      <div class="err" id="emailErr" style="display:none"></div>
+    </div>
   </div>
 </div>
 
@@ -284,6 +297,9 @@
       delBtn.textContent = 'Obriši';
       delBtn.className = 'danger';
       delBtn.onclick = () => deleteUser(u.id, u.email);
+      const emailBtn = document.createElement('button');
+      emailBtn.textContent = '✉️ Email';
+      emailBtn.onclick = () => openEmailDialog(u.id, u.email);
 
       actions.appendChild(deltaInput);
       actions.appendChild(addBtn);
@@ -292,6 +308,7 @@
       actions.appendChild(adminBtn);
       actions.appendChild(banBtn);
       actions.appendChild(delBtn);
+      actions.appendChild(emailBtn);
       tdActions.appendChild(actions);
 
       tr.append(tdId, tdName, tdEmail, tdCredits, tdRating, tdStatus, tdCreated, tdActions);
@@ -543,6 +560,46 @@
 
   function closeMatchModal() {
     document.getElementById('matchModal').classList.remove('open');
+  }
+
+  let emailDialogRecipient = null; // broj (jedan korisnik) ili 'all'
+
+  function openEmailDialog(userId, email) {
+    emailDialogRecipient = userId;
+    document.getElementById('emailModalTitle').textContent =
+      userId === 'all' ? 'Pošalji email svim korisnicima' : 'Pošalji email — ' + email;
+    document.getElementById('emailSubject').value = '';
+    document.getElementById('emailBody').value = '';
+    document.getElementById('emailErr').style.display = 'none';
+    document.getElementById('emailModal').classList.add('open');
+  }
+
+  function closeEmailDialog() {
+    document.getElementById('emailModal').classList.remove('open');
+  }
+
+  async function submitEmailDialog() {
+    const subject = document.getElementById('emailSubject').value.trim();
+    const message = document.getElementById('emailBody').value.trim();
+    const errEl = document.getElementById('emailErr');
+    errEl.style.display = 'none';
+    if (!subject || !message) {
+      errEl.textContent = 'Naslov i poruka su obavezni.';
+      errEl.style.display = 'block';
+      return;
+    }
+    if (emailDialogRecipient === 'all' && !confirm('Poslati ovaj email SVIM registrovanim korisnicima?')) return;
+    try {
+      const result = await api('/api/admin/email', {
+        method: 'POST',
+        body: JSON.stringify({ userId: emailDialogRecipient, subject, message }),
+      });
+      alert('Poslato: ' + result.sent + '/' + result.total + (result.failed ? ' (neuspešno: ' + result.failed + ')' : ''));
+      closeEmailDialog();
+    } catch (e) {
+      errEl.textContent = 'Greška: ' + e.message;
+      errEl.style.display = 'block';
+    }
   }
 
   const SEAT_LABELS = ['Jug', 'Istok', 'Zapad'];

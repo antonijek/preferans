@@ -6,6 +6,7 @@ import { listAllRoomsDetailed, getRoomByCode, getUserLocation, clearUserLocation
 import { adminKickSeat, adminCloseRoom } from '../socket/roomAdmin.js';
 import { forceDisconnectUser } from '../socket/index.js';
 import { listOnlineUsers, listOnlineUsersDetailed } from '../presence.js';
+import { sendMail, isMailConfigured } from '../mail.js';
 
 interface UserRow {
   id: number;
@@ -26,6 +27,37 @@ adminRouter.get('/users', (_req, res) => {
     'SELECT id, email, name, is_admin, banned, credits, rating, created_at FROM users ORDER BY id DESC'
   );
   res.json({ users });
+});
+
+// Slanje email-a jednom korisniku ili svima (korisnikov zahtev 2026-09-20).
+// userId: broj (jedan korisnik) ili 'all' (svi registrovani).
+adminRouter.post('/email', async (req: AuthedRequest, res) => {
+  if (!isMailConfigured()) {
+    res.status(500).json({ error: 'SMTP nije podesen na serveru (.env)' });
+    return;
+  }
+  const { userId, subject, message } = req.body as {
+    userId?: number | 'all';
+    subject?: string;
+    message?: string;
+  };
+  if (!subject || !message) {
+    res.status(400).json({ error: 'subject i message su obavezni' });
+    return;
+  }
+  const recipients =
+    userId === 'all'
+      ? all<{ email: string }>('SELECT email FROM users')
+      : all<{ email: string }>('SELECT email FROM users WHERE id = ?', [userId as number]);
+  if (recipients.length === 0) {
+    res.status(404).json({ error: 'Nema primaoca' });
+    return;
+  }
+  const results = await Promise.allSettled(
+    recipients.map((r) => sendMail(r.email, subject, message))
+  );
+  const failed = results.filter((r) => r.status === 'rejected').length;
+  res.json({ sent: recipients.length - failed, failed, total: recipients.length });
 });
 
 adminRouter.delete('/users/:id', (req: AuthedRequest, res) => {
