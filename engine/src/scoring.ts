@@ -274,6 +274,17 @@ export function calculateMatchScores(
 // "vazno je sa kim igras... nece se uvek davati isti broj bodova".
 // K=10 potvrdjeno na korisnikovom primeru (score -112/-6/+118, jednaki
 // startni rejtinzi -> +10/0/-10, vidi plan/memoriju).
+// Korisnikov zahtev (2026-09-20): "Telefon -550 i dobio je samo 9 bodova,
+// ovaj sistem bodovanja nije dobar" — cist win/loss Elo ne pravi RAZLIKU
+// izmedju tesnog i ubedljivog rezultata, samo gleda ko je ispred koga.
+// Dodata "margina pobede" — koliko je VECA razlika finalnog skora izmedju
+// dvoje igraca, to vise ta pobeda/poraz "vredi", do 2x K-faktora za
+// najubedljivije rezultate. MARGIN_NORMALIZER (500) je proizvoljno
+// odabran na osnovu tipicnog raspona finalnih skorova vidjenih u stvarnim
+// partijama (od par desetina do preko 1000) — podesiti ako se pokaze da
+// je previse/premalo agresivno.
+const MARGIN_NORMALIZER = 500;
+
 export function calculateRatingDeltas(
   scores: [number, number, number],
   ratings: [number, number, number],
@@ -286,7 +297,8 @@ export function calculateRatingDeltas(
       if (y === x) continue;
       const expected = 1 / (1 + Math.pow(10, (ratings[y] - ratings[x]) / 400));
       const actual = scores[x] < scores[y] ? 1 : scores[x] > scores[y] ? 0 : 0.5;
-      delta += actual - expected;
+      const marginMultiplier = 1 + Math.min(Math.abs(scores[x] - scores[y]) / MARGIN_NORMALIZER, 1);
+      delta += marginMultiplier * (actual - expected);
     }
     deltas[x] = Math.round(k * delta);
   }

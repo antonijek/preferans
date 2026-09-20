@@ -255,11 +255,16 @@ test('calculateMatchScores — korisnikov potvrdjeni primer (bula*10 + neto supe
 
 // Korisnikov primer za bodove (2026-09-10): score -112/-6/+118, priblizno
 // jednaki startni rejtinzi -> +10/0/-10.
+// AZURIRANO (2026-09-20, korisnikov zahtev — "Telefon -550 i dobio je
+// samo 9 bodova, ovaj sistem bodovanja nije dobar"): dodata margina
+// pobede (calculateRatingDeltas u scoring.ts) — vece razlike u finalnom
+// skoru sad nose vise bodova, ne samo cist plasman. Iste ulazne
+// vrednosti sad daju vece brojeve.
 test('calculateRatingDeltas — korisnikov primer, jednaki rejtinzi', () => {
   const deltas = calculateRatingDeltas([-112, -6, 118], [1000, 1000, 1000]);
-  assert.equal(deltas[0], 10, '1. mesto dobija +10');
+  assert.equal(deltas[0], 13, '1. mesto dobija +13 (sa marginom pobede)');
   assert.equal(deltas[1], 0, '2. mesto ostaje na 0');
-  assert.equal(deltas[2], -10, '3. mesto gubi -10');
+  assert.equal(deltas[2], -14, '3. mesto gubi -14 (sa marginom pobede)');
 });
 
 test('calculateRatingDeltas — pobeda protiv slabijih nosi MANJE bodova nego protiv jednakih', () => {
