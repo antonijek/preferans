@@ -782,13 +782,17 @@
   .site-notice-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; }
   .site-notice-body strong { font-family: 'Cinzel', serif; font-size: 1em; color: #f0d896; letter-spacing: 0.2px; }
   .site-notice-body span { font-size: 0.85em; color: rgba(255,255,255,0.75); line-height: 1.4; }
-  .site-notice-close {
+  /* .screen button {width:100%} (drugde u ovom fajlu) ima vecu specificnost
+     od golog .site-notice-close — dodat .site-notice-banner prefiks da
+     pobedi (uzivo prijavljen bag: dugme se razvuklo na 300px i pojelo sav
+     prostor namenjen tekstu banner-a, "tekst ide po 3 slova"). */
+  .site-notice-banner .site-notice-close {
     flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
     background: transparent; border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.6);
     cursor: pointer; font-size: 0.85em; line-height: 1; display: flex; align-items: center; justify-content: center;
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.15s, color 0.15s; margin-top: 0;
   }
-  .site-notice-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
+  .site-notice-banner .site-notice-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
   @media (max-width: 480px) {
     .site-notice-banner { margin: 10px 12px 0; padding: 12px; }
     .site-notice-icon { width: 32px; height: 32px; font-size: 1.1em; }
@@ -802,7 +806,11 @@
   }
   .pwa-install-text { font-size: 0.9em; color: rgba(255,255,255,0.9); flex: 1; min-width: 200px; }
   .pwa-install-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-  .pwa-install-actions .mode-btn { min-height: 36px; padding: 6px 16px; font-size: 0.9em; }
+  .pwa-install-actions .mode-btn { width: auto; min-height: 36px; padding: 6px 16px; font-size: 0.9em; }
+  /* Isti bag kao site-notice-close ispod: .screen button {width:100%} ima
+     vecu specificnost, i ovo dugme (jedino vidljivo kad nema pravog
+     beforeinstallprompt-a, npr. iOS) bi se razvuklo bez ovoga. */
+  .pwa-install-actions .icon-btn { width: auto; min-width: 28px; min-height: 28px; padding: 2px; margin-top: 0; }
 
   .home-section { max-width: 980px; margin: 0 auto; padding: 36px 24px; }
   .section-title {
