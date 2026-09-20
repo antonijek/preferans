@@ -202,6 +202,13 @@
     </div>
   </div>
 
+  <!-- Korisnikov zahtev (2026-09-20): saopstenje da je sajt jos u izradi,
+       dismissible (localStorage), da ne dosadjuje posle prvog citanja. -->
+  <div class="site-notice-banner" id="siteNoticeBanner" style="display:none">
+    <span>🚧 Sajt je još u izradi — očekujemo zvanično pokretanje uskoro (za oko 15 dana). Hvala na strpljenju i probavanju!</span>
+    <button class="icon-btn" id="siteNoticeDismiss" title="Zatvori">✕</button>
+  </div>
+
   <section class="home-hero">
     <div class="setup-suits"><span class="red">♥</span><span class="black">♠</span><span class="red">♦</span><span class="black">♣</span></div>
     <h1 class="home-greeting" id="homeGreeting">Zdravo!</h1>
@@ -406,6 +413,6 @@
      je jedini NEPOBITAN nacin — to je BUKVALNO nov URL koji nijedan keš
      ikad nije video, ne postoji nacin da posluzi staru kopiju. UBUDUCE:
      bump-ovati ?v=N ovde pri SVAKOM deploy-u koji dira app.js. -->
-<script type="module" src="./app.js?v=14"></script>
+<script type="module" src="./app.js?v=15"></script>
 </body>
 </html>

@@ -243,6 +243,19 @@ window.addEventListener('load', () => {
       document.getElementById('pwaInstallBanner').style.display = 'none';
     };
   }
+  // "Sajt je jos u izradi" najava (korisnikov zahtev 2026-09-20) —
+  // dismissible, ne dosadjuje posle prvog citanja.
+  const noticeBanner = document.getElementById('siteNoticeBanner');
+  const noticeDismiss = document.getElementById('siteNoticeDismiss');
+  if (noticeBanner && localStorage.getItem('siteNoticeDismissed') !== '1') {
+    noticeBanner.style.display = '';
+  }
+  if (noticeDismiss) {
+    noticeDismiss.onclick = () => {
+      localStorage.setItem('siteNoticeDismissed', '1');
+      document.getElementById('siteNoticeBanner').style.display = 'none';
+    };
+  }
 });
 
 const SUIT_NAMES = { '♠': 'Pik', '♥': 'Herc', '♦': 'Karo', '♣': 'Tref' };
