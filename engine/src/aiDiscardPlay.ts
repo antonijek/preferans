@@ -98,6 +98,32 @@ export function choosePlayCard(args: {
       }
       // Nema tu boju — propadni na standardnu logiku ispod.
     }
+    // Napad na adute nosioca (korisnikova ispravka uzivo, 2026-09-20, iz
+    // analize stvarne partije — runda 13, Edge vodi Pik dva puta zaredom
+    // iako je nosilac vec posekao prvi put): kad pratilac vodi, ako
+    // nosilac VEC nije pratio neku vanadutsku boju ranije ove ruke (dakle
+    // pokazao je da je u njoj bez karata), NASTAVI da vodis bas tu boju —
+    // ovo NIJE greska/poklon jeftinog sečenja, vec namerna taktika:
+    // primorava nosioca da trosi adute svaki put kad se ta boja povede,
+    // pre nego sto stigne SAM da ih izvuce, sto kasnije stiti odbranu
+    // (korisnik: "pratilac pokusava da izbije adute nosiocu na taj
+    // nacin"). Vodi NAJSLABIJOM kartom te boje — poenta je da nosilac
+    // potrosi adut, ne da ova konkretna karta pobedi stih.
+    if (!isDeclarer && trump && declarer != null && tricks.length > 0) {
+      const declarerVoidSuits = new Set<Suit>();
+      for (const trick of tricks) {
+        const ledSuit = trick[0]?.card.suit;
+        if (!ledSuit || ledSuit === trump) continue;
+        const declarerPlay = trick.find(tc => tc.player === declarer);
+        if (declarerPlay && declarerPlay.card.suit !== ledSuit) {
+          declarerVoidSuits.add(ledSuit);
+        }
+      }
+      const attackCards = legal.filter(c => declarerVoidSuits.has(c.suit));
+      if (attackCards.length > 0) {
+        return attackCards.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
+      }
+    }
     // Odbrambena konvencija (korisnikova, zabelezena uzivo 2026-09-06/07,
     // JOS NIJE potvrdjena uzivo protiv AI-ja): pratilac koji drzi tacno
     // JEDNU kartu neke vanadutske boje je vodi PRVI ("suva" boja) da bi se
