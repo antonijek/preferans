@@ -76,33 +76,34 @@ test('refe: posle "svi dalje", NOSILAC sledece ruke troši TAČNO SVOJU raspolo�
   game.pass(0);
   assert.equal(game.state.refePending.join(','), '1,1,1');
 
-  // Sledeca ruka se igra normalno — P1 pobedjuje licitaciju i postaje nosilac
-  game.bid(1, 2);
-  game.pass(2);
+  // Sledeca ruka se igra normalno — dealer je rotirao (2026-09-20 ispravka),
+  // pa je prvi licitator sad P2 (ne P1) i on postaje nosilac.
+  game.bid(2, 2);
   game.pass(0);
-  const hand = game.state.players[1]!.hand;
-  game.discard(1, [hand[0]!.id, hand[1]!.id]);
-  game.declareGame(1, 'Herc');
+  game.pass(1);
+  const hand = game.state.players[2]!.hand;
+  game.discard(2, [hand[0]!.id, hand[1]!.id]);
+  game.declareGame(2, 'Herc');
   game.follow(0, 'DODJEM');
-  game.follow(2, 'DODJEM');
+  game.follow(1, 'DODJEM');
+  game.moze(1);
   game.moze(0);
-  game.moze(2);
   assert.equal(game.state.phase, 'PLAYING');
 
-  game.state.players[1]!.tricksWon = 7; // nosilac prolazi
+  game.state.players[2]!.tricksWon = 7; // nosilac prolazi
   game.state.players[0]!.tricksWon = 2;
-  game.state.players[2]!.tricksWon = 1;
+  game.state.players[1]!.tricksWon = 1;
   const result = game.endHand();
 
-  // SAMO P1 (nosilac te ruke) trosi SVOJU refu — P0 i P2 zadrzavaju svoju
+  // SAMO P2 (nosilac te ruke) trosi SVOJU refu — P0 i P1 zadrzavaju svoju
   // (jos neiskoriscenu) raspolozivu refu za neku BUDUCU rundu kad oni licno
   // postanu nosioci.
-  assert.equal(game.state.refeCount.join(','), '0,1,0', 'samo nosilac (P1) trosi refu, ne sva trojica');
-  assert.equal(game.state.refePending.join(','), '1,0,1', 'P0 i P2 zadrzavaju svoju raspolozivu refu neiskoriscenu');
+  assert.equal(game.state.refeCount.join(','), '0,0,1', 'samo nosilac (P2) trosi refu, ne sva trojica');
+  assert.equal(game.state.refePending.join(','), '1,1,0', 'P0 i P1 zadrzavaju svoju raspolozivu refu neiskoriscenu');
   // Refe-multiplikator (x2) je stvarno bio aktivan — bula nosioca je -16
   // (Herc 8 * refe 2), ne -8 kao bez refe.
-  assert.equal(result.bulas[1], 100 - 16, 'bula pod refeom je DUPLIRANA (8*2)');
-  assert.equal(result.refeConsumed, 1);
+  assert.equal(result.bulas[2], 100 - 16, 'bula pod refeom je DUPLIRANA (8*2)');
+  assert.equal(result.refeConsumed, 2);
 });
 
 test('refe: raspoloziva refa se NE TROSI (ostaje blokirana) dok je BILO KO u seširu, cak i ako nosilac nije taj u seširu', () => {
@@ -121,25 +122,26 @@ test('refe: raspoloziva refa se NE TROSI (ostaje blokirana) dok je BILO KO u se�
   // simuliramo direktno preko state-a (kao i ostali testovi u ovom fajlu).
   game.state.bulas = [-5, 100, 100];
 
-  // Sledeca ruka — P1 postaje nosilac i ima svoju raspolozivu refu (P1 SAM
+  // Sledeca ruka — dealer je rotirao (2026-09-20 ispravka), prvi licitator
+  // je sad P2. P2 postaje nosilac i ima svoju raspolozivu refu (P2 SAM
   // nije u seširu, ali P0 JESTE).
-  game.bid(1, 2);
-  game.pass(2);
+  game.bid(2, 2);
   game.pass(0);
-  const hand = game.state.players[1]!.hand;
-  game.discard(1, [hand[0]!.id, hand[1]!.id]);
-  game.declareGame(1, 'Herc');
+  game.pass(1);
+  const hand = game.state.players[2]!.hand;
+  game.discard(2, [hand[0]!.id, hand[1]!.id]);
+  game.declareGame(2, 'Herc');
   game.follow(0, 'DODJEM');
-  game.follow(2, 'DODJEM');
+  game.follow(1, 'DODJEM');
+  game.moze(1);
   game.moze(0);
-  game.moze(2);
-  game.state.players[1]!.tricksWon = 7; // nosilac prolazi
-  const bulaP1Before = game.state.bulas[1];
+  game.state.players[2]!.tricksWon = 7; // nosilac prolazi
+  const bulaP2Before = game.state.bulas[2];
   const result = game.endHand();
 
   assert.equal(result.refeConsumed, null, 'refa se NE trosi dok je P0 u seširu');
-  assert.equal(game.state.refePending.join(','), '1,1,1', 'niciji refePending se ne menja — P1-ova ostaje blokirana, ne izgubljena');
-  assert.equal(result.bulas[1], bulaP1Before - 8, 'bula NIJE duplirana (samo Herc*2=8, ne *2*2=16)');
+  assert.equal(game.state.refePending.join(','), '1,1,1', 'niciji refePending se ne menja — P2-ova ostaje blokirana, ne izgubljena');
+  assert.equal(result.bulas[2], bulaP2Before - 8, 'bula NIJE duplirana (samo Herc*2=8, ne *2*2=16)');
 });
 
 test('refe: igrač koji zadrži raspoloživu refu je troši KASNIJE kad on lično postane nosilac (ne mora biti odmah sledeća ruka)', () => {
@@ -150,19 +152,20 @@ test('refe: igrač koji zadrži raspoloživu refu je troši KASNIJE kad on ličn
   game.pass(0);
   assert.equal(game.state.refePending.join(','), '1,1,1');
 
-  // P1 postaje nosilac i trosi svoju refu (kao gore)
-  game.bid(1, 2);
-  game.pass(2);
+  // Dealer je rotirao (2026-09-20 ispravka) — prvi licitator je sad P2. P2
+  // postaje nosilac i trosi svoju refu (kao gore).
+  game.bid(2, 2);
   game.pass(0);
-  let hand = game.state.players[1]!.hand;
-  game.discard(1, [hand[0]!.id, hand[1]!.id]);
-  game.declareGame(1, 'Herc');
+  game.pass(1);
+  let hand = game.state.players[2]!.hand;
+  game.discard(2, [hand[0]!.id, hand[1]!.id]);
+  game.declareGame(2, 'Herc');
   game.follow(0, 'DODJEM');
-  game.follow(2, 'DODJEM');
+  game.follow(1, 'DODJEM');
+  game.moze(1);
   game.moze(0);
-  game.moze(2);
   game.endHand();
-  assert.equal(game.state.refePending.join(','), '1,0,1');
+  assert.equal(game.state.refePending.join(','), '1,1,0');
 
   // Nova ruka (bez novog refe-triggera) — P0 sad pobedjuje i postaje nosilac.
   // On JOS UVEK ima svoju raspolozivu refu iz PRE dve ruke — mora je potrositi sad.
@@ -182,8 +185,8 @@ test('refe: igrač koji zadrži raspoloživu refu je troši KASNIJE kad on ličn
   const result = game.endHand();
 
   assert.equal(result.refeConsumed, 0, 'P0 sad trosi SVOJU davno dodeljenu raspolozivu refu');
-  assert.equal(game.state.refeCount.join(','), '1,1,0');
-  assert.equal(game.state.refePending.join(','), '0,0,1', 'P2 i dalje cuva svoju za kasnije');
+  assert.equal(game.state.refeCount.join(','), '1,0,1');
+  assert.equal(game.state.refePending.join(','), '0,1,0', 'P1 i dalje cuva svoju za kasnije');
   assert.equal(result.bulas[0], bulaP0Before - 16, 'bula P0 duplirana refeom (Herc 4*2*2)');
 });
 
@@ -303,18 +306,20 @@ test('refe: NIKO NE PRATI, nosilac VEC ima raspolozivu refu iz ranije — dodatn
   game.pass(0);
   assert.equal(game.state.refePending.join(','), '1,1,1');
 
-  // Sledeca ruka — P1 pobedjuje licitaciju (vec ima refePending=1), ali OBA
-  // pratioca kazu Ne dodjem. P1 jos ima mesta u budzetu (0+1 < 2) -> dodela
-  // se PONAVLJA za sva tri (ruka se opet samo ponistava, ne "trosi" staru).
-  game.bid(1, 2);
-  game.pass(2);
+  // Sledeca ruka — dealer je rotirao (2026-09-20 ispravka: handleRefe() sad
+  // stvarno rotira dilera, dealer 0->1, pa je prvi licitator (dealer+1)
+  // sad P2, ne P1). P2 pobedjuje licitaciju (vec ima refePending=1), ali
+  // OBA pratioca kazu Ne dodjem. P2 jos ima mesta u budzetu (0+1 < 2) ->
+  // dodela se PONAVLJA za sva tri (ruka se opet samo ponistava).
+  game.bid(2, 2);
   game.pass(0);
-  const hand = game.state.players[1]!.hand;
-  game.discard(1, [hand[0]!.id, hand[1]!.id]);
-  game.declareGame(1, 'Pik');
+  game.pass(1);
+  const hand = game.state.players[2]!.hand;
+  game.discard(2, [hand[0]!.id, hand[1]!.id]);
+  game.declareGame(2, 'Pik');
   const bulasBefore = [...game.state.bulas];
   game.follow(0, 'NE_DODJEM');
-  game.follow(2, 'NE_DODJEM');
+  game.follow(1, 'NE_DODJEM');
 
   assert.equal(game.state.phase, 'BIDDING', 'opet se samo ponistava');
   assert.deepEqual(game.state.bulas, bulasBefore, 'bule i dalje nepromenjene');

@@ -166,8 +166,9 @@ test('REFERENTNI_PRIMERI Runda #3 — Mirko Herc, Janko igra sam', () => {
   game.follow(2, 'DODJEM');
   game.follow(1, 'NE_DODJEM');
   assert.equal(game.continueWithoutCall(), true);
-  assert.equal(game.state.phase, 'KONTRA_DECLARING');
-  game.moze(game.expectedKontraPlayerPublic()!);
+  // Janko je solo pratilac bez poziva — Kontra mu nije ponudjena, jedina
+  // moguca akcija je Moze, pa engine to sam resava (2026-09-20) umesto da
+  // ceka klik koji nema alternativu: faza ide pravo u PLAYING.
   assert.equal(game.state.phase, 'PLAYING');
 
   game.state.players[0]!.tricksWon = 6;

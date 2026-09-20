@@ -178,19 +178,20 @@ test('e2e: oba pratioca "Ne dodjem" na NE-PIK igri, nosilac VEC ima raspolozivu 
   game.pass(2);
   game.pass(0);
   assert.equal(game.state.refePending.join(','), '1,1,1');
-  game.bid(1, 2);
-  game.pass(2);
+  // Dealer je rotirao (2026-09-20 ispravka) — prvi licitator je sad P2.
+  game.bid(2, 2);
   game.pass(0);
-  const hand = game.state.players[1]!.hand;
-  game.discard(1, [hand[0]!.id, hand[1]!.id]);
-  game.declareGame(1, 'Karo');
+  game.pass(1);
+  const hand = game.state.players[2]!.hand;
+  game.discard(2, [hand[0]!.id, hand[1]!.id]);
+  game.declareGame(2, 'Karo');
   const bulasBefore = [...game.state.bulas];
   game.follow(0, 'NE_DODJEM');
-  game.follow(2, 'NE_DODJEM');
+  game.follow(1, 'NE_DODJEM');
   assert.equal(game.state.phase, 'GAME_OVER');
-  assert.equal(game.state.bulas[1], bulasBefore[1]! - GAME_VALUES['Karo'] * 2 * 2, 'DUPLIRANO — P1 je vec imao raspolozivu refu');
-  assert.equal(game.state.refePending.join(','), '1,0,1', 'P1 trosi SVOJU vec dodeljenu refu; P0/P2 zadrzavaju svoju');
-  assert.equal(game.state.lastHandResult?.refeConsumed, 1);
+  assert.equal(game.state.bulas[2], bulasBefore[2]! - GAME_VALUES['Karo'] * 2 * 2, 'DUPLIRANO — P2 je vec imao raspolozivu refu');
+  assert.equal(game.state.refePending.join(','), '1,1,0', 'P2 trosi SVOJU vec dodeljenu refu; P0/P1 zadrzavaju svoju');
+  assert.equal(game.state.lastHandResult?.refeConsumed, 2);
 });
 
 // Korisnikov zahtev (ponovljen 2026-09-10 — "vec sam rekao da je
@@ -826,11 +827,16 @@ test('e2e: Kontra — svi kažu Moze, nema kontre', () => {
   assert.equal(game.state.kontraLevel, null);
 });
 
-test('e2e: solo pratilac (bez poziva) NE sme dati kontru, samo Moze', () => {
+test('e2e: solo pratilac (bez poziva) NE sme dati kontru — engine sam preskace besmisleni Moze korak', () => {
   // Korisnikov zahtev (2026-09-17): "posto kontra zahteva igru sve 3
   // igraca, nema smisla ako jedan igrac sam dolazi da ima opciju kontra,
   // jer da je htio kontru zvao bi prvo" — pratilac koji je dosao SAM (bez
   // pozivanja NE_DODJEM partnera, continueWithoutCall()) ne sme dati kontru.
+  // AZURIRANO (2026-09-20, korisnikov zahtev — "nadji alternativu dugmetu
+  // koje nema alternativu"): pošto je Moze JEDINA moguca akcija u ovom
+  // slucaju, engine sam prolazi kroz KONTRA_DECLARING (vidi
+  // startKontraDeclaring()) — faza nikad ne "stane" i ceka klik koji nema
+  // alternativu, ide pravo u PLAYING.
   const game = new Game({ seed: 800 });
   game.newHand(0);
   game.bid(1, 2);
@@ -842,18 +848,11 @@ test('e2e: solo pratilac (bez poziva) NE sme dati kontru, samo Moze', () => {
   game.follow(0, 'NE_DODJEM');
   game.follow(2, 'DODJEM');
   game.continueWithoutCall();
-  assert.equal(game.state.phase, 'KONTRA_DECLARING');
-  assert.equal(game.expectedKontraPlayerPublic(), 2);
-  // Pokusaj kontre mora biti odbijen (engine nivo)
+  assert.equal(game.state.phase, 'PLAYING', 'ide pravo u PLAYING, ne staje na KONTRA_DECLARING');
+  assert.equal(game.state.kontraLevel, null, 'kontra nikad nije data');
+  // Ni posle prelaska, kontra vise ne sme biti moguca (phase != KONTRA_DECLARING)
   assert.equal(game.kontra(2, 'KONTRA'), false, 'solo pratilac ne sme dati kontru');
-  assert.equal(game.state.kontraLevel, null, 'kontraLevel ostaje nepromenjen posle odbijene kontre');
-  // Legal-actions API (koje UI/AI koriste) ne sme ni nuditi kontru
-  const actions = game.getLegalActions();
-  assert.ok(!actions.some(a => a.type === 'kontra'), 'kontra ne sme biti medju legalnim akcijama');
-  assert.ok(actions.some(a => a.type === 'moze'), 'moze mora biti ponudjeno');
-  // Moze i dalje normalno radi
-  assert.equal(game.moze(2), true);
-  assert.equal(game.state.phase, 'PLAYING');
+  assert.equal(game.state.kontraLevel, null, 'kontraLevel ostaje nepromenjen');
 });
 
 test('e2e: solo pratilac (bez poziva) SME dati kontru ako je dosao POZIVOM (call)', () => {
@@ -1032,8 +1031,8 @@ test('e2e: Sans — kad pratilac NEPOSREDNO PRE nosioca ne igra, nosilac NIKAD n
   game.follow(0, 'NE_DODJEM');
   game.follow(2, 'DODJEM');
   game.continueWithoutCall();
-  assert.equal(game.state.phase, 'KONTRA_DECLARING');
-  game.moze(2);
+  // Solo-bez-poziva — engine sam preskace KONTRA_DECLARING (2026-09-20, vidi
+  // startKontraDeclaring()), ide pravo u PLAYING.
   assert.equal(game.state.phase, 'PLAYING');
   assert.equal(game.state.currentPlayer, 2, 'jedini aktivni pratilac (Zapad) vodi, ne nosilac (Istok)');
 });

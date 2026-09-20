@@ -495,8 +495,14 @@ private checkBiddingEnd(): void {
       return;
     }
     this.awardRefeToAll();
-    // Ruka se poništava — iste bule, novi dealer
-    this.newHand(this.state.dealer);
+    // Ruka se poništava — iste bule, novi dealer (uzivo prijavljen bag
+    // 2026-09-20, "prvi igra Edge, svi dalje, sledeca ruka OPET prvi igra
+    // Edge" — komentar je oduvek govorio "novi dealer" ali kod je pozivao
+    // newHand() sa ISTIM this.state.dealer, nikad rotiranim; server-ov
+    // dealNextHand() koji INACE rotira dilera se ovde nikad ni ne stize
+    // jer se newHand() poziva SINHRONO unutar iste ruke, phase nikad ne
+    // prodje kroz GAME_OVER koji bi ga okinuo).
+    this.newHand(((this.state.dealer + 1) % 3) as Position);
   }
 
   // Zajednicka logika za rundu koja se NE ODIGRAVA do kraja jer nosilac nema
@@ -545,13 +551,16 @@ private checkBiddingEnd(): void {
       // dira, pa bi bez eksplicitnog null-a ostalo "zaglavljeno" na
       // poslednjem pravom rezultatu (uhvaceno fuzz-testiranjem).
       this.state.lastHandResult = null;
-      this.newHand(this.state.dealer);
+      // Isti bag/ispravka kao handleRefe() (2026-09-20) — dealer mora
+      // rotirati i ovde, ruka se ponistava ali sledeca ipak ima novog
+      // prvog licitatora.
+      this.newHand(((this.state.dealer + 1) % 3) as Position);
       return;
     }
     // Nosilac nema slobodan budžet, niko u seširu — ruka se poništava, bez
     // promene bula i bez dodele (RULES 7.2).
     this.state.lastHandResult = null;
-    this.newHand(this.state.dealer);
+    this.newHand(((this.state.dealer + 1) % 3) as Position);
   }
 
   // RULES 7.1.1 — standardni Pik, nijedan pratilac ne da kontru (oba Moze).
@@ -885,6 +894,23 @@ private checkBiddingEnd(): void {
   private startKontraDeclaring(): void {
     this.state.phase = 'KONTRA_DECLARING';
     this.state.mozeCount = 0;
+    // Korisnikov zahtev (2026-09-20, posle bezbednosnog povlacenja
+    // klijentskog "auto-Moze" iz app.js sinoc — "nadji alternativu dugmetu
+    // koje nema alternativu"): kad je jedini pratilac koji uopste treba da
+    // se izjasni solo-bez-poziva (isSoloFollowerWithoutCall), Kontra mu
+    // NIKAD nije ponudjena — jedina moguca akcija je Moze, sto nije prava
+    // odluka. Umesto da klijent to sam "preskace" (rizicno — tacno taj
+    // asinhroni klijentski put je bio osumnjicen za "stuck" bag), engine
+    // ovde SAM resava taj korak, sinhrono, pre nego sto se bilo kakav
+    // KONTRA_DECLARING broadcast uopste desi — klijent nikad ne vidi fazu
+    // u kojoj bi trebalo da ceka na besmislen klik. Ogranicava se STROGO
+    // na tacno ovaj slucaj (isSoloFollowerWithoutCall) — svaka druga
+    // kombinacija (npr. i pravi izbor izmedju Kontra/Moze) i dalje normalno
+    // ceka igraca.
+    const expected = this.expectedKontraPlayer();
+    if (expected !== null && this.isSoloFollowerWithoutCall(expected)) {
+      this.moze(expected);
+    }
   }
 
   private startPlaying(): void {
