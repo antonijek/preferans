@@ -64,12 +64,21 @@ export function getFirstPlayerForState(state: GameState): Position {
     // pratilac ucestvuje).
     return ((state.winner! + 1) % 3) as Position;
   }
-  // Betl i ostale: prvo licitirao
-  let candidate: Position;
-  if (state.players[state.bidStartPlayer]!.bidLevel > 0) {
-    candidate = state.bidStartPlayer;
-  } else {
-    candidate = nextPlayer(state.bidStartPlayer);
+  // Betl i ostale (RULES 8.1: "prvi igra onaj koji je prvi licitirao u
+  // krugu, bez obzira da li je nosilac ili ne") — trazi PRVOG igraca (po
+  // redosledu od bidStartPlayer) koji je STVARNO bar jednom bidovao
+  // (bidLevel>0), ne samo prvog koji je trebalo da ZAPOCNE krug.
+  // Bag (nadjen 2026-09-20 citanjem koda, korisnik posumnjao "nosilac
+  // vodi prvi umesto pravog igraca"): stara verzija je proveravala SAMO
+  // bidStartPlayer i, ako TAJ nije nikad bidovao, odmah uzimala
+  // nextPlayer(bidStartPlayer) BEZ daljeg trazenja — ako je i TAJ odmah
+  // rekao "dalje" bez ikad bidovanja (a tek treci igrac bidovao i
+  // pobedio), pogresno je vracala drugog igraca umesto stvarnog prvog
+  // bidovaoca. Sada obidje sve do 3 pozicije od bidStartPlayer.
+  let candidate: Position = state.bidStartPlayer;
+  for (let i = 0; i < 3; i++) {
+    if (state.players[candidate]!.bidLevel > 0) break;
+    candidate = nextPlayer(candidate);
   }
   // Preskoci NE_DODJEM koji nije zvan
   if (isPlayerActive(state, candidate)) return candidate;

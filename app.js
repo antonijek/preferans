@@ -194,6 +194,57 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// Korisnikov zahtev (2026-09-20): preporuci instalaciju app-a mobilnim
+// korisnicima na pocetnom ekranu — Android/Chrome hvata beforeinstallprompt
+// i nudi pravo dugme "Instaliraj"; iOS Safari nema taj event uopste, pa
+// tamo umesto dugmeta stoji uputstvo (Deli → Dodaj na Home Screen). Ne
+// koristi $() (definisan kasnije u fajlu) — koristi document.getElementById
+// direktno da ne zavisi od redosleda deklaracija.
+let deferredPwaInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPwaInstallPrompt = e;
+  maybeShowPwaInstallBanner();
+});
+window.addEventListener('appinstalled', () => {
+  deferredPwaInstallPrompt = null;
+  const banner = document.getElementById('pwaInstallBanner');
+  if (banner) banner.style.display = 'none';
+});
+function maybeShowPwaInstallBanner() {
+  const banner = document.getElementById('pwaInstallBanner');
+  if (!banner) return;
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (!isMobile || isStandalone) return;
+  if (localStorage.getItem('pwaInstallDismissed') === '1') return;
+  banner.style.display = '';
+  const installBtn = document.getElementById('pwaInstallBtn');
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (deferredPwaInstallPrompt) {
+    installBtn.style.display = '';
+    installBtn.onclick = async () => {
+      deferredPwaInstallPrompt.prompt();
+      await deferredPwaInstallPrompt.userChoice.catch(() => {});
+      deferredPwaInstallPrompt = null;
+      banner.style.display = 'none';
+    };
+  } else if (isIOS) {
+    const txt = document.getElementById('pwaInstallText');
+    if (txt) txt.textContent = '📲 Igraš na iPhone-u? Dodaj Preferans na Home Screen: dodirni Deli (kvadratić sa strelicom nagore) pa "Dodaj na Home Screen".';
+  }
+}
+window.addEventListener('load', () => {
+  maybeShowPwaInstallBanner();
+  const dismissBtn = document.getElementById('pwaInstallDismiss');
+  if (dismissBtn) {
+    dismissBtn.onclick = () => {
+      localStorage.setItem('pwaInstallDismissed', '1');
+      document.getElementById('pwaInstallBanner').style.display = 'none';
+    };
+  }
+});
+
 const SUIT_NAMES = { '♠': 'Pik', '♥': 'Herc', '♦': 'Karo', '♣': 'Tref' };
 const SUIT_GLYPH = { '♠': '♠', '♥': '♥', '♦': '♦', '♣': '♣' };
 const RANK_ORDER = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
@@ -315,6 +366,54 @@ let lastRefePendingSum = 0;
 // sesiji — cisto stara klijentska memorija. Zovi ovo pri svakom SVESNOM
 // ulasku u sobu (create/join/spectate), ne pri automatskom reconnect-u na
 // ISTU sobu (taj put ne prolazi kroz ove funkcije).
+// Pretvara server-ov HandSnapshot (room.handsHistory, roomBroadcast.ts) u
+// oblik koji renderScoreContent()/renderResult() ocekuju (isti kao stavke
+// koje recordHandIfNew() inace pravi iz live game.state-a).
+function computeFollowSeatsFromSnapshot(h) {
+  if (h.declarer == null || !h.declaredGame) return [];
+  const followers = [0, 1, 2].filter(p => p !== h.declarer);
+  if (isBetlGame(h.declaredGame)) return followers;
+  if (followers.some(p => h.followChoices[p] === null)) return [];
+  return followers.filter(p => h.followChoices[p] === 'DODJEM');
+}
+function handSnapshotToLocal(h) {
+  return {
+    round: h.round,
+    winner: h.declarer,
+    winnerGame: h.declaredGame,
+    kontraLevel: h.kontraLevel,
+    passed: h.passed,
+    bulas: h.bulasAfter,
+    supeDelta: h.supeDelta,
+    // Snapshot ne beleži da li je ruka odigrana kroz "Igra" tok (RULES 3.4)
+    // — bezopasan default, samo izostavlja "(Igra)" oznaku pored igre.
+    viaIgra: false,
+    followSeats: computeFollowSeatsFromSnapshot(h),
+    tricksWon: h.tricksWon,
+    caller: h.caller, callee: h.callee,
+    wasPlayed: h.tricks.length > 0,
+  };
+}
+
+// Uzivo prijavljen bag (2026-09-20): "kad udjem na tabelu nema istorije
+// ruku, sve prazno" — handHistory je cisto klijentski akumuliran, gubi se
+// na svaki reconnect (tab zatvoren pa ponovo otvoren, i sl.) iako server
+// (room.handsHistory) sve vreme ima kompletne podatke. Kad god stigne
+// game:state sa vise server-side ruka nego sto lokalno imamo, obnovi CEO
+// handHistory+debtMatrix iz servera umesto da ostane nepotpun/prazan.
+function syncHandHistoryFromServer(serverHandsHistory) {
+  if (!Array.isArray(serverHandsHistory) || serverHandsHistory.length <= handHistory.length) return;
+  handHistory = serverHandsHistory.map(handSnapshotToLocal);
+  debtMatrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  for (const h of handHistory) {
+    if (h.winner === null) continue;
+    for (let p = 0; p < 3; p++) {
+      if (p !== h.winner && h.supeDelta[p] > 0) debtMatrix[h.winner][p] += h.supeDelta[p];
+    }
+  }
+  lastRecordedRound = handHistory[handHistory.length - 1].round;
+}
+
 function resetHandHistoryForNewRoom() {
   handHistory = [];
   debtMatrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
@@ -2433,6 +2532,7 @@ async function connectOnlineSocket() {
       }
     }
     game.state = state;
+    syncHandHistoryFromServer(state.handsHistory);
     // Nova ruka je stvarno pocela (faza vise nije GAME_OVER) — status "ko je
     // sve kliknuo Deli" vazi SAMO za rundu koja je bas zavrsila, ocisti ga.
     if (state.phase !== 'GAME_OVER') dealNextReadySeats = [];

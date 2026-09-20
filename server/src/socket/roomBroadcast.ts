@@ -46,6 +46,14 @@ export function buildClientState(room: RoomState, viewer: Viewer) {
     // stvarno licitira/igra ("izgleda da je on licitirao Mogu 4"). Klijent
     // ovo koristi da doda "(AI)" pored imena i da jednom prikaze banner.
     abandonedSeat: room.abandonedSeat,
+    // Uzivo prijavljen bag (2026-09-20): "kad udjem na tabelu nema istorije
+    // ruku, sve prazno" — klijentski handHistory (app.js) je CISTO
+    // akumuliran u browseru, nikad se nije obnavljao sa servera, pa je
+    // svaki reconnect (ostavi tab, vrati se kasnije) brisao celu istoriju
+    // iako je server (room.handsHistory, koristi se i za match_log) sve
+    // vreme imao kompletne podatke. Klijent ovo koristi da obnovi
+    // handHistory kad primeti da mu fali.
+    handsHistory: room.handsHistory,
   };
 }
 

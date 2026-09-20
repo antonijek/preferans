@@ -218,6 +218,17 @@
     <button class="mode-btn home-cta" id="backToTableBtn" onclick="backToTable()" style="display:none;margin-top:10px">↩️ Nazad za sto</button>
   </section>
 
+  <!-- Korisnikov zahtev (2026-09-20): preporuci instalaciju app-a mobilnim
+       korisnicima — banner na pocetnoj, samo mobilni, samo ako jos nije
+       instaliran, i samo ako korisnik nije ranije zatvorio. -->
+  <div class="pwa-install-banner" id="pwaInstallBanner" style="display:none">
+    <span class="pwa-install-text" id="pwaInstallText">📲 Igraš na telefonu? Instaliraj Preferans kao app — brže se otvara i radi kao prava aplikacija.</span>
+    <div class="pwa-install-actions">
+      <button class="mode-btn primary" id="pwaInstallBtn" style="display:none">Instaliraj</button>
+      <button class="icon-btn" id="pwaInstallDismiss" title="Zatvori">✕</button>
+    </div>
+  </div>
+
   <section class="home-section">
     <h2 class="section-title">Šta možeš ovde</h2>
     <div class="home-features-grid">
@@ -395,6 +406,6 @@
      je jedini NEPOBITAN nacin — to je BUKVALNO nov URL koji nijedan keš
      ikad nije video, ne postoji nacin da posluzi staru kopiju. UBUDUCE:
      bump-ovati ?v=N ovde pri SVAKOM deploy-u koji dira app.js. -->
-<script type="module" src="./app.js?v=12"></script>
+<script type="module" src="./app.js?v=13"></script>
 </body>
 </html>
