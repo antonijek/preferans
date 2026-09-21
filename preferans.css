@@ -966,11 +966,17 @@
 
   .mode-btn {
     flex: 1;
-    background: linear-gradient(180deg, #7a5f28 0%, var(--gold-dark) 100%);
-    border: 2px solid rgba(var(--gold-rgb),0.5);
+    /* Korisnikov zahtev (2026-09-21): sekundarna dugmad na pocetnim
+       ekranima (Nazad, Registruj se, itd.) su delovala "ruzno" u starom
+       zlatno-braon (identicna primarnim dugmadima pre te izmene). Sad
+       neutralno tamno-staklo — diskretno, ne otima paznju od zelenih
+       .primary dugmadi. Ekrani sa sopstvenim override-om (#roomScreen,
+       #scoreScreen) ostaju netaknuti (veca specificnost pobedjuje ovde).*/
+    background: linear-gradient(180deg, #3a3f47 0%, #2a2e34 100%);
+    border: 2px solid rgba(255,255,255,0.15);
     padding: 14px;
     border-radius: 10px;
-    color: #f5e6c8;
+    color: #e8e8e8;
     font-weight: bold;
     cursor: pointer;
     min-height: 56px;
@@ -978,7 +984,7 @@
     box-shadow: 0 2px 5px rgba(0,0,0,0.3);
     transition: transform 0.1s, box-shadow 0.15s, background 0.15s, border-color 0.15s;
   }
-  .mode-btn:hover { background: linear-gradient(180deg, #8e7132 0%, #7a5f28 100%); border-color: var(--gold-bright); }
+  .mode-btn:hover { background: linear-gradient(180deg, #474d57 0%, #363b42 100%); border-color: rgba(255,255,255,0.3); }
   .mode-btn:active { transform: scale(0.97); }
   .mode-btn.active { background: linear-gradient(180deg, #5cbf60 0%, #43a047 100%); border-color: #66bb6a; box-shadow: 0 2px 8px rgba(76,175,80,0.5); }
   /* Korisnikov zahtev (2026-09-21): "Sobe — napravi ili se pridruzi" i
