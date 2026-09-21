@@ -454,10 +454,14 @@ function netSupeBetween(me, other) {
   return debtMatrix[other][me] - debtMatrix[me][other];
 }
 
-// RULES 5.1 konvencija (potvrdjeno ranije od korisnika, koristi se za
-// redosled praćenja/kontre): levi sused = nextPlayer (p+1), desni = (p+2).
-function leftNeighborOf(p) { return (p + 1) % 3; }
-function rightNeighborOf(p) { return (p + 2) % 3; }
+// RULES 5.1 konvencija — DRUGI put uzivo prijavljen bag (2026-09-21):
+// prva verzija ovoga je imala levo/desno OBRNUTO. Geometrijski izvedeno
+// (busola/uglovi, ne nagadjanje) i potvrdjeno konkretnim uzivo primerom
+// (nosilac Mozila, desni sused Edge, sto odgovara nextPlayer(Mozila)):
+// DESNI sused = nextPlayer (p+1) — sledeci u smeru suprotnom od kazaljke
+// na satu JE fizicki desno; levi = (p+2), suprotan smer istog koraka.
+function leftNeighborOf(p) { return (p + 2) % 3; }
+function rightNeighborOf(p) { return (p + 1) % 3; }
 
 // Koja SEDISTA se racunaju kao "stvarno pratili" ovu ruku, za tabelu —
 // korisnikov zahtev: "jedan ako ide sam ili zove, a oba ako dodju posebno".
@@ -766,9 +770,13 @@ function expectedFollowActor(s) {
   // pogresno za nosioca na poziciji 0 ili 2 (samo za poziciju 1 se slucajno
   // poklapalo). Sad koristi isti "desni pa treci" kao engine-ov
   // expectedFollowPlayerPublic() (online) / followersInKontraOrder (kontra).
+  // DRUGI put uzivo prijavljen bag (2026-09-21) — prva verzija ovoga je
+  // imala formulu obrnutu (desni = winner+2, trebalo winner+1). Vidi
+  // rightNeighborOf()/leftNeighborOf() iznad za istu ispravku i geometrijsko
+  // objasnjenje.
   if (s.winner === null) return s.winner;
-  const right = (s.winner + 2) % 3;
-  const third = (s.winner + 1) % 3;
+  const right = (s.winner + 1) % 3;
+  const third = (s.winner + 2) % 3;
   const followers = [right, third];
   const undecided = followers.find(p => s.followChoices[p] === null);
   if (undecided !== undefined) return undecided;
@@ -1054,7 +1062,9 @@ let _prevTrickLen = 0;
 // ovde odmah renderovao prazan sto — druga dvojica igraca nikad ne stignu da
 // VIDE sta je treci bacio. Drzimo zadnji pun stih vidljiv jos kratko posto
 // se stvarno vec ocistio u state-u, pre nego sto pravo predjemo na prazan sto.
-const TRICK_HOLD_MS = 700;
+// Korisnikov zahtev (isti dan, DRUGI put): 700ms je i dalje delovalo
+// prekratko (i u dvoje i u troje) — podignuto na 1500ms.
+const TRICK_HOLD_MS = 1500;
 let _lastRealTrickHadCards = false;
 let _lastFullTrick = [];
 let _heldTrickCards = null;
@@ -1430,9 +1440,10 @@ function renderFollowing() {
   // pozicija umesto "desni pa treci"; engine-ov follow() sad striktno
   // namece pravi redosled (expectedFollowPlayer), pa ovde MORA da se
   // koristi ISTI redosled, inace bi dugme prikazano pogresnom igracu bilo
-  // tiho odbijeno.
-  const right = (s.winner + 2) % 3;
-  const third = (s.winner + 1) % 3;
+  // tiho odbijeno. DRUGI put uzivo prijavljen bag (isti dan): prva verzija
+  // je imala right/third obrnuto (winner+2/winner+1 umesto winner+1/winner+2).
+  const right = (s.winner + 1) % 3;
+  const third = (s.winner + 2) % 3;
   const followers = [right, third];
   const undecided = followers.find(p => s.followChoices[p] === null);
   const log = $('bidLog');

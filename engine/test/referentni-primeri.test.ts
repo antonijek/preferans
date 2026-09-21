@@ -16,11 +16,12 @@
 //   odbacujemo bilo koje 2 validne karte iz stvarne ruke.
 // - Redosled davanja kontre kad SU OBA pratioca DODJEM (runde #10, #11) se
 //   mestimicno ne poklapa sa "desni od nosioca prvi" (RULES 5.1, formula
-//   (winner+2)%3 — potvrdjena ranije UZIVO od korisnika i konzistentna sa
-//   rundama #1,#5,#7,#9,#13,#14). Kad se ne poklapa, koristimo ONOGA koga
-//   engine ispravno bira (expectedKontraPlayerPublic()) i preracunavamo
-//   ocekivani rezultat za NJEGA — brojevi ispadaju identicni bez obzira ko
-//   je tacno kontras, jer formula zavisi samo od stihova, ne od identiteta.
+//   (winner+1)%3 — DRUGI put uzivo prijavljen bag 2026-09-21 ispravio smer,
+//   prva "potvrda" ove formule kao (winner+2)%3 je bila pogresna). Kad se ne
+//   poklapa, koristimo ONOGA koga engine ispravno bira
+//   (expectedKontraPlayerPublic()) i preracunavamo ocekivani rezultat za
+//   NJEGA — brojevi ispadaju identicni bez obzira ko je tacno kontras, jer
+//   formula zavisi samo od stihova, ne od identiteta.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -96,8 +97,8 @@ test('REFERENTNI_PRIMERI Runda #1 — Mirko Tref, Darko zove Janka, Kontra->Reko
   winBidding(game, 0);
   discardAny(game, 0);
   assert.equal(game.declareGame(0, 'Tref'), true);
-  game.follow(2, 'NE_DODJEM');
   game.follow(1, 'DODJEM');
+  game.follow(2, 'NE_DODJEM');
   assert.equal(game.call(1, 2), true);
   assert.equal(game.state.phase, 'KONTRA_DECLARING');
   assert.equal(game.expectedKontraPlayerPublic(), 1, 'samo Darko (pravi DODJEM) odlucuje o kontri');
@@ -130,8 +131,8 @@ test('REFERENTNI_PRIMERI Runda #2 — Darko Herc, oba dosla nezavisno, bez kontr
   winBidding(game, 1);
   discardAny(game, 1);
   assert.equal(game.declareGame(1, 'Herc'), true);
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'DODJEM');
   assert.equal(game.state.phase, 'KONTRA_DECLARING');
   game.moze(game.expectedKontraPlayerPublic()!);
   game.moze(game.expectedKontraPlayerPublic()!);
@@ -163,8 +164,8 @@ test('REFERENTNI_PRIMERI Runda #3 — Mirko Herc, Janko igra sam', () => {
   winBidding(game, 0);
   discardAny(game, 0);
   assert.equal(game.declareGame(0, 'Herc'), true);
-  game.follow(2, 'DODJEM');
   game.follow(1, 'NE_DODJEM');
+  game.follow(2, 'DODJEM');
   assert.equal(game.continueWithoutCall(), true);
   // Janko je solo pratilac bez poziva — Kontra mu nije ponudjena, jedina
   // moguca akcija je Moze, pa engine to sam resava (2026-09-20) umesto da
@@ -233,8 +234,8 @@ test('REFERENTNI_PRIMERI Runda #5 — Darko Herc, Janko zove Mirka, Janko kontra
   winBidding(game, 1);
   discardAny(game, 1);
   assert.equal(game.declareGame(1, 'Herc'), true);
-  game.follow(0, 'NE_DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'NE_DODJEM');
   assert.equal(game.call(2, 0), true);
   assert.equal(game.expectedKontraPlayerPublic(), 2, 'samo Janko (pravi DODJEM) odlucuje o kontri');
   assert.equal(game.kontra(2, 'KONTRA'), true);
@@ -264,8 +265,8 @@ test('REFERENTNI_PRIMERI Runda #6 — Mirko Herc, oba dosla nezavisno, tacno 2 s
   winBidding(game, 0);
   discardAny(game, 0);
   assert.equal(game.declareGame(0, 'Herc'), true);
-  game.follow(2, 'DODJEM');
   game.follow(1, 'DODJEM');
+  game.follow(2, 'DODJEM');
   game.moze(game.expectedKontraPlayerPublic()!);
   game.moze(game.expectedKontraPlayerPublic()!);
   assert.equal(game.state.phase, 'PLAYING');
@@ -295,8 +296,8 @@ test('REFERENTNI_PRIMERI Runda #7 — Darko Karo, Mirko zove Janka, Mirko kontra
   winBidding(game, 1);
   discardAny(game, 1);
   assert.equal(game.declareGame(1, 'Karo'), true);
-  game.follow(0, 'DODJEM');
   game.follow(2, 'NE_DODJEM');
+  game.follow(0, 'DODJEM');
   assert.equal(game.call(0, 2), true);
   assert.equal(game.expectedKontraPlayerPublic(), 0, 'samo Mirko (pravi DODJEM) odlucuje o kontri');
   assert.equal(game.kontra(0, 'KONTRA'), true);
@@ -327,8 +328,8 @@ test('REFERENTNI_PRIMERI Runda #8 — Darko Herc, oba dosla nezavisno, bez kontr
   winBidding(game, 1);
   discardAny(game, 1);
   assert.equal(game.declareGame(1, 'Herc'), true);
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'DODJEM');
   game.moze(game.expectedKontraPlayerPublic()!);
   game.moze(game.expectedKontraPlayerPublic()!);
 
@@ -357,8 +358,8 @@ test('REFERENTNI_PRIMERI Runda #9 — Mirko Herc, Janko zove Darka, Janko kontra
   winBidding(game, 0);
   discardAny(game, 0);
   assert.equal(game.declareGame(0, 'Herc'), true);
-  game.follow(2, 'DODJEM');
   game.follow(1, 'NE_DODJEM');
+  game.follow(2, 'DODJEM');
   assert.equal(game.call(2, 1), true);
   assert.equal(game.expectedKontraPlayerPublic(), 2);
   assert.equal(game.kontra(2, 'KONTRA'), true);
@@ -393,8 +394,8 @@ test('REFERENTNI_PRIMERI Runda #10 — Mirko Igra->Sans, kontra dat, rekontra, S
   winIgra(game, 0);
   assert.equal(game.declareIgra(0, 'Igra-Sans'), true);
   assert.equal(game.state.talon.length, 2);
-  game.follow(2, 'DODJEM');
   game.follow(1, 'DODJEM');
+  game.follow(2, 'DODJEM');
   assert.equal(game.state.phase, 'KONTRA_DECLARING');
   const kontras = game.expectedKontraPlayerPublic()!;
   assert.equal(game.kontra(kontras, 'KONTRA'), true);
@@ -428,8 +429,8 @@ test('REFERENTNI_PRIMERI Runda #11 — Darko Herc, oba dosla, kontras POBEDJUJE 
   winBidding(game, 1);
   discardAny(game, 1);
   assert.equal(game.declareGame(1, 'Herc'), true);
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'DODJEM');
   const kontras = game.expectedKontraPlayerPublic()!;
   assert.equal(game.kontra(kontras, 'KONTRA'), true);
   assert.equal(game.moze(1), true, 'nosilac prihvata kontru bez rekontre');
@@ -464,8 +465,8 @@ test('REFERENTNI_PRIMERI Runda #12 — Mirko Herc, Janko igra sam (isto kao #3)'
   winBidding(game, 0);
   discardAny(game, 0);
   assert.equal(game.declareGame(0, 'Herc'), true);
-  game.follow(2, 'DODJEM');
   game.follow(1, 'NE_DODJEM');
+  game.follow(2, 'DODJEM');
   assert.equal(game.continueWithoutCall(), true);
   game.moze(game.expectedKontraPlayerPublic()!);
 
@@ -492,8 +493,8 @@ test('REFERENTNI_PRIMERI Runda #13 — Mirko Herc, Janko zove Darka, Janko kontr
   winBidding(game, 0);
   discardAny(game, 0);
   assert.equal(game.declareGame(0, 'Herc'), true);
-  game.follow(2, 'DODJEM');
   game.follow(1, 'NE_DODJEM');
+  game.follow(2, 'DODJEM');
   assert.equal(game.call(2, 1), true);
   assert.equal(game.kontra(2, 'KONTRA'), true);
   assert.equal(game.moze(0), true);
@@ -523,20 +524,20 @@ test('REFERENTNI_PRIMERI Runda #14 — Darko Igra->Betl (auto-prati), Mirko kont
   winIgra(game, 1);
   assert.equal(game.declareIgra(1, 'Igra-Betl'), true);
   assert.equal(game.state.phase, 'KONTRA_DECLARING', 'Igra-Betl auto-prati (popravljen bag)');
-  assert.equal(game.expectedKontraPlayerPublic(), 0, 'Mirko je desni od Darka — konzistentno sa formulom');
-  assert.equal(game.kontra(0, 'KONTRA'), true);
+  assert.equal(game.expectedKontraPlayerPublic(), 2, 'Janko je desni od Darka — konzistentno sa formulom');
+  assert.equal(game.kontra(2, 'KONTRA'), true);
   assert.equal(game.kontra(1, 'REKONTRA'), true);
 
   game.state.players[1]!.tricksWon = 0;
-  game.state.players[0]!.tricksWon = 6;
-  game.state.players[2]!.tricksWon = 4;
+  game.state.players[2]!.tricksWon = 6;
+  game.state.players[0]!.tricksWon = 4;
   const r = game.endHand();
 
   assert.equal(r.passed, true, 'Betl uspeo');
   assert.equal(r.bulas[1], 100 - 56, 'Darko spusta se 56 (14*4)');
-  assert.equal(r.bulas[0], 100 + 56, 'Mirko (kontras, izgubio) dize se 56');
-  assert.equal(r.bulas[2], 100);
-  assert.equal(r.supeDelta[0], 0, 'Betl USPEO — nema supe uopste');
+  assert.equal(r.bulas[2], 100 + 56, 'Janko (kontras, izgubio) dize se 56');
+  assert.equal(r.bulas[0], 100);
+  assert.equal(r.supeDelta[2], 0, 'Betl USPEO — nema supe uopste');
 });
 
 test('REFERENTNI_PRIMERI Runda #15 — Mirko Herc, Janko igra sam (isto kao #3/#12)', () => {
@@ -552,8 +553,8 @@ test('REFERENTNI_PRIMERI Runda #15 — Mirko Herc, Janko igra sam (isto kao #3/#
   winBidding(game, 0);
   discardAny(game, 0);
   assert.equal(game.declareGame(0, 'Herc'), true);
-  game.follow(2, 'DODJEM');
   game.follow(1, 'NE_DODJEM');
+  game.follow(2, 'DODJEM');
   assert.equal(game.continueWithoutCall(), true);
   game.moze(game.expectedKontraPlayerPublic()!);
 

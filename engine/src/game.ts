@@ -607,9 +607,12 @@ private checkBiddingEnd(): void {
   private startFollowDeclaring(): void {
     this.state.phase = 'FOLLOW_DECLARING';
     this.state.followChoices = [null, null, null];
-    // Desni od nosioca prvi (RULES 5.1) — u nasem engine-u to je (winner + 2) % 3
+    // Desni od nosioca prvi (RULES 5.1) — (winner + 1) % 3, isto kao
+    // expectedFollowPlayer()/followersInKontraOrder() (DRUGI put uzivo
+    // prijavljen bag, 2026-09-21 — prva verzija ovoga je koristila
+    // (winner+2)%3, sto je davala LEVOG suseda umesto desnog).
     if (this.state.winner !== null) {
-      const right = ((this.state.winner + 2) % 3) as Position;
+      const right = ((this.state.winner + 1) % 3) as Position;
       this.state.currentPlayer = this.isPlayerActive(right) ? right : this.nextActivePlayer(this.state.winner);
     }
   }
@@ -777,8 +780,10 @@ private checkBiddingEnd(): void {
   // (kontra faza), samo primenjen na FOLLOW_DECLARING (Dodjem/Ne dodjem).
   private expectedFollowPlayer(): Position | null {
     if (this.state.winner === null) return null;
-    const right = ((this.state.winner + 2) % 3) as Position;
-    const third = ((this.state.winner + 1) % 3) as Position;
+    // Ista ispravka kao followersInKontraOrder() iznad — (winner+1)%3 je
+    // desni, ne (winner+2)%3.
+    const right = ((this.state.winner + 1) % 3) as Position;
+    const third = ((this.state.winner + 2) % 3) as Position;
     if (this.state.followChoices[right] === null) return right;
     if (this.state.followChoices[third] === null) return third;
     return null;
@@ -841,8 +846,16 @@ private checkBiddingEnd(): void {
   private followersInKontraOrder(): Position[] {
     if (this.state.winner === null) return [];
     const winner = this.state.winner;
-    const right = ((winner + 2) % 3) as Position; // desni od nosioca
-    const third = ((winner + 1) % 3) as Position;
+    // Uzivo prijavljen bag (2026-09-21, DRUGI put — prva "popravka" ovog
+    // istog izvestaja je formulu obrnula naopako): "desno od nosioca" u
+    // smeru suprotnom od kazaljke na satu (RULES 5.1, potvrdjeno konkretnim
+    // primerom: nosilac=Mozila, desni=Edge, sledeci po redosledu bacanja
+    // karata/licitacije) je SLEDECI igrac u ionako postojecem turnOrder.ts
+    // nextPlayer() smeru (p+1)%3 — NE (p+2)%3. Geometrijski: kod
+    // kontra-kazaljkinog redosleda sedenja 0->1->2->0, igrac (p+1)%3 sedi
+    // FIZICKI desno od igraca p (izveden preko busole/uglova, ne nagadjanje).
+    const right = ((winner + 1) % 3) as Position; // desni od nosioca
+    const third = ((winner + 2) % 3) as Position;
     return [right, third].filter(p => this.state.followChoices[p] === 'DODJEM');
   }
 

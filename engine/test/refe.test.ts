@@ -84,10 +84,10 @@ test('refe: posle "svi dalje", NOSILAC sledece ruke troši TAČNO SVOJU raspolo�
   const hand = game.state.players[2]!.hand;
   game.discard(2, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(2, 'Herc');
-  game.follow(1, 'DODJEM');
   game.follow(0, 'DODJEM');
-  game.moze(1);
+  game.follow(1, 'DODJEM');
   game.moze(0);
+  game.moze(1);
   assert.equal(game.state.phase, 'PLAYING');
 
   game.state.players[2]!.tricksWon = 7; // nosilac prolazi
@@ -131,10 +131,10 @@ test('refe: raspoloziva refa se NE TROSI (ostaje blokirana) dok je BILO KO u se�
   const hand = game.state.players[2]!.hand;
   game.discard(2, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(2, 'Herc');
-  game.follow(1, 'DODJEM');
   game.follow(0, 'DODJEM');
-  game.moze(1);
+  game.follow(1, 'DODJEM');
   game.moze(0);
+  game.moze(1);
   game.state.players[2]!.tricksWon = 7; // nosilac prolazi
   const bulaP2Before = game.state.bulas[2];
   const result = game.endHand();
@@ -160,10 +160,10 @@ test('refe: igrač koji zadrži raspoloživu refu je troši KASNIJE kad on ličn
   let hand = game.state.players[2]!.hand;
   game.discard(2, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(2, 'Herc');
-  game.follow(1, 'DODJEM');
   game.follow(0, 'DODJEM');
-  game.moze(1);
+  game.follow(1, 'DODJEM');
   game.moze(0);
+  game.moze(1);
   game.endHand();
   assert.equal(game.state.refePending.join(','), '1,1,0');
 
@@ -176,8 +176,8 @@ test('refe: igrač koji zadrži raspoloživu refu je troši KASNIJE kad on ličn
   hand = game.state.players[0]!.hand;
   game.discard(0, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(0, 'Herc');
-  game.follow(2, 'DODJEM');
   game.follow(1, 'DODJEM');
+  game.follow(2, 'DODJEM');
   game.moze(1);
   game.moze(2);
   game.state.players[0]!.tricksWon = 7;
@@ -210,12 +210,12 @@ test('refe: Pik bez kontre + neko u šeširu → regularan prolaz bez igranja, b
   const hand = game.state.players[1]!.hand;
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Pik');
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'DODJEM');
   assert.equal(game.state.phase, 'KONTRA_DECLARING');
   const bulasBefore = [...game.state.bulas];
-  game.moze(0);
   game.moze(2);
+  game.moze(0);
   // Ide direktno u GAME_OVER bez igranja karata — regularan prolaz, bez množenja
   assert.equal(game.state.phase, 'GAME_OVER');
   assert.equal(game.state.bulas[1], bulasBefore[1]! - 2 * 2);
@@ -232,13 +232,13 @@ test('refe: Pik bez kontre + nosilac ima slobodnu refu → dodela SVA TRI igrač
   const hand = game.state.players[1]!.hand;
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Pik');
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'DODJEM');
   // Simuliraj "stale" lastHandResult od neke ranije, stvarno odigrane ruke —
   // ponistena ruka NE sme ostaviti ovo netaknuto (fuzz-otkriven bag).
   game.state.lastHandResult = { bulas: [90, 100, 110], supeDelta: [0, 0, 0], passed: true, winner: 0, winnerGame: 'Karo', kontraLevel: null, refeConsumed: null, refeActive: false, bulasAfter: [90, 100, 110] };
-  game.moze(0);
   game.moze(2);
+  game.moze(0);
   // Refa se okida (isti mehanizam kao "svi kazu dalje"), nova ruka, bule
   // nepromenjene, ALI dodela ide SVA TRI igraca, ne samo nosioca ove ruke.
   assert.equal(game.state.phase, 'BIDDING');
@@ -256,12 +256,12 @@ test('refe: Pik bez kontre, nosilac bez slobodnog budžeta, niko u šeširu → 
   const hand = game.state.players[1]!.hand;
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Pik');
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'DODJEM');
   const bulasBefore = [...game.state.bulas];
   game.state.lastHandResult = { bulas: [90, 100, 110], supeDelta: [0, 0, 0], passed: true, winner: 0, winnerGame: 'Karo', kontraLevel: null, refeConsumed: null, refeActive: false, bulasAfter: [90, 100, 110] };
-  game.moze(0);
   game.moze(2);
+  game.moze(0);
   assert.equal(game.state.phase, 'BIDDING'); // nova ruka
   assert.equal(game.state.refeCount.join(','), '0,0,0');
   assert.equal(game.state.refePending.join(','), '0,0,0', 'refePerPlayer=0 -> niko nema budzeta, nema dodele');
@@ -289,8 +289,8 @@ test('refe: NIKO NE PRATI (RULES 5.4) prati istu tri-granu logiku kao Pik bez ko
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Pik');
   const bulasBefore = [...game.state.bulas];
-  game.follow(0, 'NE_DODJEM');
   game.follow(2, 'NE_DODJEM');
+  game.follow(0, 'NE_DODJEM');
 
   assert.equal(game.state.phase, 'BIDDING', 'ruka se ponistava, NE GAME_OVER');
   assert.deepEqual(game.state.bulas, bulasBefore, 'bule NEPROMENJENE — nema automatskog pada bez seširam');
@@ -318,8 +318,8 @@ test('refe: NIKO NE PRATI, nosilac VEC ima raspolozivu refu iz ranije — dodatn
   game.discard(2, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(2, 'Pik');
   const bulasBefore = [...game.state.bulas];
-  game.follow(1, 'NE_DODJEM');
   game.follow(0, 'NE_DODJEM');
+  game.follow(1, 'NE_DODJEM');
 
   assert.equal(game.state.phase, 'BIDDING', 'opet se samo ponistava');
   assert.deepEqual(game.state.bulas, bulasBefore, 'bule i dalje nepromenjene');
@@ -337,8 +337,8 @@ test('refe: NIKO NE PRATI, nosilac na budzetskom maksimumu — ruka se prosto po
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Pik');
   const bulasBefore = [...game.state.bulas];
-  game.follow(0, 'NE_DODJEM');
   game.follow(2, 'NE_DODJEM');
+  game.follow(0, 'NE_DODJEM');
 
   assert.equal(game.state.phase, 'BIDDING');
   assert.deepEqual(game.state.bulas, bulasBefore);

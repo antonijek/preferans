@@ -140,8 +140,8 @@ test('e2e: oba pratioca "Ne dodjem" na NE-PIK igri — nosilac automatski dobija
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Karo'); // vrednost 3
   const bulasBefore = [...game.state.bulas];
-  game.follow(0, 'NE_DODJEM');
   game.follow(2, 'NE_DODJEM');
+  game.follow(0, 'NE_DODJEM');
   // Partija se ne igra — direktno GAME_OVER, nosilac se spusta za igra*2
   assert.equal(game.state.phase, 'GAME_OVER');
   assert.equal(game.state.bulas[1], bulasBefore[1]! - 3 * 2);
@@ -159,8 +159,8 @@ test('e2e: oba pratioca "Ne dodjem" na NE-PIK igri, nosilac NEMA raspolozivu ref
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Karo');
   const bulasBefore = [...game.state.bulas];
-  game.follow(0, 'NE_DODJEM');
   game.follow(2, 'NE_DODJEM');
+  game.follow(0, 'NE_DODJEM');
   // Karo (ne Pik) -> prost prolaz -igra*2, NEMA novog trigerovanja refe.
   assert.equal(game.state.phase, 'GAME_OVER');
   assert.equal(game.state.bulas[1], bulasBefore[1]! - GAME_VALUES['Karo'] * 2, 'BEZ mnozenja refeom');
@@ -186,8 +186,8 @@ test('e2e: oba pratioca "Ne dodjem" na NE-PIK igri, nosilac VEC ima raspolozivu 
   game.discard(2, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(2, 'Karo');
   const bulasBefore = [...game.state.bulas];
-  game.follow(1, 'NE_DODJEM');
   game.follow(0, 'NE_DODJEM');
+  game.follow(1, 'NE_DODJEM');
   assert.equal(game.state.phase, 'GAME_OVER');
   assert.equal(game.state.bulas[2], bulasBefore[2]! - GAME_VALUES['Karo'] * 2 * 2, 'DUPLIRANO — P2 je vec imao raspolozivu refu');
   assert.equal(game.state.refePending.join(','), '1,1,0', 'P2 trosi SVOJU vec dodeljenu refu; P0/P1 zadrzavaju svoju');
@@ -355,8 +355,8 @@ test('e2e: Betl — svi automatski prate, prelaz u KONTRA_DECLARING', () => {
   assert.equal(game.state.trump, null);
   assert.deepEqual(game.state.followChoices, ['DODJEM', 'DODJEM', 'DODJEM']);
   // Bez kontre — oba pratioca Moze, ide u PLAYING
-  game.moze(0);
   game.moze(2);
+  game.moze(0);
   assert.equal(game.state.phase, 'PLAYING');
 });
 
@@ -398,8 +398,8 @@ test('e2e: pozvani igrač (RULES 5.3) — supe pozivaoca racunaju SABRANE stihov
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Herc'); // vrednost 4, bula vrednost 8
   // P0 NE DODJE, P2 DODJE i zove P0
-  game.follow(0, 'NE_DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'NE_DODJEM');
   const called = game.call(2, 0);
   assert.equal(called, true);
   assert.equal(game.state.caller, 2);
@@ -437,8 +437,8 @@ test('e2e: pozivalac+pozvani ZAJEDNO ispod praga od 4 — pozivalac RASTE za CEO
   const hand = game.state.players[1]!.hand;
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Herc'); // vrednost 4, bula vrednost 8
-  game.follow(0, 'NE_DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'NE_DODJEM');
   const called = game.call(2, 0);
   assert.equal(called, true);
   if (game.state.phase === 'KONTRA_DECLARING') game.moze(2);
@@ -467,8 +467,8 @@ test('e2e: pozivalac+pozvani ZAJEDNO TACNO 4 stiha — prolaze, NEMA promenu bul
   const hand = game.state.players[1]!.hand;
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Tref'); // vrednost 5, bula vrednost 10
-  game.follow(0, 'NE_DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'NE_DODJEM');
   const called = game.call(2, 0);
   assert.equal(called, true);
   if (game.state.phase === 'KONTRA_DECLARING') game.moze(2);
@@ -498,8 +498,8 @@ test('e2e: pozvani "Ne dodjem" igrac NE SME dati kontru — samo onaj ko je STVA
   const hand = game.state.players[1]!.hand;
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Herc');
-  game.follow(0, 'DODJEM');
   game.follow(2, 'NE_DODJEM');
+  game.follow(0, 'DODJEM');
   // P0 (DODJEM) zove P2 (NE_DODJEM) kao partnera — "Zovem X"
   const called = game.call(0, 2);
   assert.equal(called, true);
@@ -534,30 +534,30 @@ test('e2e: kontras koji POBEDI (obori nosioca) NEMA promenu bule — samo supe (
   const hand = game.state.players[1]!.hand;
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Herc'); // vrednost 4, bula vrednost 8
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'DODJEM');
   assert.equal(game.state.phase, 'KONTRA_DECLARING');
-  game.kontra(0, 'KONTRA'); // P0 daje kontru
+  game.kontra(2, 'KONTRA'); // P2 (desni od nosioca) daje kontru
   game.moze(1); // nosilac prihvata (bez rekontre)
   assert.equal(game.state.phase, 'PLAYING');
 
-  // Nosilac(P1) PADA sa 3 stiha (Herc trazi 6). P0(kontras) 4, P2 samo 1 —
+  // Nosilac(P1) PADA sa 3 stiha (Herc trazi 6). P2(kontras) 4, P0 samo 1 —
   // ZAJEDNO odbrana ima TACNO 5 (invarijanta automatskog prekida runde), sto
   // je NAMERNO razlicito od nosiočevih stihova (3), da razdvoji staru
   // (pogresnu) formulu koristi nosiočeve stihove od tacne koja koristi
   // ZBIR odbrane. Vrednosti po REFERENTNI_PRIMERI.md rundi #11: "5 x 8 x 2
   // = 80" gde je 5 = odbrambeni stihovi ZAJEDNO, ne nosiočevi.
   game.state.players[1]!.tricksWon = 3;
-  game.state.players[0]!.tricksWon = 4;
-  game.state.players[2]!.tricksWon = 1;
+  game.state.players[2]!.tricksWon = 4;
+  game.state.players[0]!.tricksWon = 1;
   const result = game.endHand();
 
   assert.equal(result.passed, false, 'nosilac je pao (3 < 6)');
   assert.equal(result.bulas[1], 100 + 16, 'nosilac dize se 16 (Herc 8 * kontra 2)');
-  assert.equal(result.bulas[0], 100, 'kontras POBEDIO — bula NEPROMENJENA (samo supe)');
-  assert.equal(result.bulas[2], 100, 'ne-kontras pratilac — bez promene bule i bez supe');
-  assert.equal(result.supeDelta[0], 80, 'kontras supe = ODBRANA ZAJEDNO(4+1=5) * 4 * 2 * kontra(2), RULES runda #11');
-  assert.equal(result.supeDelta[2], 0, 'ne-kontras pratilac ne upisuje supe');
+  assert.equal(result.bulas[2], 100, 'kontras POBEDIO — bula NEPROMENJENA (samo supe)');
+  assert.equal(result.bulas[0], 100, 'ne-kontras pratilac — bez promene bule i bez supe');
+  assert.equal(result.supeDelta[2], 80, 'kontras supe = ODBRANA ZAJEDNO(4+1=5) * 4 * 2 * kontra(2), RULES runda #11');
+  assert.equal(result.supeDelta[0], 0, 'ne-kontras pratilac ne upisuje supe');
 });
 
 test('e2e: nezavisni pratioci (bez poziva) — minimum 2 štiha za prolaz, ostatak PADA za CEO iznos (RULES 5.2)', () => {
@@ -572,11 +572,11 @@ test('e2e: nezavisni pratioci (bez poziva) — minimum 2 štiha za prolaz, ostat
   const hand = game.state.players[1]!.hand;
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Herc'); // vrednost 4, bula vrednost 8
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'DODJEM');
   assert.equal(game.state.phase, 'KONTRA_DECLARING');
-  game.moze(0);
   game.moze(2);
+  game.moze(0);
   assert.equal(game.state.phase, 'PLAYING');
 
   // Simuliraj ishod runde #2/#8: nosilac(P1) 6, P0 3, P2 1
@@ -605,10 +605,10 @@ test('e2e: nezavisni pratioci — oba tacno na 2 stiha, OBA prolaze bez promene 
   const hand = game.state.players[1]!.hand;
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Herc');
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
-  game.moze(0);
+  game.follow(0, 'DODJEM');
   game.moze(2);
+  game.moze(0);
 
   game.state.players[1]!.tricksWon = 6;
   game.state.players[0]!.tricksWon = 2;
@@ -635,8 +635,8 @@ test('e2e: nezavisni pratioci — ako OBA padnu (<2 stiha), OBA se podizu za CEO
   const hand = game.state.players[0]!.hand;
   game.discard(0, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(0, 'Tref'); // vrednost 5, bula vrednost 10
-  game.follow(2, 'DODJEM');
   game.follow(1, 'DODJEM');
+  game.follow(2, 'DODJEM');
   if (game.state.phase === 'KONTRA_DECLARING') {
     const first = game.expectedKontraPlayerPublic()!;
     game.moze(first);
@@ -675,8 +675,8 @@ test('e2e: nezavisni pratioci — nosilac PAO bez kontre — pratioci NIKAD ne d
   const hand = game.state.players[0]!.hand;
   game.discard(0, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(0, 'Karo'); // vrednost 3, bula vrednost 6
-  game.follow(2, 'DODJEM');
   game.follow(1, 'DODJEM');
+  game.follow(2, 'DODJEM');
   if (game.state.phase === 'KONTRA_DECLARING') {
     const first = game.expectedKontraPlayerPublic()!;
     game.moze(first);
@@ -727,19 +727,19 @@ test('e2e: Kontra tok — KONTRA → REKONTRA → SUBKONTRA → MORTKONTRA', () 
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Tref');
   // Oba pratioca "Dodjem"
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'DODJEM');
   // Faza KONTRA_DECLARING
   assert.equal(game.state.phase, 'KONTRA_DECLARING');
-  // P0 daje kontru
-  assert.equal(game.expectedKontraPlayerPublic(), 0);
-  game.kontra(0, 'KONTRA');
+  // P2 (desni od nosioca) daje kontru
+  assert.equal(game.expectedKontraPlayerPublic(), 2);
+  game.kontra(2, 'KONTRA');
   assert.equal(game.state.kontraLevel, 'KONTRA');
   // P1 (nosilac) daje rekontru
   game.kontra(1, 'REKONTRA');
   assert.equal(game.state.kontraLevel, 'REKONTRA');
-  // P0 daje subkontru
-  game.kontra(0, 'SUBKONTRA');
+  // P2 daje subkontru
+  game.kontra(2, 'SUBKONTRA');
   assert.equal(game.state.kontraLevel, 'SUBKONTRA');
   // P1 daje mortkontru
   game.kontra(1, 'MORTKONTRA');
@@ -761,30 +761,30 @@ test('e2e: Mortkontra, nosilac ipak PROŠAO — kontraš dobija supe na ZAJEDNI�
   const hand = game.state.players[1]!.hand;
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Tref'); // vrednost 5
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'DODJEM');
   assert.equal(game.state.phase, 'KONTRA_DECLARING');
-  game.kontra(0, 'KONTRA'); // P0 = kontraš
+  game.kontra(2, 'KONTRA'); // P2 (desni od nosioca) = kontraš
   game.kontra(1, 'REKONTRA');
-  game.kontra(0, 'SUBKONTRA');
+  game.kontra(2, 'SUBKONTRA');
   game.kontra(1, 'MORTKONTRA');
   assert.equal(game.state.phase, 'PLAYING');
 
   // Nosilac (P1) uzima 8 stihova (>= 6 potrebnih za Tref) -> PROLAZI.
-  // Odbrana ZAJEDNO uzima 2 (P0 kontraš uzeo 0 licno, P2 uzeo 2).
+  // Odbrana ZAJEDNO uzima 2 (P2 kontraš uzeo 0 licno, P0 uzeo 2).
   game.state.players[1]!.tricksWon = 8;
-  game.state.players[0]!.tricksWon = 0;
-  game.state.players[2]!.tricksWon = 2;
+  game.state.players[2]!.tricksWon = 0;
+  game.state.players[0]!.tricksWon = 2;
   const bulasBefore = [...game.state.bulas];
   const result = game.endHand();
 
   assert.equal(result.passed, true, 'nosilac prosao (8 >= 6)');
   assert.equal(result.bulas[1], bulasBefore[1]! - 5 * 2 * 16, 'nosilac se spusta za igra*2*mortkontra');
-  assert.equal(result.bulas[0], bulasBefore[0]! + 5 * 2 * 16, 'kontras (izgubio opkladu) raste za isti iznos');
-  assert.equal(result.bulas[2], bulasBefore[2]!, 'drugi pratilac (ne-kontras) NEMA promenu bule (RULES 6.3)');
+  assert.equal(result.bulas[2], bulasBefore[2]! + 5 * 2 * 16, 'kontras (izgubio opkladu) raste za isti iznos');
+  assert.equal(result.bulas[0], bulasBefore[0]!, 'drugi pratilac (ne-kontras) NEMA promenu bule (RULES 6.3)');
   // Supa: ZAJEDNICKI stihovi odbrane (0+2=2) * Tref(5) * 2 * mortkontra(16)
-  assert.equal(result.supeDelta[0], 2 * 5 * 2 * 16, 'kontras dobija supu na ZAJEDNICKE stihove odbrane (2), ne samo svoje (0)');
-  assert.equal(result.supeDelta[2], 0, 'drugi pratilac ne upisuje supe (RULES 6.3 — sve ide kontrasu)');
+  assert.equal(result.supeDelta[2], 2 * 5 * 2 * 16, 'kontras dobija supu na ZAJEDNICKE stihove odbrane (2), ne samo svoje (0)');
+  assert.equal(result.supeDelta[0], 0, 'drugi pratilac ne upisuje supe (RULES 6.3 — sve ide kontrasu)');
 });
 
 test('e2e: Kontra + Moze — samo KONTRA data, nosilac Moze', () => {
@@ -796,10 +796,10 @@ test('e2e: Kontra + Moze — samo KONTRA data, nosilac Moze', () => {
   const hand = game.state.players[1]!.hand;
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Tref');
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
-  // P0 kontra
-  game.kontra(0, 'KONTRA');
+  game.follow(0, 'DODJEM');
+  // P2 (desni od nosioca) kontra
+  game.kontra(2, 'KONTRA');
   // P1 moze
   game.moze(1);
   // Kraj kontra faze, PLAYING
@@ -816,12 +816,12 @@ test('e2e: Kontra — svi kažu Moze, nema kontre', () => {
   const hand = game.state.players[1]!.hand;
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Tref');
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'DODJEM');
+  // P2 (desni) moze
+  game.moze(2);
   // P0 moze
   game.moze(0);
-  // P2 moze
-  game.moze(2);
   // Bez kontre, PLAYING
   assert.equal(game.state.phase, 'PLAYING');
   assert.equal(game.state.kontraLevel, null);
@@ -845,8 +845,8 @@ test('e2e: solo pratilac (bez poziva) NE sme dati kontru — engine sam preskace
   const hand = game.state.players[1]!.hand;
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Tref');
-  game.follow(0, 'NE_DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'NE_DODJEM');
   game.continueWithoutCall();
   assert.equal(game.state.phase, 'PLAYING', 'ide pravo u PLAYING, ne staje na KONTRA_DECLARING');
   assert.equal(game.state.kontraLevel, null, 'kontra nikad nije data');
@@ -867,8 +867,8 @@ test('e2e: solo pratilac (bez poziva) SME dati kontru ako je dosao POZIVOM (call
   const hand = game.state.players[1]!.hand;
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Tref');
-  game.follow(0, 'NE_DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'NE_DODJEM');
   game.call(2, 0);
   assert.equal(game.state.phase, 'KONTRA_DECLARING');
   assert.equal(game.kontra(2, 'KONTRA'), true, 'pozvani partner ne menja pravo na kontru pozivaoca');
@@ -911,8 +911,8 @@ test('e2e: Betl pad (bez kontre) — pratioci NEMAJU promenu bule, samo fiksne s
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Betl');
   assert.equal(game.state.phase, 'KONTRA_DECLARING');
-  game.moze(0);
   game.moze(2);
+  game.moze(0);
   assert.equal(game.state.phase, 'PLAYING');
 
   // Nosilac(P1) PADA — uzeo 1+ stih u Betlu
@@ -940,7 +940,7 @@ test('e2e: Betl — kontra JE dozvoljena (RULES 6.9)', () => {
   game.declareGame(1, 'Betl');
   // Svi auto-prate (RULES 5.1), ali kontra ostaje moguca (RULES 6.9)
   assert.equal(game.state.phase, 'KONTRA_DECLARING');
-  const ok = game.kontra(0, 'KONTRA');
+  const ok = game.kontra(2, 'KONTRA'); // P2 (desni od nosioca)
   assert.equal(ok, true);
   assert.equal(game.state.kontraLevel, 'KONTRA');
 });
@@ -956,11 +956,11 @@ test('e2e: Sans — kontra JE dozvoljena (RULES 6.9)', () => {
   game.declareGame(1, 'Sans');
   // Faza FOLLOW_DECLARING (Sans nema auto-pracenje, ali ima kontru)
   assert.equal(game.state.phase, 'FOLLOW_DECLARING');
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'DODJEM');
   // Posle praćenja, KONTRA_DECLARING (RULES 6.9)
   assert.equal(game.state.phase, 'KONTRA_DECLARING');
-  const ok = game.kontra(0, 'KONTRA');
+  const ok = game.kontra(2, 'KONTRA'); // P2 (desni od nosioca)
   assert.equal(ok, true);
 });
 
@@ -996,12 +996,12 @@ test('e2e: Sans — prvi igrač je onaj NEPOSREDNO PRE nosioca u redosledu bacan
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Sans');
   assert.equal(game.state.winner, 1);
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'DODJEM');
   assert.equal(game.state.phase, 'KONTRA_DECLARING');
   // Niko ne da kontru — obojica kazu "Moze" da se predje na PLAYING.
-  game.moze(0);
   game.moze(2);
+  game.moze(0);
   assert.equal(game.state.phase, 'PLAYING');
   // Redosled bacanja: Jug(0)->Istok(1)->Zapad(2)->Jug (potvrdjeno uzivo od
   // korisnika). Nosilac (winner=1=Istok) — onaj neposredno PRE njega u tom
@@ -1028,8 +1028,8 @@ test('e2e: Sans — kad pratilac NEPOSREDNO PRE nosioca ne igra, nosilac NIKAD n
   game.declareGame(1, 'Sans');
   assert.equal(game.state.winner, 1); // Istok nosilac
   // beforeWinner = (1+2)%3 = 0 (Jug) — NE dolazi. afterWinner = 2 (Zapad) — dolazi sam, bez poziva.
-  game.follow(0, 'NE_DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'NE_DODJEM');
   game.continueWithoutCall();
   // Solo-bez-poziva — engine sam preskace KONTRA_DECLARING (2026-09-20, vidi
   // startKontraDeclaring()), ide pravo u PLAYING.
@@ -1047,7 +1047,7 @@ test('e2e: Betl — kontra: OBA pratioca upisuju fiksne supe, ne samo kontraš (
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Betl');
   assert.equal(game.state.phase, 'KONTRA_DECLARING');
-  game.kontra(0, 'KONTRA');
+  game.kontra(2, 'KONTRA'); // P2 (desni od nosioca)
   game.moze(1); // nosilac ne die rekontru
   assert.equal(game.state.phase, 'PLAYING');
 
@@ -1058,9 +1058,9 @@ test('e2e: Betl — kontra: OBA pratioca upisuju fiksne supe, ne samo kontraš (
   const result = game.endHand();
 
   assert.equal(result.passed, false, 'nosilac pao');
-  // Fiksnih 60 × kontra(2) = 120, za OBA pratioca — ne samo za P0 (kontraš).
-  assert.equal(result.supeDelta[0], 120, 'kontraš (P0) upisuje 120 supe');
-  assert.equal(result.supeDelta[2], 120, 'drugi pratilac (P2) TAKOĐE upisuje 120 supe u Betlu — RULES 9.4.1 je izuzetak od opšteg "samo kontraš upisuje" pravila (9.4/6.3)');
+  // Fiksnih 60 × kontra(2) = 120, za OBA pratioca — ne samo za P2 (kontraš).
+  assert.equal(result.supeDelta[2], 120, 'kontraš (P2) upisuje 120 supe');
+  assert.equal(result.supeDelta[0], 120, 'drugi pratilac (P0) TAKOĐE upisuje 120 supe u Betlu — RULES 9.4.1 je izuzetak od opšteg "samo kontraš upisuje" pravila (9.4/6.3)');
 });
 
 test('e2e: Kompletna partija sa igrama do kraja', () => {
@@ -1072,12 +1072,12 @@ test('e2e: Kompletna partija sa igrama do kraja', () => {
   const hand = game.state.players[1]!.hand;
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Tref');
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'DODJEM');
   // KONTRA_DECLARING — oba kažu Moze
   assert.equal(game.state.phase, 'KONTRA_DECLARING');
-  game.moze(0);
   game.moze(2);
+  game.moze(0);
   // Igraj 10 štihova
   assert.equal(game.state.phase, 'PLAYING');
   while (game.state.phase === 'PLAYING') {
@@ -1138,11 +1138,11 @@ test('e2e: currentPlayer određen ispravno posle declareGame', () => {
   const hand = game.state.players[1]!.hand;
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Herc');
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(0, 'DODJEM');
   // KONTRA_DECLARING — oba Moze
-  game.moze(0);
   game.moze(2);
+  game.moze(0);
   assert.equal(game.state.phase, 'PLAYING');
   // Po RULES.md, prvi igra onaj koji je prvi licitirao (bidStartPlayer)
   assert.equal(game.state.currentPlayer, 1);
@@ -1157,10 +1157,10 @@ test('e2e: runda se automatski prekida cim je nosilac IZVESTNO pao (5. protivnic
   const hand = game.state.players[1]!.hand;
   game.discard(1, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(1, 'Tref'); // adut ♣, potrebno 6/10 za prolaz
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
-  game.moze(0);
+  game.follow(0, 'DODJEM');
   game.moze(2);
+  game.moze(0);
   assert.equal(game.state.phase, 'PLAYING');
 
   // Simuliraj da su vec odigrana 4 stiha: nosilac (1) 0, pratioci (0,2) po 2.

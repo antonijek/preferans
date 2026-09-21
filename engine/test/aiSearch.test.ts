@@ -103,10 +103,10 @@ test('determinize: dokazano prazan igrac nikad ne dobije tu boju u uzorku', () =
   // Namerno NE Pik — "Pik bez kontre" (RULES 7.1.1) redealuje/dodeljuje refu
   // umesto da predje u PLAYING, sto ovom testu ne treba.
   game.declareGame(1, 'Karo');
-  game.follow(0, 'DODJEM');
   game.follow(2, 'DODJEM');
-  game.moze(0);
+  game.follow(0, 'DODJEM');
   game.moze(2);
+  game.moze(0);
   assert.equal(game.state.phase, 'PLAYING');
 
   // Rucno konstruisi JEDAN stih uzimajuci STVARNE karte iz stvarnih ruku
