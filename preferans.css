@@ -816,18 +816,59 @@
   .section-title {
     font-family: 'Cinzel', serif; font-size: 1.3em; font-weight: 700;
     text-align: center; margin-bottom: 22px; color: #e8f5e9;
+    position: relative; padding-bottom: 12px;
+  }
+  /* Korisnikov zahtev (2026-09-21): "celu home page popraviti" — mali zlatni
+     razdelnik ispod svakog naslova sekcije, da stranica deluje zavrsenije
+     umesto da naslovi samo "lebde" bez ikakvog vizuelnog zakljucka. */
+  .section-title::after {
+    content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 48px; height: 3px; border-radius: 2px;
+    background: linear-gradient(90deg, transparent 0%, var(--gold-bright) 50%, transparent 100%);
+    opacity: 0.6;
   }
   .home-features-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px;
   }
+  /* Korisnikov zahtev (2026-09-21): kartice na pocetnoj su delovale "bled" —
+     ravne, bez hover/klik reakcije. Dodat suptilan lift+glow na hover svima
+     (i onima koje nisu linkovi — cisto ziva, "dodirljiva" povrsina), i
+     transition da se to oseca glatko umesto naglo. */
   .feature-card {
     background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: 14px; padding: 20px 16px; text-align: center;
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  }
+  .feature-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(76,175,80,0.45);
+    background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 100%);
+    box-shadow: 0 8px 22px rgba(0,0,0,0.35);
   }
   .feature-icon { font-size: 1.8em; margin-bottom: 8px; }
   .feature-card h3 { font-family: 'Cinzel', serif; font-size: 1.05em; margin-bottom: 6px; }
   .feature-card p { color: rgba(255,255,255,0.65); font-size: 0.88em; line-height: 1.5; }
+
+  /* Pravila kartica je jedina koja je STVARNO link ka drugoj stranici — sad
+     dobija sopstveni zlatni akcent (uskladjen sa 📖 ikonom i opstom zlatnom
+     temom tabele/dugmadi) da se jasno vidi kao "otvori me", i UVECAVA se na
+     klik (korisnikov izricit zahtev — suprotno od uobicajenog :active
+     smanjenja na .mode-btn dugmadima, ovde je namerno "uvecaj" da se oseti
+     kao otvaranje). */
+  .feature-card-rules {
+    border-color: rgba(var(--gold-rgb),0.35);
+    background: linear-gradient(180deg, rgba(212,169,79,0.14) 0%, rgba(212,169,79,0.05) 100%);
+    cursor: pointer;
+  }
+  .feature-card-rules:hover {
+    transform: translateY(-4px) scale(1.02);
+    border-color: var(--gold-bright);
+    background: linear-gradient(180deg, rgba(212,169,79,0.22) 0%, rgba(212,169,79,0.08) 100%);
+    box-shadow: 0 10px 26px rgba(0,0,0,0.4), 0 0 0 1px rgba(var(--gold-rgb),0.2);
+  }
+  .feature-card-rules:active { transform: translateY(-2px) scale(1.06); }
+  .feature-card-rules .feature-icon { color: var(--gold-bright); }
 
   /* === Soba kao PRAVA stranica (isti obrazac kao pozdravni ekran gore) === */
   .room-hero {
@@ -898,6 +939,12 @@
     display: flex; align-items: center; gap: 10px;
     background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
     border-radius: 10px; padding: 10px 12px;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+  .online-user-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(76,175,80,0.4);
+    background: rgba(255,255,255,0.09);
   }
   .avatar-circle {
     width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
