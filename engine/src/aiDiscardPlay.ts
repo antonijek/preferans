@@ -290,6 +290,34 @@ export function choosePlayCard(args: {
       highestInTrick.player !== declarer &&
       highestInTrick.player !== myPosition;
 
+    // Cuvanje "stopera" za kasnije (korisnikova uzivo zapazena taktika,
+    // runda 9, 2026-09-21: nosilac vodi J karo, pratilac drzi D karo ali je
+    // NE igra jer zna da ce partner — vec pokazan bez karo — seci adutom;
+    // cuva Damu za SLEDECI karo koji nosilac povede, kad partner mozda vise
+    // nece imati adut). Razlikuje se od teammateIsWinning gore (koji gleda
+    // SAMO trenutno vec odigrane karte u ovom stihu) — ovde partner JOS
+    // NIJE odigrao u ovom stihu, ali njegov teren je vec poznat (pokazao je
+    // ranije da je bez ove boje). Pošto ova funkcija nize (grana "Moram
+    // adut") uvek NAMECE partneru da sece kad je bez boje i drzi adut, isti
+    // ishod je izvestan i ovde — trošenje jake karte sad je uzaludno cim
+    // partner sigurno presece bez obzira sta ja odigram.
+    const teammate = !isDeclarer && myPosition != null && declarer != null
+      ? ([0, 1, 2] as Position[]).find(p => p !== myPosition && p !== declarer)
+      : undefined;
+    let teammateWillCertainlyRuff = false;
+    if (teammate !== undefined && !isTrumpHighest && !currentTrick.some(tc => tc.player === teammate)) {
+      let teammateVoidInLead = false;
+      let teammateVoidInTrump = false;
+      for (const trick of tricks) {
+        const ledSuit = trick[0]?.card.suit;
+        const play = trick.find(tc => tc.player === teammate);
+        if (!ledSuit || !play) continue;
+        if (ledSuit === leadSuit && play.card.suit !== leadSuit) teammateVoidInLead = true;
+        if (trump && ledSuit === trump && play.card.suit !== trump) teammateVoidInTrump = true;
+      }
+      teammateWillCertainlyRuff = teammateVoidInLead && !teammateVoidInTrump;
+    }
+
     if (avoidTricks) {
       // Betl (nema aduta) — samo pratim boju. Bacaj NAJVEĆU kartu koja i
       // dalje gubi; ako sve moje karte u boji pobeđuju, primoran sam —
@@ -307,7 +335,7 @@ export function choosePlayCard(args: {
       if (myTrumps.length > 0) {
         return myTrumps.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
       }
-    } else if (!teammateIsWinning) {
+    } else if (!teammateIsWinning && !teammateWillCertainlyRuff) {
       // Pobednik je u lead boji (nosilac, ili nepoznato) — pokušaj pobediti
       const winners = sameSuit.filter(c => RANK_VALUE[c.rank] > RANK_VALUE[highestInTrick.card.rank]);
       if (winners.length > 0) {
@@ -385,6 +413,40 @@ export function choosePlayCard(args: {
   // umesto toga).
   const nonHonor = legal.filter(c => c.rank !== 'A' && c.rank !== 'K');
   const pool = nonHonor.length > 0 ? nonHonor : legal;
+  // Odbacivanje viska iz nosiočeve VEC POZNATE prazne boje (korisnikova
+  // uzivo zapazena taktika, runda 11, 2026-09-21): "kad vidis da nosilac
+  // nema jednu boju, znas sta mozes da skartas na njegove adute kasnije,
+  // ali ne sve da bi opet imao da mu odigras kad bude tvoja ruka." Boja u
+  // kojoj je nosilac vec pokazao void je odlicno oruzje za buduce vodjenje
+  // (primorava ga da sece — ista logika kao napad-na-adute-nosioca gore u
+  // ovoj funkciji), pa je odbacivanje VISKA iz te boje bezopasno (jedna
+  // karta je dovoljna da se napad kasnije ponovi), dok bi trosenje neke
+  // DRUGE boje moglo da ostavi bez ikakve karte za vodjenje kad se stih
+  // konacno osvoji. Zadrzi BAR JEDNU — nikad ne prazni celu tu boju ovde.
+  if (!isDeclarer && declarer != null && tricks.length > 0) {
+    const declarerVoidSuits = new Set<Suit>();
+    for (const trick of tricks) {
+      const ledSuit = trick[0]?.card.suit;
+      if (!ledSuit || ledSuit === trump) continue;
+      const declarerPlay = trick.find(tc => tc.player === declarer);
+      if (declarerPlay && declarerPlay.card.suit !== ledSuit) {
+        declarerVoidSuits.add(ledSuit);
+      }
+    }
+    if (declarerVoidSuits.size > 0) {
+      const countInHand = new Map<Suit, number>();
+      for (const c of hand) countInHand.set(c.suit, (countInHand.get(c.suit) ?? 0) + 1);
+      const surplus = pool.filter(c => declarerVoidSuits.has(c.suit) && (countInHand.get(c.suit) ?? 0) > 1);
+      if (surplus.length > 0) {
+        return surplus.sort((a, b) => {
+          const pa = CARD_POINTS[a.rank] ?? 0;
+          const pb = CARD_POINTS[b.rank] ?? 0;
+          if (pa !== pb) return pa - pb;
+          return RANK_VALUE[a.rank] - RANK_VALUE[b.rank];
+        })[0]!;
+      }
+    }
+  }
   return pool.sort((a, b) => {
     const pa = CARD_POINTS[a.rank] ?? 0;
     const pb = CARD_POINTS[b.rank] ?? 0;
