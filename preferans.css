@@ -861,24 +861,26 @@
   .feature-card p { color: rgba(255,255,255,0.65); font-size: 0.88em; line-height: 1.5; }
 
   /* Pravila kartica je jedina koja je STVARNO link ka drugoj stranici — sad
-     dobija sopstveni zlatni akcent (uskladjen sa 📖 ikonom i opstom zlatnom
-     temom tabele/dugmadi) da se jasno vidi kao "otvori me", i UVECAVA se na
-     klik (korisnikov izricit zahtev — suprotno od uobicajenog :active
-     smanjenja na .mode-btn dugmadima, ovde je namerno "uvecaj" da se oseti
-     kao otvaranje). */
+     dobija isticanje da se jasno vidi kao "otvori me", i UVECAVA se na klik
+     (korisnikov izricit zahtev — suprotno od uobicajenog :active smanjenja
+     na .mode-btn dugmadima, ovde je namerno "uvecaj" da se oseti kao
+     otvaranje). POPRAVKA (korisnikov zahtev 2026-09-21): prva verzija je
+     koristila zlatni akcent — na tamnoj zelenoj pozadini je ispalo
+     mutno-braon i delovalo "van teme". Ista zelena kao ostali primarni/
+     istaknuti elementi (.mode-btn.primary), ne nova boja. */
   .feature-card-rules {
-    border-color: rgba(var(--gold-rgb),0.35);
-    background: linear-gradient(180deg, rgba(212,169,79,0.14) 0%, rgba(212,169,79,0.05) 100%);
+    border-color: rgba(76,175,80,0.35);
+    background: linear-gradient(180deg, rgba(76,175,80,0.16) 0%, rgba(76,175,80,0.05) 100%);
     cursor: pointer;
   }
   .feature-card-rules:hover {
     transform: translateY(-4px) scale(1.02);
-    border-color: var(--gold-bright);
-    background: linear-gradient(180deg, rgba(212,169,79,0.22) 0%, rgba(212,169,79,0.08) 100%);
-    box-shadow: 0 10px 26px rgba(0,0,0,0.4), 0 0 0 1px rgba(var(--gold-rgb),0.2);
+    border-color: #66bb6a;
+    background: linear-gradient(180deg, rgba(76,175,80,0.26) 0%, rgba(76,175,80,0.09) 100%);
+    box-shadow: 0 10px 26px rgba(0,0,0,0.4), 0 0 0 1px rgba(76,175,80,0.25);
   }
   .feature-card-rules:active { transform: translateY(-2px) scale(1.06); }
-  .feature-card-rules .feature-icon { color: var(--gold-bright); }
+  .feature-card-rules .feature-icon { color: #81c784; }
 
   /* === Soba kao PRAVA stranica (isti obrazac kao pozdravni ekran gore) === */
   .room-hero {
