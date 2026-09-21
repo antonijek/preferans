@@ -737,6 +737,11 @@
     border-bottom: 2px solid #4caf50;
   }
   .full-page-header .logo { font-family: 'Cinzel', serif; font-size: 1.3em; font-weight: 700; letter-spacing: 0.5px; }
+  /* Korisnikov zahtev (2026-09-21): "logo koji ce biti ucitan svuda" —
+     zamena za 🃏 emoji u svim header-ima/naslovima. em-jedinice da prati
+     font-size kontejnera (h1, .logo span, itd.) bez posebnog podesavanja
+     na svakom mestu posebno. */
+  .logo-mark { height: 1.15em; width: 1.15em; vertical-align: -0.22em; margin-right: 0.18em; }
   .full-page-header .header-actions { margin-left: auto; display: flex; gap: 8px; }
   .muted-line { color: rgba(255,255,255,0.65); font-size: 0.9em; text-align: center; }
 

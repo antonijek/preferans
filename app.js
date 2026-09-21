@@ -1090,7 +1090,9 @@ let _prevTrickLen = 0;
 // trickCount se promenio (stih stvarno upravo zavrsen), uzmi PRAVI zavrseni
 // stih iz istorije (s.tricks, koju resolveTrick() puni PRE ciscenja) umesto
 // iz sopstvenog "poslednjeg vidjenog" pracenja.
-const TRICK_HOLD_MS = 1500;
+// Korisnikov zahtev (isti dan, CETVRTI put): sad kad se karta stvarno vidi
+// (prethodni bag ispravljen), 1500ms je delovalo predugo — spusteno na 600ms.
+const TRICK_HOLD_MS = 600;
 let _lastTrickCount = null;
 let _heldTrickCards = null;
 let _heldTrickTimer = null;
