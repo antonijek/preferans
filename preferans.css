@@ -275,8 +275,16 @@
     position: absolute;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 5em;
-    opacity: 0.06;
+    /* Korisnikov zahtev (2026-09-21): "na stolu da pise pref ili preferans
+       kao zig" — tekst umesto emoji ikone. clamp() da stane na uzim
+       stolovima bez overflow-a umesto fiksnog font-size. */
+    font-family: 'Cinzel', Georgia, serif;
+    font-weight: 700;
+    font-size: clamp(1.4em, 9vw, 3.6em);
+    letter-spacing: 0.12em;
+    color: var(--gold-bright);
+    white-space: nowrap;
+    opacity: 0.07;
     pointer-events: none;
     user-select: none;
     z-index: 0;
@@ -397,18 +405,25 @@
   }
   .trick-slot.has-card { border-color: rgba(255,255,255,0.5); box-shadow: 0 2px 6px rgba(0,0,0,0.35); }
   .trick-slot.led { background: rgba(76,175,80,0.3); }
-  /* Blaga nasumicna (ali stabilna, vidi cardRotationDeg u app.js) rotacija
-     odigrane karte — korisnikov zahtev, prirodniji izgled "bacanja". */
-  .trick-slot .card { transform: rotate(var(--rot, 0deg)); }
+  /* Blaga nasumicna (ali stabilna, vidi cardRotationDeg/cardScatterX/Y u
+     app.js) rotacija I POMERAJ odigrane karte — korisnikov zahtev,
+     prirodniji izgled "bacanja" (ne uvek isto mesto/ugao). Kombinovano u
+     JEDAN transform (translate PA rotate) da se ne pobiju medjusobno. */
+  .trick-slot .card {
+    transform: translate(var(--scatter-x, 0px), var(--scatter-y, 0px)) rotate(var(--rot, 0deg));
+  }
 
   /* Animacija odigravanja karte — karta se "spusti" u stih-slot umesto da se
      trenutno pojavi. Klasa .card-dropped se dodaje SAMO novoodigranoj karti
      (vidi renderTrick u app.js — poredi trenutnu duzinu stiha sa prethodnom),
-     ne repriza se pri svakom re-renderu istog stanja. */
+     ne repriza se pri svakom re-renderu istog stanja. Keyframe-ovi ukljucuju
+     ISTI scatter/rot kao pocivajuce stanje (umesto da ga ignorisu) da karta
+     ne "trzne" iz centra u svoj konacni pomereni polozaj tek kad animacija
+     zavrsi — pada VEC nagnuta/pomerena, kao pravo bacanje. */
   @keyframes cardDrop {
-    0% { transform: translateY(-34px) scale(0.82); opacity: 0; }
-    60% { transform: translateY(3px) scale(1.04); opacity: 1; }
-    100% { transform: translateY(0) scale(1); opacity: 1; }
+    0% { transform: translate(var(--scatter-x, 0px), calc(var(--scatter-y, 0px) - 34px)) rotate(var(--rot, 0deg)) scale(0.82); opacity: 0; }
+    60% { transform: translate(var(--scatter-x, 0px), calc(var(--scatter-y, 0px) + 3px)) rotate(var(--rot, 0deg)) scale(1.04); opacity: 1; }
+    100% { transform: translate(var(--scatter-x, 0px), var(--scatter-y, 0px)) rotate(var(--rot, 0deg)) scale(1); opacity: 1; }
   }
   .card-dropped { animation: cardDrop 0.3s ease-out; }
 

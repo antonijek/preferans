@@ -1044,12 +1044,28 @@ function renderSeatExtras() {
 
 // === TRICK SLOTOVI ===
 
-// Deterministicka blaga rotacija (-7..7 stepeni) izvedena iz ID-a karte —
-// ista karta uvek dobija istu rotaciju, pa se ne menja/trza izmedju rendera.
-function cardRotationDeg(cardId) {
+// Deterministicki hash string->int — koristi se za rotaciju i pomeraj karte
+// (razliciti "salt" sufiks daje NEKORELISANE vrednosti za razlicite ose, da
+// se karta ne pomera uvek u istom pravcu u kom se i vise okrece).
+function hashString(s) {
   let hash = 0;
-  for (let i = 0; i < cardId.length; i++) hash = (hash * 31 + cardId.charCodeAt(i)) | 0;
-  return (Math.abs(hash) % 15) - 7;
+  for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(hash);
+}
+
+// Korisnikov zahtev (2026-09-21): "ne padaju uvijek na isto mjesto, isto
+// okrenute... zelim da se vise ali da su prirodnije" — prosirena rotacija
+// (bila -7..7, sad -16..16) I nov pomeraj polozaja (--scatter-x/-y ispod),
+// obe deterministicki izvedene iz ID-a karte (ista karta = isti "bacaj" na
+// svaki render, ne treperi/skace izmedju rendera necenjenog stanja).
+function cardRotationDeg(cardId) {
+  return (hashString(cardId) % 33) - 16;
+}
+function cardScatterX(cardId) {
+  return (hashString(cardId + '_x') % 17) - 8; // -8..8px
+}
+function cardScatterY(cardId) {
+  return (hashString(cardId + '_y') % 13) - 6; // -6..6px
 }
 
 // Prati duzinu proslog stiha izmedju renderTrick() poziva — samo NOVO
@@ -1064,9 +1080,18 @@ let _prevTrickLen = 0;
 // se stvarno vec ocistio u state-u, pre nego sto pravo predjemo na prazan sto.
 // Korisnikov zahtev (isti dan, DRUGI put): 700ms je i dalje delovalo
 // prekratko (i u dvoje i u troje) — podignuto na 1500ms.
+// BAG #2 (isti dan, TRECI put — korisnik: "ima malo cekanja ali se ta karta
+// ne prikazuje"): prva verzija je pamtila "poslednji VIDJENI neprazan
+// currentTrick" (_lastFullTrick), ali klijent NIKAD ne vidi currentTrick sa
+// sve 3 karte — resolveTrick() ga cisti SINHRONO u ISTOM state-update-u koji
+// bi prvi put pokazao 3. kartu, pa je _lastFullTrick uvek zaostajao na
+// PRETPOSLEDNJEM stanju (2 karte, ili manje u solo odbrani), fali bas ona
+// karta koja je zavrsila stih. Ispravka: kad currentTrick postane prazan I
+// trickCount se promenio (stih stvarno upravo zavrsen), uzmi PRAVI zavrseni
+// stih iz istorije (s.tricks, koju resolveTrick() puni PRE ciscenja) umesto
+// iz sopstvenog "poslednjeg vidjenog" pracenja.
 const TRICK_HOLD_MS = 1500;
-let _lastRealTrickHadCards = false;
-let _lastFullTrick = [];
+let _lastTrickCount = null;
 let _heldTrickCards = null;
 let _heldTrickTimer = null;
 
@@ -1074,17 +1099,18 @@ function renderTrick() {
   const s = game.state;
   const real = s.currentTrick;
 
-  if (real.length > 0) {
-    _lastFullTrick = real;
-  } else if (_lastRealTrickHadCards && !_heldTrickCards) {
-    _heldTrickCards = _lastFullTrick;
-    clearTimeout(_heldTrickTimer);
-    _heldTrickTimer = setTimeout(() => {
-      _heldTrickCards = null;
-      renderTrick();
-    }, TRICK_HOLD_MS);
+  if (real.length === 0 && _lastTrickCount !== null && s.trickCount !== _lastTrickCount && !_heldTrickCards) {
+    const justFinished = s.tricks[s.tricks.length - 1];
+    if (justFinished && justFinished.length > 0) {
+      _heldTrickCards = justFinished;
+      clearTimeout(_heldTrickTimer);
+      _heldTrickTimer = setTimeout(() => {
+        _heldTrickCards = null;
+        renderTrick();
+      }, TRICK_HOLD_MS);
+    }
   }
-  _lastRealTrickHadCards = real.length > 0;
+  _lastTrickCount = s.trickCount;
 
   const trickToShow = (real.length === 0 && _heldTrickCards) ? _heldTrickCards : real;
 
@@ -1101,11 +1127,14 @@ function renderTrick() {
       const seat = seatOf(tc.player);
       const slot = $(`slot-${seat}`);
       const node = cardEl(tc.card, { size: 'small' });
-      // Blaga, ne-savrsena rotacija (korisnikov zahtev — "kao pravo bacanje
-      // karata, nije svaka pod istim uglom") — deterministicki izvedena iz
-      // ID-a karte (ne Math.random() svaki render) da ostane STABILNA dok se
-      // stih ne promeni, umesto da "trza" na svaki nepovezan re-render.
+      // Blaga, ne-savrsena rotacija I pomeraj polozaja (korisnikov zahtev —
+      // "kao pravo bacanje karata, ne padaju uvijek na isto mjesto, isto
+      // okrenute") — deterministicki izvedeno iz ID-a karte (ne
+      // Math.random() svaki render) da ostane STABILNO dok se stih ne
+      // promeni, umesto da "trza" na svaki nepovezan re-render.
       node.style.setProperty('--rot', `${cardRotationDeg(tc.card.id)}deg`);
+      node.style.setProperty('--scatter-x', `${cardScatterX(tc.card.id)}px`);
+      node.style.setProperty('--scatter-y', `${cardScatterY(tc.card.id)}px`);
       if (idx >= _prevTrickLen) node.classList.add('card-dropped');
       slot.appendChild(node);
       slot.classList.add('has-card');
