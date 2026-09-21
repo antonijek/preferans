@@ -768,7 +768,12 @@
   }
 
   .site-notice-banner {
-    max-width: 680px; margin: 14px auto 0; padding: 14px 16px;
+    /* Bag (uocen kroz vizuelni pregled 2026-09-21): ovo je PRVI element u
+       .screen.rich-page (pre .home-hero, koji ima svojih 90px top-padding
+       bas zbog ovoga) — bez dovoljno top-margina, njegov gornji deo je
+       zavrsavao SAKRIVEN iza fiksnog .full-page-header (60px, z-index:210)
+       na samom ucitavanju stranice, pre bilo kakvog skrolovanja. */
+    max-width: 680px; margin: 74px auto 0; padding: 14px 16px;
     background: linear-gradient(135deg, rgba(212,169,79,0.14) 0%, rgba(212,169,79,0.05) 100%);
     border: 1px solid rgba(212,169,79,0.35); border-radius: 14px;
     box-shadow: 0 4px 18px rgba(0,0,0,0.25);
@@ -794,7 +799,12 @@
   }
   .site-notice-banner .site-notice-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
   @media (max-width: 480px) {
-    .site-notice-banner { margin: 10px 12px 0; padding: 12px; }
+    /* Bag (uocen kroz vizuelni pregled 2026-09-21): ovaj media-query red
+       ide POSLE glavnog .site-notice-banner pravila i gazio je onaj
+       top:74px header-clearance nazad na 10px na uskim ekranima — banner
+       je opet zavrsavao sakriven iza fiksnog headera bas na telefonu, gde
+       je ovaj banner najbitniji (PWA install poruka je odmah ispod njega). */
+    .site-notice-banner { margin: 74px 12px 0; padding: 12px; }
     .site-notice-icon { width: 32px; height: 32px; font-size: 1.1em; }
   }
 
