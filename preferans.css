@@ -953,10 +953,31 @@
     font-family: 'Cinzel', serif; font-weight: 700; font-size: 0.9em; color: white;
   }
   .online-user-card .uname { font-size: 0.9em; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .home-empty { text-align: center; color: rgba(255,255,255,0.55); padding: 12px; }
+  /* Bag (korisnikov zahtev 2026-09-21): unutar .online-users-grid (grid sa
+     kolonama od 150px), ovaj tekst je bio JEDNA grid-celija — obicna
+     recenica se lomila u 5 uskih redova. grid-column: 1/-1 razvlaci ga
+     preko SVIH kolona kad je jedini/prazan sadrzaj. */
+  .home-empty { grid-column: 1 / -1; text-align: center; color: rgba(255,255,255,0.55); padding: 12px; }
 
   .home-footer {
     display: flex; justify-content: center; padding: 30px 24px 50px;
+  }
+  /* Korisnikov zahtev (2026-09-21): "Nazad na lokalni mod" je bilo tesko
+     dugme preko cele sirine ekrana (.screen button{width:100%} pravilo) —
+     ovo je sporedna, retko koriscena "izlazna" akcija, ne zasluzuje istu
+     tezinu kao primarni CTA-ovi. Sad je mali, diskretan link (isti duh kao
+     "← Nazad na igru" linkovi na pravila.html/matches.html), centriran,
+     bez teskog dugme-chrome-a. */
+  .home-footer .mode-btn {
+    width: auto; min-height: unset; padding: 8px 4px;
+    background: none; border: none; box-shadow: none;
+    color: rgba(255,255,255,0.55); font-weight: 600; font-size: 0.9em;
+    text-decoration: underline; text-decoration-color: transparent;
+    transition: color 0.15s ease, text-decoration-color 0.15s ease;
+  }
+  .home-footer .mode-btn:hover {
+    background: none; color: rgba(255,255,255,0.85);
+    text-decoration-color: rgba(255,255,255,0.5);
   }
   /* "Klasicna kockarnica" pravac — korisnikov utisak: modali (Soba/Setup/
      Login) su ostali "sve zeleno, jednolicno" dok su .table-area paneli vec
@@ -1015,11 +1036,14 @@
     flex: 1;
     /* Korisnikov zahtev (2026-09-21): sekundarna dugmad na pocetnim
        ekranima (Nazad, Registruj se, itd.) su delovala "ruzno" u starom
-       zlatno-braon (identicna primarnim dugmadima pre te izmene). Sad
-       neutralno tamno-staklo — diskretno, ne otima paznju od zelenih
-       .primary dugmadi. Ekrani sa sopstvenim override-om (#roomScreen,
+       zlatno-braon. POPRAVKA #2 (korisnikov zahtev): prva verzija ovoga je
+       uvela plavo-sivu — nova, sajtu strana boja ("stranica ima zelenu
+       temu, a ti uvodis jos tema"). Sad koristi ISTE tamno-zelene tonove
+       kao pozadina stranice (.screen.rich-page: #1e3320/#10201a/#060807,
+       vidi ispod) — diskretno, ali ostaje unutar postojece palete umesto
+       da uvodi novu. Ekrani sa sopstvenim override-om (#roomScreen,
        #scoreScreen) ostaju netaknuti (veca specificnost pobedjuje ovde).*/
-    background: linear-gradient(180deg, #3a3f47 0%, #2a2e34 100%);
+    background: linear-gradient(180deg, #24352a 0%, #16241c 100%);
     border: 2px solid rgba(255,255,255,0.15);
     padding: 14px;
     border-radius: 10px;
@@ -1031,7 +1055,7 @@
     box-shadow: 0 2px 5px rgba(0,0,0,0.3);
     transition: transform 0.1s, box-shadow 0.15s, background 0.15s, border-color 0.15s;
   }
-  .mode-btn:hover { background: linear-gradient(180deg, #474d57 0%, #363b42 100%); border-color: rgba(255,255,255,0.3); }
+  .mode-btn:hover { background: linear-gradient(180deg, #2c4032 0%, #1c2e23 100%); border-color: rgba(255,255,255,0.3); }
   .mode-btn:active { transform: scale(0.97); }
   .mode-btn.active { background: linear-gradient(180deg, #5cbf60 0%, #43a047 100%); border-color: #66bb6a; box-shadow: 0 2px 8px rgba(76,175,80,0.5); }
   /* Korisnikov zahtev (2026-09-21): "Sobe — napravi ili se pridruzi" i
