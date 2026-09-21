@@ -631,6 +631,12 @@ private checkBiddingEnd(): void {
     if (this.state.phase !== 'FOLLOW_DECLARING') return false;
     if (isBetl(this.state.declaredGame!)) return false;
     if (player === this.state.winner) return false;
+    // Uzivo prijavljen bag (2026-09-21): "prvi koji odlucuje da li ce doci
+    // nije onaj koji treba... trebalo bi desno od nosioca" (RULES 5.1) —
+    // ovaj metod ranije NIJE uopste proveravao red, bilo koji pratilac je
+    // mogao da odgovori kad hoce. Sad se striktno namece isti "desni pa
+    // treci" redosled koji vec vazi za kontru (followersInKontraOrder).
+    if (player !== this.expectedFollowPlayer()) return false;
     this.state.followChoices[player] = choice;
     this.state.players[player]!.follows = choice;
     this.checkFollowComplete();
@@ -764,6 +770,23 @@ private checkBiddingEnd(): void {
   // Javna verzija za UI/testove
   expectedKontraPlayerPublic(): Position | null {
     return this.expectedKontraPlayer();
+  }
+
+  // RULES 5.1: "igrač sa desne strane nosioca se izjašnjava prvi... zatim
+  // treći igrač" — isti "desni pa treći" redosled kao followersInKontraOrder
+  // (kontra faza), samo primenjen na FOLLOW_DECLARING (Dodjem/Ne dodjem).
+  private expectedFollowPlayer(): Position | null {
+    if (this.state.winner === null) return null;
+    const right = ((this.state.winner + 2) % 3) as Position;
+    const third = ((this.state.winner + 1) % 3) as Position;
+    if (this.state.followChoices[right] === null) return right;
+    if (this.state.followChoices[third] === null) return third;
+    return null;
+  }
+
+  // Javna verzija za UI/testove
+  expectedFollowPlayerPublic(): Position | null {
+    return this.expectedFollowPlayer();
   }
 
   // KONTRA faza

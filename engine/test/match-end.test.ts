@@ -39,8 +39,8 @@ test('match-end: rucno postavljen tacan korisnikov primer — [10,2,-6], Tref, n
   const hand = game.state.players[0]!.hand;
   game.discard(0, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(0, 'Tref'); // vrednost 5, osnovica bule = 10
-  game.follow(1, 'DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(1, 'DODJEM');
   const expected1 = game.expectedKontraPlayerPublic()!;
   game.moze(expected1);
   const expected2 = game.expectedKontraPlayerPublic()!;
@@ -76,8 +76,8 @@ test('match-end: ruka koja odvodi zbir DALJE od 0 (naviše) -> BEZ capovanja, pa
   const hand = game.state.players[0]!.hand;
   game.discard(0, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(0, 'Tref');
-  game.follow(1, 'DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(1, 'DODJEM');
   const expected1 = game.expectedKontraPlayerPublic()!;
   game.moze(expected1);
   const expected2 = game.expectedKontraPlayerPublic()!;
@@ -103,8 +103,8 @@ test('match-end: zbir sleti TACNO na 0 bez potrebe za capovanjem (srecno poklapa
   const hand = game.state.players[0]!.hand;
   game.discard(0, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(0, 'Tref');
-  game.follow(1, 'DODJEM');
   game.follow(2, 'DODJEM');
+  game.follow(1, 'DODJEM');
   const expected1 = game.expectedKontraPlayerPublic()!;
   game.moze(expected1);
   const expected2 = game.expectedKontraPlayerPublic()!;
@@ -201,8 +201,8 @@ test('match-end: "niko ne prati" na ne-Pik igri takodje capuje ako bi prevazisla
   game.discard(0, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(0, 'Tref'); // osnovica bule = 10, ali samo 6 "prostora"
   const bulasBefore = [...game.state.bulas];
-  game.follow(1, 'NE_DODJEM');
   game.follow(2, 'NE_DODJEM');
+  game.follow(1, 'NE_DODJEM');
   // RULES 5.4, ne-Pik: prost automatski prolaz -igra*2, capovan na dostupan prostor.
   assert.equal(game.state.phase, 'MATCH_OVER');
   assert.equal(game.state.bulas[0], bulasBefore[0]! - 6, 'capovano na 6, ne punih 10');

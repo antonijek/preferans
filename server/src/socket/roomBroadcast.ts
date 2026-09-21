@@ -153,7 +153,7 @@ function captureHandSnapshot(room: RoomState): HandSnapshot {
 // ruke", ne cele partije) — uzivo prijavljen bag: `abandonedSeat` se ranije
 // NIGDE nije ciscio, pa je AI ostajao zaglavljen na tom sedistu zauvek i
 // posle povratka (nikad ne bi dobio ni dugmad za licitaciju).
-const NEXT_HAND_DELAY_MS = 9000;
+const NEXT_HAND_DELAY_MS = 5000;
 
 // Deljena logika za "stvarno predji na sledecu ruku" — poziva je i tajmer i
 // rucni game:dealNext. Isto sto lokalni mod radi u nextRound() (app.js) —

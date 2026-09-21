@@ -502,6 +502,21 @@ function recordHandIfNew() {
   const isTerminalPhase = game.state.phase === 'GAME_OVER' || game.state.phase === 'MATCH_OVER';
   if (!result || !isTerminalPhase || game.state.round === lastRecordedRound) return;
   lastRecordedRound = game.state.round;
+  const tricksWonArr = [game.state.players[0].tricksWon, game.state.players[1].tricksWon, game.state.players[2].tricksWon];
+  // Uzivo prijavljen bag (2026-09-21): "Antonije 5, Edge 1, Mozila 6 = 11
+  // stihova" na zavrsenoj ruci — matematicki nemoguce (zbir NIKAD ne sme
+  // preci trickCount, svaki stih ide najvise jednom igracu). Server-side
+  // podaci za taj konkretan meč su pri direktnoj proveri bili INTERNO
+  // ISPRAVNI (zbir=10), sto znaci da je korisnik verovatno video TRANZITORAN
+  // klijentski prikaz, ne trajno pokvareno stanje — pravi uzrok jos nije
+  // nadjen. Loguj pun snapshot ovde da sledeci put imamo STVARNE podatke
+  // (window.__prefDebug) umesto da se oslanjamo na screenshot/pamcenje.
+  const tricksSum = tricksWonArr.reduce((a, b) => a + b, 0);
+  if (tricksSum > game.state.trickCount) {
+    const diag = { round: game.state.round, tricksWonArr, tricksSum, trickCount: game.state.trickCount, resultWinner: result.winner, resultPassed: result.passed };
+    console.error('[BAG] tricksWon zbir > trickCount!', diag);
+    debugLog('tricksWon-sum-bug', diag);
+  }
   handHistory.push({
     round: game.state.round,
     winner: result.winner,
@@ -519,7 +534,7 @@ function recordHandIfNew() {
     // ima followChoices/tricksWon od bas zavrsene ruke, newHand() ih resetuje
     // cim krene sledeca, a istorija se renderuje mnogo kasnije).
     followSeats: computeFollowSeats(game.state),
-    tricksWon: [game.state.players[0].tricksWon, game.state.players[1].tricksWon, game.state.players[2].tricksWon],
+    tricksWon: tricksWonArr,
     // Korisnikov zahtev (potvrdjeno u engine kodu — game.ts endHand() racuna
     // "combinedTricks = caller.tricksWon + callee.tricksWon" za SUPU kad
     // nosilac padne): kad je neko POZVAN, njegovi stihovi idu ZAJEDNO sa
@@ -745,7 +760,16 @@ function renderSeats() {
 // na pogresnom igracu (uzivo prijavljeno: prikazuje "Dodjem/Ne dodjem" kod
 // jednog igraca, a okvir je na drugom).
 function expectedFollowActor(s) {
-  const followers = [0, 1, 2].filter(p => p !== s.winner);
+  // Uzivo prijavljen bag (2026-09-21, RULES 5.1: "igrač sa desne strane
+  // nosioca se izjašnjava prvi"): [0,1,2].filter(...) je vracalo pratioce
+  // u prirodnom (rastucem) redosledu pozicija, ne "desni pa treci" —
+  // pogresno za nosioca na poziciji 0 ili 2 (samo za poziciju 1 se slucajno
+  // poklapalo). Sad koristi isti "desni pa treci" kao engine-ov
+  // expectedFollowPlayerPublic() (online) / followersInKontraOrder (kontra).
+  if (s.winner === null) return s.winner;
+  const right = (s.winner + 2) % 3;
+  const third = (s.winner + 1) % 3;
+  const followers = [right, third];
   const undecided = followers.find(p => s.followChoices[p] === null);
   if (undecided !== undefined) return undecided;
   if (s.caller === null) {
@@ -894,16 +918,35 @@ function renderStatusBar() {
 
 // Rezime praćenja: ko je Dođem/Ne dođem, i da li je neko pozvan ili igra sam.
 // Vraca null dok praćenje nije završeno (ceka se ostatak konteksta).
-function defenseSummaryText(s) {
+function defenseSummaryText(s, final = false) {
   if (s.winner === null || s.declaredGame === null) return null;
   const followers = [0, 1, 2].filter(p => p !== s.winner);
   if (followers.some(p => s.followChoices[p] === null)) return null;
+  // Korisnikov zahtev (2026-09-21): "isto i za nosioca" — prosao/pao status
+  // sada i za pratioce, ne samo u tabeli vec i OVDE u modalu posle ruke.
+  // final=true samo kad je ruka STVARNO zavrsena (rezultat modal) — tokom
+  // zive igre bi prosao/pao bio zavaravajuc jer se stihovi jos menjaju.
+  const dodjemFollowers = followers.filter(p => s.followChoices[p] === 'DODJEM');
+  // trickCount===0 = ruka se NIKAD stvarno nije odigrala (RULES 5.4 "niko ne
+  // prati" / RULES 7.1.1 "Pik bez kontre" bez refe-budzeta) — u tim
+  // slucajevima pratioci NEMAJU nikakvu promenu bule (handleUnplayedHand()
+  // uvek supeDelta=[0,0,0] za sve osim nosioca), pa bi prosao/pao status
+  // ovde bio pogresan (formula ispod bi ih pogresno prikazala kao "pali" jer
+  // je tricksWon=0, iako se to uopste ne racuna kad se ne igra).
+  const showStatus = final && s.lastHandResult && dodjemFollowers.length > 0 && s.trickCount > 0;
   // Korisnikov zahtev: "nije jedno ispod drugog" (bilo spojeno u red preko
   // dva razmaka) + ukloniti objasnjenje pravila (Betl parentetika) — vec
   // trazeno ranije, jos nije bilo uklonjeno ovde (samo na drugom mestu).
-  const parts = followers.map(p =>
-    `${POS_LABELS[p]}: ${s.followChoices[p] === 'DODJEM' ? 'Dođem' : 'Ne dođem'}`
-  );
+  const parts = followers.map(p => {
+    const base = `${POS_LABELS[p]}: ${s.followChoices[p] === 'DODJEM' ? 'Dođem' : 'Ne dođem'}`;
+    if (!showStatus || s.followChoices[p] !== 'DODJEM') return base;
+    const tricksWon = [0, 1, 2].map(i => s.players[i].tricksWon);
+    const fp = followerPassed({
+      declaredGame: s.declaredGame, kontraLevel: s.kontraLevel, declarerPassed: s.lastHandResult.passed,
+      caller: s.caller, callee: s.callee, tricksWon,
+    }, p);
+    return `${base} (${tricksWon[p]})${followerStatusBadge(fp)}`;
+  });
   let extra = '';
   if (s.caller !== null && s.callee !== null) {
     extra = `<strong>${POS_LABELS[s.caller]} zove ${POS_LABELS[s.callee]}</strong>`;
@@ -929,6 +972,34 @@ function defenseSummaryText(s) {
 
 function isBetlGame(g) {
   return g === 'Betl' || g === 'Igra-Betl';
+}
+
+// Korisnikov zahtev (2026-09-21): tabela/modal su prikazivali stihove
+// pratilaca ali ne i da li je TAJ pratilac (pojedinacno) prosao ili pao —
+// samo nosilac je imao taj status. Ista prioritetna logika kao
+// scoring.ts:calculateBulaDistribution (kontra > poziv > nezavisni prag),
+// da bi se prikaz tacno poklapao sa STVARNOM promenom bule:
+// - kontra data (RULES 6.3/9.3.2): ceo tim odbrane deli ishod "opklade" —
+//   nosilac pao = odbrana prosla, nosilac prosao = odbrana pala.
+// - poziv bez kontre (RULES 5.3): pozivalac+pozvani ZAJEDNO trebaju >=4.
+// - nezavisan pratilac (RULES 5.2): samostalno treba >=2.
+// Betl/Igra-Betl (RULES 9.4.1) pratiocima nikad ne menja bulu — vraca null
+// (status se ne prikazuje, pojam se ne primenjuje).
+function followerPassed({ declaredGame, kontraLevel, declarerPassed, caller, callee, tricksWon }, p) {
+  if (isBetlGame(declaredGame)) return null;
+  if (kontraLevel) return !declarerPassed;
+  if (caller !== null && (p === caller || p === callee)) {
+    const combined = (tricksWon[caller] ?? 0) + (callee !== null ? (tricksWon[callee] ?? 0) : 0);
+    return combined >= 4;
+  }
+  return (tricksWon[p] ?? 0) >= 2;
+}
+
+function followerStatusBadge(passed) {
+  if (passed === null) return '';
+  return passed
+    ? ` <span style="color:#a5d6a7">✓</span>`
+    : ` <span style="color:#ff8a80">✗</span>`;
 }
 
 // === SUPE / REFE po sedistu ===
@@ -978,8 +1049,35 @@ function cardRotationDeg(cardId) {
 // ne reprizira pri svakom re-renderu nepromenjenog stanja stiha.
 let _prevTrickLen = 0;
 
+// Uzivo prijavljen bag (2026-09-21): engine ciscii currentTrick SINHRONO cim
+// padne treca (poslednja) karta (resolveTrick() u game.ts), pa je stari kod
+// ovde odmah renderovao prazan sto — druga dvojica igraca nikad ne stignu da
+// VIDE sta je treci bacio. Drzimo zadnji pun stih vidljiv jos kratko posto
+// se stvarno vec ocistio u state-u, pre nego sto pravo predjemo na prazan sto.
+const TRICK_HOLD_MS = 700;
+let _lastRealTrickHadCards = false;
+let _lastFullTrick = [];
+let _heldTrickCards = null;
+let _heldTrickTimer = null;
+
 function renderTrick() {
   const s = game.state;
+  const real = s.currentTrick;
+
+  if (real.length > 0) {
+    _lastFullTrick = real;
+  } else if (_lastRealTrickHadCards && !_heldTrickCards) {
+    _heldTrickCards = _lastFullTrick;
+    clearTimeout(_heldTrickTimer);
+    _heldTrickTimer = setTimeout(() => {
+      _heldTrickCards = null;
+      renderTrick();
+    }, TRICK_HOLD_MS);
+  }
+  _lastRealTrickHadCards = real.length > 0;
+
+  const trickToShow = (real.length === 0 && _heldTrickCards) ? _heldTrickCards : real;
+
   // Očisti slotove
   for (const seat of ['west', 'east', 'south']) {
     const slot = $(`slot-${seat}`);
@@ -987,9 +1085,9 @@ function renderTrick() {
     slot.classList.remove('has-card', 'led');
   }
 
-  // Dodaj karte iz currentTrick
-  if (s.currentTrick.length > 0) {
-    s.currentTrick.forEach((tc, idx) => {
+  // Dodaj karte iz trenutnog (ili jos-kratko-zadrzanog) stiha
+  if (trickToShow.length > 0) {
+    trickToShow.forEach((tc, idx) => {
       const seat = seatOf(tc.player);
       const slot = $(`slot-${seat}`);
       const node = cardEl(tc.card, { size: 'small' });
@@ -1004,7 +1102,7 @@ function renderTrick() {
       if (idx === 0) slot.classList.add('led');
     });
   }
-  _prevTrickLen = s.currentTrick.length;
+  _prevTrickLen = trickToShow.length;
 }
 
 // Suptilan watermark u sredini stola sakriva se čim ima BILO KOG stvarnog
@@ -1240,7 +1338,14 @@ function renderDeclaring() {
     }
 
     ctrl.appendChild(el('div', 'section-label', mode === '3human' ? `POTEZ: ${POS_LABELS[player]} — IGRA` : 'IGRA'));
-    const games = IGRA_GAMES.filter(g => GAME_VALUES[g] >= s.currentBid);
+    // Uzivo prijavljen bag (2026-09-21, RULES 3.4.1): kad VISE igraca kaze
+    // Igra, pobedjuje NAJJACA proglasena igra — slabije od vec proglasenog
+    // nemaju SANSE da pobede, pa nema smisla da se uopste nude. Filtriramo
+    // na ono sto je STROGO jace od najjace vec proglasene igre u ovom
+    // tiebreak-u (izjednacenje ionako gubi od prvog proglasenog, RULES 3.4.1).
+    const declaredValues = Object.values(s.igraDeclarations ?? {}).map(g => GAME_VALUES[g]);
+    const bestDeclaredValue = declaredValues.length > 0 ? Math.max(...declaredValues) : s.currentBid - 1;
+    const games = IGRA_GAMES.filter(g => GAME_VALUES[g] >= s.currentBid && GAME_VALUES[g] > bestDeclaredValue);
     for (const g of games) {
       const btn = el('button', `bid-btn ${gameOptionAccentClass(g)}`, gameOptionLabel(g));
       btn.onclick = (e) => {
@@ -1320,7 +1425,15 @@ function renderFollowing() {
   const ctrl = $('bidControls');
   ctrl.innerHTML = '';
 
-  const followers = [0, 1, 2].filter(p => p !== s.winner);
+  // Uzivo prijavljen bag (2026-09-21, RULES 5.1: "desni od nosioca prvi") —
+  // [0,1,2].filter(...) pitalo pratioce u prirodnom (rastucem) redosledu
+  // pozicija umesto "desni pa treci"; engine-ov follow() sad striktno
+  // namece pravi redosled (expectedFollowPlayer), pa ovde MORA da se
+  // koristi ISTI redosled, inace bi dugme prikazano pogresnom igracu bilo
+  // tiho odbijeno.
+  const right = (s.winner + 2) % 3;
+  const third = (s.winner + 1) % 3;
+  const followers = [right, third];
   const undecided = followers.find(p => s.followChoices[p] === null);
   const log = $('bidLog');
   const entries = [];
@@ -2042,7 +2155,7 @@ function renderResult() {
     html += `<div class="result-outcome ${s.lastHandResult.passed ? 'pass' : 'fail'}">${s.lastHandResult.passed ? '✓ PROŠAO' : '✗ PAO'} — ${declarerTricksTxt} štihova</div>`;
     // Ko je dosao/zvao (isti rezime kao u statusnoj traci tokom igre) —
     // korisnikov zahtev: modal ne sme da preskoci ovaj podatak.
-    const defenseTxt = defenseSummaryText(s);
+    const defenseTxt = defenseSummaryText(s, true);
     if (defenseTxt) html += `<div class="result-line">${defenseTxt}</div>`;
     // Supe zaradjene OVOM rukom, po igracu — direktno objasnjava zasto neko
     // (npr. ne-kontras pratilac) ne dobija nista uprkos odigranim stihovima.
@@ -2153,7 +2266,14 @@ function renderScoreContent() {
       const followTxt = h.followSeats && h.followSeats.length > 0
         ? h.followSeats.map(p => {
             const combined = (h.caller === p && h.callee !== null) ? h.tricksWon[p] + h.tricksWon[h.callee] : h.tricksWon[p];
-            return `<span class="follow-line" style="white-space:nowrap">${POS_LABELS[p]} (${combined})</span>`;
+            // wasPlayed: RULES 5.4/7.1.1 neodigrane ruke nemaju NIKAKVU
+            // promenu bule za pratioce (vidi engine handleUnplayedHand()) —
+            // status bi ovde bio pogresan (0 stihova bi izgledalo kao "pao").
+            const fp = h.wasPlayed ? followerPassed({
+              declaredGame: h.winnerGame, kontraLevel: h.kontraLevel, declarerPassed: h.passed,
+              caller: h.caller, callee: h.callee, tricksWon: h.tricksWon,
+            }, p) : null;
+            return `<span class="follow-line" style="white-space:nowrap">${POS_LABELS[p]} (${combined})${followerStatusBadge(fp)}</span>`;
           }).join('')
         : '—';
       const winnerTricks = h.winner !== null && h.tricksWon ? h.tricksWon[h.winner] : 0;

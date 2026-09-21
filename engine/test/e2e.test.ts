@@ -186,8 +186,8 @@ test('e2e: oba pratioca "Ne dodjem" na NE-PIK igri, nosilac VEC ima raspolozivu 
   game.discard(2, [hand[0]!.id, hand[1]!.id]);
   game.declareGame(2, 'Karo');
   const bulasBefore = [...game.state.bulas];
-  game.follow(0, 'NE_DODJEM');
   game.follow(1, 'NE_DODJEM');
+  game.follow(0, 'NE_DODJEM');
   assert.equal(game.state.phase, 'GAME_OVER');
   assert.equal(game.state.bulas[2], bulasBefore[2]! - GAME_VALUES['Karo'] * 2 * 2, 'DUPLIRANO — P2 je vec imao raspolozivu refu');
   assert.equal(game.state.refePending.join(','), '1,1,0', 'P2 trosi SVOJU vec dodeljenu refu; P0/P1 zadrzavaju svoju');
