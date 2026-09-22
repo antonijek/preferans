@@ -12,6 +12,7 @@ import { makeDeck, shuffle } from './deck.js';
 import { applyHeuristicTurn } from './aiAutoplay.js';
 import { estimatedMaxLevel } from './aiHandEval.js';
 import { choosePlayCard } from './aiDiscardPlay.js';
+import { chooseKontra } from './aiFollowKontra.js';
 import type { Card, GameState, LegalAction, Position, Suit } from './types.js';
 
 export type Rng = () => number;
@@ -389,6 +390,25 @@ export function searchChooseAction(
     const maxLevel = estimatedMaxLevel(hand);
     const filtered = candidates.filter((a) => a.type !== 'bid' || a.value <= maxLevel);
     if (filtered.length > 0) candidates = filtered;
+  }
+  // Uzivo prijavljen bag (2026-09-22, isti dan, isti uzrok): search AI je
+  // eskalirao KONTRU sve do MORTKONTRE (16x!) drzeci samo 2 najslabija aduta
+  // (9,10 — bez ijedne casne karte), protiv nosioca koji je ispao da drzi
+  // SVA CETIRI casna aduta. Postojeca, uzivo kalibrisana chooseKontra()
+  // pravilo (4+ aduta, ili 3 aduta + 2 visoke) bi ovo ODMAH odbilo (MOZE) —
+  // kao i kod licitacije, search ovo pravilo NIKAD nije direktno koristio.
+  // Isti "hard filter" pristup: ako heuristika kaze MOZE, kontra kandidat
+  // se uopste ne nudi searchu na OVOM nivou eskalacije.
+  if (state.phase === 'KONTRA_DECLARING') {
+    const hand = state.players[seat]!.hand;
+    const levelNum = ({ KONTRA: 1, REKONTRA: 2, SUBKONTRA: 3, MORTKONTRA: 4 } as Record<string, number>)[
+      state.kontraLevel ?? ''
+    ] ?? 0;
+    const heuristicSaysKontra = chooseKontra({ hand, trump: state.trump, currentLevel: levelNum }) === 'KONTRA';
+    if (!heuristicSaysKontra) {
+      const filtered = candidates.filter((a) => a.type !== 'kontra');
+      if (filtered.length > 0) candidates = filtered;
+    }
   }
   if (candidates.length === 1) return candidates[0]!;
 
