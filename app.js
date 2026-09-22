@@ -10,6 +10,7 @@ import {
   chooseCallOrAlone as aiChooseCallOrAlone,
   chooseKontra as aiChooseKontra,
   choosePlayCard as aiChoosePlayCard,
+  chooseDeclareGame as aiChooseDeclareGame,
 } from './engine/dist/ai.js';
 import { searchChoosePlayCard, searchChooseAction, applyLegalAction } from './engine/dist/aiSearch.js';
 import { sfx } from './sfx.js';
@@ -1888,29 +1889,22 @@ function aiBidTurn(player) {
   render();
 }
 
+// Uzivo prijavljen bag (2026-09-22): stara verzija je birala samo po
+// evaluateHand().bestSuit (duzina+poeni), bez provere sigurnih stihova —
+// i Igra varijanta (dole) je birala prosto najduzu boju, cak i bez
+// provere da li ta boja uopste opravdava Igra-poziv, ni razmatrajuci
+// Igra-Betl/Igra-Sans. Obe sad koriste istu kalibrisanu funkciju kao
+// engine-ov heuristicki rollout (vidi chooseDeclareGame u aiBidding.ts).
 function aiChooseGame(player) {
   const s = game.state;
   const hand = s.players[player].hand;
-  const suitMap = { '♠': 'Pik', '♥': 'Herc', '♦': 'Karo', '♣': 'Tref' };
-  const best = evaluateHand(hand).bestSuit;
-  const candidate = best ? suitMap[best.suit] : null;
-  if (candidate && GAME_VALUES[candidate] >= s.currentBid) return candidate;
-  for (const g of STANDARD_GAMES) {
-    if (GAME_VALUES[g] >= s.currentBid) return g;
-  }
-  return 'Pik';
+  return aiChooseDeclareGame(hand, s.currentBid, STANDARD_GAMES);
 }
 
 function aiChooseIgraGame(player) {
-  const hand = game.state.players[player].hand;
-  const suits = ['♠', '♥', '♦', '♣'];
-  let bestSuit = suits[0], bestCount = 0;
-  for (const su of suits) {
-    const c = hand.filter(card => card.suit === su).length;
-    if (c > bestCount) { bestCount = c; bestSuit = su; }
-  }
-  const igraMap = { '♠': 'Igra-Pik', '♥': 'Igra-Herc', '♦': 'Igra-Karo', '♣': 'Igra-Tref' };
-  return igraMap[bestSuit];
+  const s = game.state;
+  const hand = s.players[player].hand;
+  return aiChooseDeclareGame(hand, s.currentBid, IGRA_GAMES);
 }
 
 function aiDiscard(player) {

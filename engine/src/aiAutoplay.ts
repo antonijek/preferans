@@ -21,7 +21,8 @@ import {
   choosePlayCard,
   chooseDeclareGame,
 } from './ai.js';
-import type { Card, Game as GameT, Suit } from './types.js';
+import { IGRA_GAMES } from './constants.js';
+import type { Card, Game as GameT } from './types.js';
 
 const RANK_ORDER = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 const rankValue = (r: string): number => RANK_ORDER.indexOf(r);
@@ -33,13 +34,6 @@ const KONTRA_NEXT: Record<string, 'KONTRA' | 'REKONTRA' | 'SUBKONTRA' | 'MORTKON
   SUBKONTRA: 'MORTKONTRA',
 };
 
-const SUIT_TO_IGRA: Record<Suit, GameT> = {
-  '♠': 'Igra-Pik',
-  '♥': 'Igra-Herc',
-  '♦': 'Igra-Karo',
-  '♣': 'Igra-Tref',
-};
-
 function isBetlGame(g: GameT | null): boolean {
   return g === 'Betl' || g === 'Igra-Betl';
 }
@@ -48,18 +42,14 @@ function chooseStandardGame(hand: Card[], currentBid: number): GameT {
   return chooseDeclareGame(hand, currentBid);
 }
 
-function chooseIgraGame(hand: { suit: Suit }[]): GameT {
-  const suits: Suit[] = ['♠', '♥', '♦', '♣'];
-  let bestSuit = suits[0]!;
-  let bestCount = 0;
-  for (const su of suits) {
-    const c = hand.filter((card) => card.suit === su).length;
-    if (c > bestCount) {
-      bestCount = c;
-      bestSuit = su;
-    }
-  }
-  return SUIT_TO_IGRA[bestSuit];
+// Uzivo prijavljen bag (2026-09-22): ranija verzija je birala PROSTO
+// najduzu boju, bez provere da li stvarno ima 6 sigurnih stihova (razlicito
+// od isIgraWorthy(), koje je opravdalo sam Igra-poziv), i nikad nije
+// razmatrala Igra-Betl/Igra-Sans — vidi chooseDeclareGame() u aiBidding.ts
+// za pun kontekst. Sad ista, jedinstvena logika kao standardno
+// proglasavanje, samo nad IGRA_GAMES.
+function chooseIgraGame(hand: Card[], currentBid: number): GameT {
+  return chooseDeclareGame(hand, currentBid, IGRA_GAMES);
 }
 
 export type AutoplayStepResult = 'acted' | 'no_actor';
@@ -137,13 +127,13 @@ export function applyHeuristicTurn(game: Game): AutoplayStepResult {
         // RULES 3.4.1 tiebreak — deklarant je s.currentBidder, uvek Igra boja.
         const seat = s.currentBidder;
         const hand = s.players[seat]!.hand;
-        game.declareIgra(seat, chooseIgraGame(hand));
+        game.declareIgra(seat, chooseIgraGame(hand, s.currentBid));
         return 'acted';
       }
       const seat = s.winner!;
       const hand = s.players[seat]!.hand;
       if (s.igraPlayer === seat) {
-        game.declareIgra(seat, chooseIgraGame(hand));
+        game.declareIgra(seat, chooseIgraGame(hand, s.currentBid));
       } else {
         game.declareGame(seat, chooseStandardGame(hand, s.currentBid));
       }

@@ -10,9 +10,11 @@
 import { Game } from './game.js';
 import { makeDeck, shuffle } from './deck.js';
 import { applyHeuristicTurn } from './aiAutoplay.js';
-import { estimatedMaxLevel, countDeclarerTricks, isBetlSafe, countSansTricks, isIgraWorthy } from './aiHandEval.js';
+import { estimatedMaxLevel, isIgraWorthy } from './aiHandEval.js';
 import { choosePlayCard } from './aiDiscardPlay.js';
 import { chooseKontra, chooseFollow, chooseCallOrAlone } from './aiFollowKontra.js';
+import { chooseDeclareGame } from './aiBidding.js';
+import { STANDARD_GAMES, IGRA_GAMES } from './constants.js';
 import type { Card, GameState, LegalAction, Position, Suit } from './types.js';
 
 export type Rng = () => number;
@@ -459,56 +461,28 @@ export function searchChooseAction(
   }
 
   // Uzivo prijavljen bag (2026-09-22, isti dan): nosilac je proglasio Pik
-  // drzeci SAMO 1 kartu (go Kralj, 3 sigurna stiha po countDeclarerTricks)
-  // umesto Tref sa 5 karata ukljucujuci Asa (8 sigurnih stihova) — istog
+  // drzeci SAMO 1 kartu umesto Tref sa 5 karata ukljucujuci Asa — istog
   // korena kao BIDDING/KONTRA gore. RAZLIKA: DECLARING nije prag/da-ne
   // konvencija, vec izbor IZMEDJU vise kvalifikovanih opcija — zato MEKI
   // bonus (kao searchChoosePlayCard gore), NE tvrd filter: ne zelimo da ikad
-  // potpuno iskljucimo bilo koju opciju iz razmatranja.
-  //
-  // DRUGI put uzivo prijavljen, ISTI dan, ISTI signature (bidLevels [0,2,0],
-  // currentBid 2, Pik) — ruka rekonstruisana iz tricks+hands podataka
-  // pokazala je NULA sigurnih stihova u SVE 4 boje (nijedan as u celoj ruci)
-  // I DA JE RUKA BILA BETL-SAFE (isBetlSafe) — objektivno mnogo bolji izbor.
-  // Prva verzija ovog bloka je poredila SAMO 4 adutske boje medjusobno,
-  // Betl/Sans uopste nisu ulazili u poredjenje — kad su sve 4 boje
-  // izjednacene na 0 (kao ovde), petlja je "preporucivala" Pik prosto zato
-  // sto je prvi proveravan (♠ pre ♥/♦/♣ u iteraciji), sto je VEROVATNO bas
-  // ono sto se ovde i desilo. Ispravka: Betl/Sans sada ulaze u ISTO
-  // poredjenje — isBetlSafe() tretira se kao "prakticno siguran uspeh"
-  // (fiksni skor uporediv sa jakom adutskom rukom), countSansTricks() je
-  // vec direktno uporediv (ista "sigurni stihovi" skala kao
-  // countDeclarerTricks).
+  // potpuno iskljucimo bilo koju opciju iz razmatranja. DRUGI put uzivo
+  // prijavljen, isti dan: ruka bez ijednog asa je proglasila Pik umesto
+  // Betl (isBetlSafe) — otkrilo da PRVA verzija ovog bloka nije uopste
+  // poredila Betl/Sans sa adutskim bojama. Ispravka koristi
+  // chooseDeclareGame() (aiBidding.ts) — ISTU funkciju koju vec koristi
+  // heuristicki rollout (aiAutoplay.ts) za ovu odluku, umesto duplirane
+  // logike ovde koja bi mogla vremenom da se razidje od nje. Radi i za
+  // Igra-declare (IGRA_GAMES) — vidi audit-nalaz u istoj funkciji o zasebnom
+  // bagu koji je tamo ispravljen (chooseIgraGame ranije birala najduzu boju,
+  // ne najsigurniju).
   let declareHeuristicPick: string | null = null;
   if (state.phase === 'DECLARING') {
     const hand = state.players[seat]!.hand;
     const isIgra = state.igraPlayer !== null;
-    const suitOfGame: Record<string, Suit> = isIgra
-      ? { 'Igra-Pik': '♠', 'Igra-Herc': '♥', 'Igra-Karo': '♦', 'Igra-Tref': '♣' }
-      : { 'Pik': '♠', 'Herc': '♥', 'Karo': '♦', 'Tref': '♣' };
-    const betlGame = isIgra ? 'Igra-Betl' : 'Betl';
-    const sansGame = isIgra ? 'Igra-Sans' : 'Sans';
-    let bestScore = -Infinity;
-    for (const a of candidates) {
-      if (a.type !== 'declare') continue;
-      let score: number;
-      const suit = suitOfGame[a.game];
-      if (suit) {
-        score = isIgra ? hand.filter((c) => c.suit === suit).length : countDeclarerTricks(hand, suit);
-      } else if (a.game === betlGame) {
-        // Betl-safe rucno kalibrisano (2026-09-06) kao gotovo siguran uspeh
-        // — uporedivo sa vrlo jakom adutskom rukom (5 = MIN_TRICKS_TO_BID),
-        // ne sa 0/1 kao "obicna" ocena.
-        score = isBetlSafe(hand) ? 5 : -1;
-      } else if (a.game === sansGame) {
-        score = countSansTricks(hand);
-      } else {
-        continue;
-      }
-      if (score > bestScore) {
-        bestScore = score;
-        declareHeuristicPick = a.game;
-      }
+    const games = isIgra ? IGRA_GAMES : STANDARD_GAMES;
+    const recommended = chooseDeclareGame(hand, state.currentBid, games);
+    if (candidates.some((a) => a.type === 'declare' && a.game === recommended)) {
+      declareHeuristicPick = recommended;
     }
   }
   const DECLARE_HEURISTIC_BONUS = 3;

@@ -34,37 +34,53 @@ export interface BidContext {
   bids: { player: Position; type: string; value?: number; game?: string }[]; // istorija bidding-a
 }
 
-const SUIT_FOR_STANDARD_GAME: Partial<Record<Game, Suit>> = {
+const SUIT_FOR_GAME: Partial<Record<Game, Suit>> = {
   'Pik': '♠', 'Karo': '♦', 'Herc': '♥', 'Tref': '♣',
+  'Igra-Pik': '♠', 'Igra-Karo': '♦', 'Igra-Herc': '♥', 'Igra-Tref': '♣',
 };
 
-// Bira KOJU standardnu igru proglasiti posle pobede u licitaciji — koristi
-// ISTE kalibrisane procene kao licitacija (countDeclarerTricks/
-// countSansTricks/isBetlSafe), umesto slepog "prvi iz liste cija vrednost
-// >= ugovor" (uzivo prijavljen bag: aukcija moze legitimno eskalirati do
-// nivoa 6 na osnovu NECIJEG DRUGOG Betl-sposobnog uloga u toku Mogu/BID
-// razmene, ali pobednik na kraju moze biti igrac ciji hand UOPSTE nije
-// Betl-bezbedan — stara verzija bi ga svejedno naterala u Betl samo zato
-// sto je vrednost >= ugovor, garantovan pad).
-export function chooseDeclareGame(hand: Card[], contractValue: number): Game {
+// Bira KOJU igru proglasiti posle pobede u licitaciji — koristi ISTE
+// kalibrisane procene kao licitacija (countDeclarerTricks/countSansTricks/
+// isBetlSafe), umesto slepog "prvi iz liste cija vrednost >= ugovor"
+// (uzivo prijavljen bag: aukcija moze legitimno eskalirati do nivoa 6 na
+// osnovu NECIJEG DRUGOG Betl-sposobnog uloga u toku Mogu/BID razmene, ali
+// pobednik na kraju moze biti igrac ciji hand UOPSTE nije Betl-bezbedan —
+// stara verzija bi ga svejedno naterala u Betl samo zato sto je vrednost
+// >= ugovor, garantovan pad).
+//
+// `games` podrazumevano STANDARD_GAMES (obicno proglasavanje) — pozvati sa
+// IGRA_GAMES za Igra-declare (RULES 3.4). Uzivo prijavljen bag (2026-09-22,
+// audit posle korisnikovog "pogledaj dobro"): Igra-declare je RANIJE isla
+// kroz POSEBNU, mnogo grublju funkciju (chooseIgraGame u aiAutoplay.ts,
+// istovetno aiChooseIgraGame u app.js) koja je birala PROSTO najduzu boju,
+// bez ikakve provere da li ta boja stvarno ima 6 sigurnih stihova (razlicito
+// od isIgraWorthy(), koje je opravdalo sam Igra-poziv preko
+// countDeclarerTricks) — I nikad nije ni razmatrala Igra-Betl/Igra-Sans kao
+// opcije uopste, iako su legalne (IGRA_GAMES ih sadrzi). Npr: ruka sa
+// A,K,Q herca (3 karte, sigurno 6+ stihova) ALI 6 slabih pikova (bez ijedne
+// casne karte) bi Igra-pozvala na osnovu herca, a onda proglasila Igra-Pik
+// (duzi) umesto Igra-Herc (jedini koji stvarno opravdava poziv) — garantovan
+// pad. Ista funkcija ovde sad pokriva OBA slucaja jednom, konzistentnom
+// logikom.
+export function chooseDeclareGame(hand: Card[], contractValue: number, games: readonly Game[] = STANDARD_GAMES): Game {
   let best: Game | null = null;
   let bestScore = -Infinity;
-  for (const g of STANDARD_GAMES) {
+  for (const g of games) {
     if (GAME_VALUES[g] < contractValue) continue;
     let score: number;
-    if (g === 'Betl') {
+    if (g === 'Betl' || g === 'Igra-Betl') {
       score = isBetlSafe(hand) ? 100 : -100; // sve-ili-nista, ne "broj stihova"
-    } else if (g === 'Sans') {
+    } else if (g === 'Sans' || g === 'Igra-Sans') {
       score = countSansTricks(hand);
     } else {
-      score = countDeclarerTricks(hand, SUIT_FOR_STANDARD_GAME[g] ?? null);
+      score = countDeclarerTricks(hand, SUIT_FOR_GAME[g] ?? null);
     }
     if (score > bestScore) {
       bestScore = score;
       best = g;
     }
   }
-  return best ?? 'Pik';
+  return best ?? games[0] ?? 'Pik';
 }
 
 export function chooseBidAction(ctx: BidContext): BidAction {
