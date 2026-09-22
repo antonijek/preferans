@@ -10,6 +10,7 @@
 import { Game } from './game.js';
 import { makeDeck, shuffle } from './deck.js';
 import { applyHeuristicTurn } from './aiAutoplay.js';
+import { estimatedMaxLevel } from './aiHandEval.js';
 import type { Card, GameState, LegalAction, Position, Suit } from './types.js';
 
 export type Rng = () => number;
@@ -325,9 +326,27 @@ export function searchChooseAction(
 ): LegalAction {
   const probe = new Game();
   probe.state = structuredClone(state);
-  const candidates = probe.getLegalActions().filter((a) => a.player === seat);
+  let candidates = probe.getLegalActions().filter((a) => a.player === seat);
   if (candidates.length === 0) {
     throw new Error('aiSearch.searchChooseAction: nema legalnih akcija za dato sedište u ovoj fazi');
+  }
+  // Uzivo prijavljen bag (2026-09-22): search AI je (preko obicnog
+  // simulacionog scora, bez ikakvog cvrstog pravila) licitirao do 5 (Tref)
+  // sa samo 3 sigurna stiha (rucno provereno preko countDeclarerTricks — vec
+  // kalibrisano UZIVO 2026-09-06, prag MIN_TRICKS_TO_BID=5) — daleko ispod
+  // praga koji isti kodbaza vec koristi za heuristicki AI (aiChooseBidAction
+  // preko estimatedMaxLevel). 200 uzoraka za licitaciju je ocigledno
+  // nedovoljno da pouzdano kazni ovakvu preslabu ruku (visestruke naredne
+  // faze/grananja unose previse suma). Umesto da se search prepusti da
+  // "otkrije" isti prag simulacijom, kandidat-akcije koje bi digle licitaciju
+  // IZNAD onoga sto ruka realno opravdava se ovde UOPSTE ne nude searchu —
+  // ne razmatra ih, ne trosi uzorke na njih. 'Mogu' NIKAD ne prelazi
+  // trenutni currentBid (samo ga potvrdjuje), pa se ne filtrira.
+  if (state.phase === 'BIDDING') {
+    const hand = state.players[seat]!.hand;
+    const maxLevel = estimatedMaxLevel(hand);
+    const filtered = candidates.filter((a) => a.type !== 'bid' || a.value <= maxLevel);
+    if (filtered.length > 0) candidates = filtered;
   }
   if (candidates.length === 1) return candidates[0]!;
 
