@@ -1381,14 +1381,25 @@ function renderDeclaring() {
     ctrl.appendChild(el('div', 'section-label', mode === '3human' ? `POTEZ: ${POS_LABELS[player]} — IGRA` : 'IGRA'));
     // Uzivo prijavljen bag (2026-09-21, RULES 3.4.1): kad VISE igraca kaze
     // Igra, pobedjuje NAJJACA proglasena igra — slabije od vec proglasenog
-    // nemaju SANSE da pobede, pa nema smisla da se uopste nude. Filtriramo
-    // na ono sto je STROGO jace od najjace vec proglasene igre u ovom
-    // tiebreak-u (izjednacenje ionako gubi od prvog proglasenog, RULES 3.4.1).
+    // nemaju SANSE da pobede. PRVA verzija ovoga je te opcije POTPUNO
+    // UKLANJALA — ali declareIgra() u engine-u trazi SAMO >= currentBid, NE
+    // >= vec proglasene vrednosti (RULES ne zabranjuju iskreno proglasenje
+    // slabije igre, samo garantuje gubitak tiebreak-a). Kad je igracev
+    // STVARNI adut slabiji od vec proglasenog, ta filtrirana lista je bila
+    // PRAZNA — igrac je ostajao potpuno zakljucan, bez ijednog dugmeta
+    // (uzivo prijavljen bag, DRUGI put: "nema opciju gde pise TVOJA JACA...
+    // ako ima igru koja je slabija nema opciju da klikne"). Ispravka: SVE
+    // validne opcije (>= currentBid) ostaju klikabilne, jace od vec
+    // proglasenog samo dobijaju vizuelnu oznaku (.igra-tiebreak-winning) da
+    // igrac zna koja bi pobedila, bez da mu se oduzme moguc(nost da prijavi
+    // istinitu (makar i gubitnicku) igru.
     const declaredValues = Object.values(s.igraDeclarations ?? {}).map(g => GAME_VALUES[g]);
     const bestDeclaredValue = declaredValues.length > 0 ? Math.max(...declaredValues) : s.currentBid - 1;
-    const games = IGRA_GAMES.filter(g => GAME_VALUES[g] >= s.currentBid && GAME_VALUES[g] > bestDeclaredValue);
+    const games = IGRA_GAMES.filter(g => GAME_VALUES[g] >= s.currentBid);
     for (const g of games) {
-      const btn = el('button', `bid-btn ${gameOptionAccentClass(g)}`, gameOptionLabel(g));
+      const wouldWin = GAME_VALUES[g] > bestDeclaredValue;
+      const btn = el('button', `bid-btn ${gameOptionAccentClass(g)}${wouldWin ? ' igra-tiebreak-winning' : ''}`,
+        wouldWin && declaredValues.length > 0 ? `${gameOptionLabel(g)} ✓ jača` : gameOptionLabel(g));
       btn.onclick = (e) => {
         logTrustedAction(`userDeclareIgraTiebreak game=${g} player=${player}`, e);
         game.declareIgra(player, g);
