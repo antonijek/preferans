@@ -10,7 +10,7 @@
 import { Game } from './game.js';
 import { makeDeck, shuffle } from './deck.js';
 import { applyHeuristicTurn } from './aiAutoplay.js';
-import { estimatedMaxLevel, countDeclarerTricks, isBetlSafe, countSansTricks } from './aiHandEval.js';
+import { estimatedMaxLevel, countDeclarerTricks, isBetlSafe, countSansTricks, isIgraWorthy } from './aiHandEval.js';
 import { choosePlayCard } from './aiDiscardPlay.js';
 import { chooseKontra, chooseFollow, chooseCallOrAlone } from './aiFollowKontra.js';
 import type { Card, GameState, LegalAction, Position, Suit } from './types.js';
@@ -390,6 +390,18 @@ export function searchChooseAction(
     const maxLevel = estimatedMaxLevel(hand);
     const filtered = candidates.filter((a) => a.type !== 'bid' || a.value <= maxLevel);
     if (filtered.length > 0) candidates = filtered;
+    // Proaktivno pronadjeno (2026-09-22, audit posle korisnikovog "pogledaj
+    // dobro"): ISTA rupa vazi za 'igra' kandidat — getLegalActions() ga nudi
+    // cim je igrac igraEligible, bez ikakve provere snage ruke. Heuristicki
+    // put (aiChooseBidAction) vec uslovljava IGRA sa isIgraWorthy() (puna
+    // REQUIRED_TRICKS=6 BEZ pomoci talona, uzivo kalibrisano 2026-09-07) —
+    // search ovo nikad nije koristio, pa je mogao da "kaze Igra" (obavezujuca
+    // deklaracija BEZ talona, RULES 3.4) na osnovu same simulacije, bez ikakvog
+    // proverenog praga.
+    if (!isIgraWorthy(hand)) {
+      const filteredIgra = candidates.filter((a) => a.type !== 'igra');
+      if (filteredIgra.length > 0) candidates = filteredIgra;
+    }
   }
   // Uzivo prijavljen bag (2026-09-22, isti dan, isti uzrok): search AI je
   // eskalirao KONTRU sve do MORTKONTRE (16x!) drzeci samo 2 najslabija aduta
