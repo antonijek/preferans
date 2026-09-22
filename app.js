@@ -1379,30 +1379,40 @@ function renderDeclaring() {
     }
 
     ctrl.appendChild(el('div', 'section-label', mode === '3human' ? `POTEZ: ${POS_LABELS[player]} — IGRA` : 'IGRA'));
-    // Uzivo prijavljen bag (2026-09-21, RULES 3.4.1): kad VISE igraca kaze
-    // Igra, pobedjuje NAJJACA proglasena igra — slabije od vec proglasenog
-    // nemaju SANSE da pobede. PRVA verzija ovoga je te opcije POTPUNO
-    // UKLANJALA — ali declareIgra() u engine-u trazi SAMO >= currentBid, NE
-    // >= vec proglasene vrednosti (RULES ne zabranjuju iskreno proglasenje
-    // slabije igre, samo garantuje gubitak tiebreak-a). Kad je igracev
-    // STVARNI adut slabiji od vec proglasenog, ta filtrirana lista je bila
-    // PRAZNA — igrac je ostajao potpuno zakljucan, bez ijednog dugmeta
-    // (uzivo prijavljen bag, DRUGI put: "nema opciju gde pise TVOJA JACA...
-    // ako ima igru koja je slabija nema opciju da klikne"). Ispravka: SVE
-    // validne opcije (>= currentBid) ostaju klikabilne, jace od vec
-    // proglasenog samo dobijaju vizuelnu oznaku (.igra-tiebreak-winning) da
-    // igrac zna koja bi pobedila, bez da mu se oduzme moguc(nost da prijavi
-    // istinitu (makar i gubitnicku) igru.
+    // Uzivo prijavljen bag (2026-09-21, RULES 3.4.1, TRECA verzija): kad
+    // VISE igraca kaze Igra, pobedjuje NAJJACA proglasena igra — cim neko
+    // izgubi tiebreak, NJEGOVA konkretna proglasena igra se NIGDE VISE ne
+    // koristi (samo winnerGame ide dalje, vidi declareIgra() u game.ts) —
+    // znaci da je za gubitnicku prijavu SVEJEDNO koju TACNO slabiju igru
+    // igrac "prijavi", nijedna specifika nema efekta na tok partije. Zato
+    // slabije opcije NE treba prikazivati pojedinacno (ni uklonjene — prvi
+    // bag — ni sve nabrojane — drugi bag) vec SVE spojene u JEDNO dugme
+    // "Tvoja je jača" (korisnikov zahtev) koje ispod haube prosto salje
+    // NAJSLABIJU validnu (>= currentBid) gubitnicku vrednost — igrac ne
+    // mora da bira izmedju bezveznih opcija koje sve vode na isti ishod
+    // (gubi tiebreak). Opcije koje bi STVARNO pobedile ostaju pojedinacne
+    // (njihov identitet VAZI — winnerGame postaje bas ta igra).
     const declaredValues = Object.values(s.igraDeclarations ?? {}).map(g => GAME_VALUES[g]);
     const bestDeclaredValue = declaredValues.length > 0 ? Math.max(...declaredValues) : s.currentBid - 1;
     const games = IGRA_GAMES.filter(g => GAME_VALUES[g] >= s.currentBid);
-    for (const g of games) {
-      const wouldWin = GAME_VALUES[g] > bestDeclaredValue;
-      const btn = el('button', `bid-btn ${gameOptionAccentClass(g)}${wouldWin ? ' igra-tiebreak-winning' : ''}`,
-        wouldWin && declaredValues.length > 0 ? `${gameOptionLabel(g)} ✓ jača` : gameOptionLabel(g));
+    const winningGames = games.filter(g => GAME_VALUES[g] > bestDeclaredValue);
+    const losingGames = games.filter(g => GAME_VALUES[g] <= bestDeclaredValue)
+      .sort((a, b) => GAME_VALUES[a] - GAME_VALUES[b]);
+    for (const g of winningGames) {
+      const btn = el('button', `bid-btn ${gameOptionAccentClass(g)}`, gameOptionLabel(g));
       btn.onclick = (e) => {
         logTrustedAction(`userDeclareIgraTiebreak game=${g} player=${player}`, e);
         game.declareIgra(player, g);
+        render();
+      };
+      ctrl.appendChild(btn);
+    }
+    if (losingGames.length > 0) {
+      const concedeGame = losingGames[0];
+      const btn = el('button', 'bid-btn', 'Tvoja je jača');
+      btn.onclick = (e) => {
+        logTrustedAction(`userDeclareIgraTiebreak concede game=${concedeGame} player=${player}`, e);
+        game.declareIgra(player, concedeGame);
         render();
       };
       ctrl.appendChild(btn);
