@@ -129,28 +129,17 @@ export function choosePlayCard(args: {
         return attackCards.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
       }
     }
-    // Napad na boju koju je PARTNER "prijavio" LICITACIJOM (korisnikova
-    // uzivo zapazena taktika, 2026-09-22): svaka standardna vrednost bida
-    // odgovara TACNO jednoj boji (2=Pik,3=Karo,4=Herc,5=Tref) — ako je moj
-    // odbrambeni partner licitirao BAS do te vrednosti pa ga je nosilac
-    // nadmasio (partner NIJE nosilac, ali bidLevel>0 znaci da je aktivno
-    // licitirao dotle), to je jak signal da partner drzi dugu/jaku tu boju.
-    // Isti razlog kao declarerVoidSuits iznad (primoraj nosioca da trosi
-    // adut), samo RANIJI signal — dostupan i pre nego sto se bilo koji stih
-    // uopste odigra, dok declarerVoidSuits zahteva vec odigrane stihove.
-    // Provereno SAMO kad declarerVoidSuits (iznad) nije vec nasao nesto —
-    // direktno posmatrano void je pouzdaniji dokaz od licitacione indicije.
-    if (!isDeclarer && trump && declarer != null && myPosition != null && bidLevels) {
-      const partner = ([0, 1, 2] as Position[]).find(p => p !== myPosition && p !== declarer);
-      const BID_VALUE_TO_SUIT: Record<number, Suit> = { 2: '♠', 3: '♦', 4: '♥', 5: '♣' };
-      const signaledSuit = partner !== undefined ? BID_VALUE_TO_SUIT[bidLevels[partner]] : undefined;
-      if (signaledSuit && signaledSuit !== trump) {
-        const signalCards = legal.filter(c => c.suit === signaledSuit);
-        if (signalCards.length > 0) {
-          return signalCards.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
-        }
-      }
-    }
+    // POVUCENO (2026-09-22, uzivo prijavljeno "AI igra potpuno suprotno i
+    // uzasno lose" odmah posle deploya): pretpostavka da bidLevel>0 znaci
+    // "partner je NAMERNO signalizirao BAS tu boju" je pogresna — u
+    // stvarnom toku licitacije SKORO SVAKI ucesnik koji odmah ne pasira
+    // prolazi kroz vise vrednosti dok licitacija raste (bidLevel se azurira
+    // na SVAKI bid/Mogu, ne samo na "svesan izbor da stane bas tu"), pa je
+    // ovaj uslov bio skoro UVEK tacan i preglasavao je ostale, bolje
+    // utemeljene konvencije (declarerVoidSuits, vodjenje kroz partnera) na
+    // svakom vodjenju. Vraceno bez zamene dok se ne nadje pouzdaniji signal
+    // (npr. stvarna sekvenca licitacije, ne samo finalni bidLevel) — vidi
+    // [[project_preferans_bid_signal_heuristic_2026_09_22]] u memoriji.
     // Odbrambena konvencija (korisnikova, zabelezena uzivo 2026-09-06/07,
     // JOS NIJE potvrdjena uzivo protiv AI-ja): pratilac koji drzi tacno
     // JEDNU kartu neke vanadutske boje je vodi PRVI ("suva" boja) da bi se
