@@ -1,6 +1,6 @@
 import type { Game } from '../../../engine/dist/game.js';
 import type { Position } from '../../../engine/dist/types.js';
-import { GAME_VALUES, STANDARD_GAMES, IGRA_GAMES } from '../../../engine/dist/constants.js';
+import { STANDARD_GAMES, IGRA_GAMES } from '../../../engine/dist/constants.js';
 import {
   evaluateHand,
   chooseBidAction,
@@ -9,6 +9,8 @@ import {
   chooseCallOrAlone,
   chooseKontra,
   choosePlayCard,
+  chooseDeclareGame,
+  isIgraWorthy,
 } from '../../../engine/dist/ai.js';
 import type { GameAction } from '../socket/gameEvents.js';
 
@@ -17,9 +19,18 @@ import type { GameAction } from '../socket/gameEvents.js';
 // driving a seat abandoned via `game:leave`. Same decision functions from
 // engine/dist/ai.js, same heuristics — only the trigger differs (no
 // render()/DOM here, the caller polls via getLegalActions() instead).
-
-const RANK_ORDER = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
-const rankValue = (r: string): number => RANK_ORDER.indexOf(r);
+//
+// Uzivo prijavljen bag (2026-09-22, audit posle korisnikovog "pogledaj
+// dobro, popravi sve"): ovaj fajl je DUPLIRAO chooseStandardGame/
+// chooseIgraGame lokalno (identicno app.js/aiAutoplay.ts pre istog dana
+// popravljenih), sa ISTIM bagovima — declare bez Betl/Sans poredjenja,
+// Igra-declare po najduzoj boji umesto po countDeclarerTricks, i
+// igraPlayer-tiebreak grana u BIDDING sa zastarelim inline pragom umesto
+// isIgraWorthy(). Ova putanja se koristi kad covek napusti online partiju
+// (`game:leave`) i NE ide kroz searchChooseAction — bila bi jedina AI
+// putanja koja NIKAD ne bi dobila nijednu od danasnjih popravki da nije
+// ovde eksplicitno ispravljena. Sad delegira na chooseDeclareGame()
+// (aiBidding.ts) i isIgraWorthy() — istu logiku kao svuda drugde.
 
 const KONTRA_NEXT: Record<string, 'KONTRA' | 'REKONTRA' | 'SUBKONTRA' | 'MORTKONTRA'> = {
   NONE: 'KONTRA',
@@ -28,40 +39,16 @@ const KONTRA_NEXT: Record<string, 'KONTRA' | 'REKONTRA' | 'SUBKONTRA' | 'MORTKON
   SUBKONTRA: 'MORTKONTRA',
 };
 
-const SUIT_TO_GAME: Record<string, string> = { '♠': 'Pik', '♥': 'Herc', '♦': 'Karo', '♣': 'Tref' };
-const SUIT_TO_IGRA: Record<string, string> = {
-  '♠': 'Igra-Pik',
-  '♥': 'Igra-Herc',
-  '♦': 'Igra-Karo',
-  '♣': 'Igra-Tref',
-};
-
 function isBetlGame(g: string | null): boolean {
   return g === 'Betl' || g === 'Igra-Betl';
 }
 
 function chooseStandardGame(hand: { suit: string }[], currentBid: number): string {
-  const best = evaluateHand(hand as never).bestSuit;
-  const candidate = best ? SUIT_TO_GAME[best.suit] : null;
-  if (candidate && GAME_VALUES[candidate as never] >= currentBid) return candidate;
-  for (const g of STANDARD_GAMES) {
-    if (GAME_VALUES[g] >= currentBid) return g;
-  }
-  return 'Pik';
+  return chooseDeclareGame(hand as never, currentBid, STANDARD_GAMES as never) as never;
 }
 
-function chooseIgraGame(hand: { suit: string }[]): string {
-  const suits = ['♠', '♥', '♦', '♣'];
-  let bestSuit = suits[0]!;
-  let bestCount = 0;
-  for (const su of suits) {
-    const c = hand.filter((card) => card.suit === su).length;
-    if (c > bestCount) {
-      bestCount = c;
-      bestSuit = su;
-    }
-  }
-  return SUIT_TO_IGRA[bestSuit]!;
+function chooseIgraGame(hand: { suit: string }[], currentBid: number): string {
+  return chooseDeclareGame(hand as never, currentBid, IGRA_GAMES as never) as never;
 }
 
 /**
@@ -77,14 +64,7 @@ export function computeAiAction(game: Game, seat: Position): GameAction | null {
       const hand = s.players[seat]!.hand;
       // Igra frozen — mirrors app.js aiBidTurn's igraPlayer tiebreak branch.
       if (s.igraPlayer !== null && s.igraPlayer !== seat) {
-        const best = evaluateHand(hand as never).bestSuit;
-        const canIgra =
-          s.players[seat]!.igraEligible &&
-          !!best &&
-          best.count >= 6 &&
-          best.highCards >= 2 &&
-          !!best.topCard &&
-          rankValue(best.topCard.rank) >= 4;
+        const canIgra = s.players[seat]!.igraEligible && isIgraWorthy(hand as never);
         return canIgra ? { type: 'sayIgra', player: seat } : { type: 'pass', player: seat };
       }
       const passedPlayers = new Set(
@@ -127,12 +107,12 @@ export function computeAiAction(game: Game, seat: Position): GameAction | null {
       if (s.igraCompetitors !== null) {
         // RULES 3.4.1 tiebreak — declarer is s.currentBidder, always Igra-suit.
         const hand = s.players[seat]!.hand;
-        return { type: 'declareIgra', player: seat, game: chooseIgraGame(hand as never) as never };
+        return { type: 'declareIgra', player: seat, game: chooseIgraGame(hand as never, s.currentBid) as never };
       }
       const isIgra = s.igraPlayer === seat;
       const hand = s.players[seat]!.hand;
       if (isIgra) {
-        return { type: 'declareIgra', player: seat, game: chooseIgraGame(hand as never) as never };
+        return { type: 'declareIgra', player: seat, game: chooseIgraGame(hand as never, s.currentBid) as never };
       }
       return {
         type: 'declareGame',
