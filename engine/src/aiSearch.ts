@@ -10,9 +10,9 @@
 import { Game } from './game.js';
 import { makeDeck, shuffle } from './deck.js';
 import { applyHeuristicTurn } from './aiAutoplay.js';
-import { estimatedMaxLevel } from './aiHandEval.js';
+import { estimatedMaxLevel, countDeclarerTricks } from './aiHandEval.js';
 import { choosePlayCard } from './aiDiscardPlay.js';
-import { chooseKontra } from './aiFollowKontra.js';
+import { chooseKontra, chooseFollow, chooseCallOrAlone } from './aiFollowKontra.js';
 import type { Card, GameState, LegalAction, Position, Suit } from './types.js';
 
 export type Rng = () => number;
@@ -410,6 +410,75 @@ export function searchChooseAction(
       if (filtered.length > 0) candidates = filtered;
     }
   }
+  // Uzivo prijavljen bag (2026-09-22, korisnik: "Pa mozes li vec jednom ga
+  // nauciti kako da igra a ne sve parcijalno kad ti ja kazem") — ISTA rupa
+  // kao BIDDING/KONTRA_DECLARING gore, samo u FOLLOW_DECLARING fazi:
+  // chooseFollow() (Dodjem/Ne dodjem, uzivo kalibrisano 2026-09-06) i
+  // chooseCallOrAlone() (Zovem/Sam) su binarne konvencije koje search NIKAD
+  // nije direktno koristio za koren-odluku — isti hard-filter pristup.
+  if (state.phase === 'FOLLOW_DECLARING') {
+    const hasFollowChoice = candidates.some((a) => a.type === 'follow');
+    if (hasFollowChoice) {
+      const hand = state.players[seat]!.hand;
+      const recommended = chooseFollow({ hand, declaredGame: state.declaredGame! });
+      const filtered = candidates.filter((a) => a.type !== 'follow' || a.choice === recommended);
+      if (filtered.length > 0) candidates = filtered;
+    }
+    const hasCallChoice = candidates.some((a) => a.type === 'call' || a.type === 'continueWithoutCall');
+    if (hasCallChoice) {
+      // neDodjemHand se ovde cita direktno iz state (server-side, STVARNA
+      // ruka) — ISTA pristupna sema koju vec koristi aiAutoplay.ts rollout
+      // za ovu istu odluku (vidi poziv chooseCallOrAlone tamo), nije novo
+      // "varanje" search-a.
+      const followers = ([0, 1, 2] as Position[]).filter((p) => p !== state.winner);
+      const neDodjem = followers.find((p) => state.followChoices[p] === 'NE_DODJEM');
+      if (neDodjem !== undefined && state.declaredGame) {
+        const recommended = chooseCallOrAlone({
+          caller: seat,
+          neDodjemHand: state.players[neDodjem]!.hand,
+          declaredGame: state.declaredGame,
+        });
+        const filtered = candidates.filter((a) =>
+          recommended === 'CALL' ? a.type !== 'continueWithoutCall' : a.type !== 'call'
+        );
+        if (filtered.length > 0) candidates = filtered;
+      }
+    }
+  }
+
+  // Uzivo prijavljen bag (2026-09-22, isti dan): nosilac je proglasio Pik
+  // drzeci SAMO 1 kartu (go Kralj, 3 sigurna stiha po countDeclarerTricks)
+  // umesto Tref sa 5 karata ukljucujuci Asa (8 sigurnih stihova) — istog
+  // korena kao BIDDING/KONTRA gore. RAZLIKA: DECLARING nije prag/da-ne
+  // konvencija, vec izbor IZMEDJU vise kvalifikovanih opcija, i Betl/Sans
+  // (razlicit cilj — izbegavanje stihova / bez aduta) nisu uporedivi sa
+  // adutskim bojama preko iste formule — zato MEKI bonus (kao
+  // searchChoosePlayCard gore), NE tvrd filter: ne zelimo da ikad potpuno
+  // iskljucimo Betl/Sans iz razmatranja, samo da adutska boja koju ruka
+  // realno najbolje pokriva dobije prednost kad se poredi sa DRUGIM adutskim
+  // bojama.
+  let declareHeuristicPick: string | null = null;
+  if (state.phase === 'DECLARING') {
+    const hand = state.players[seat]!.hand;
+    const isIgra = state.igraPlayer !== null;
+    const suitGameMap: Record<Suit, string> = isIgra
+      ? { '♠': 'Igra-Pik', '♥': 'Igra-Herc', '♦': 'Igra-Karo', '♣': 'Igra-Tref' }
+      : { '♠': 'Pik', '♥': 'Herc', '♦': 'Karo', '♣': 'Tref' };
+    let bestSuit: Suit | null = null;
+    let bestScore = -Infinity;
+    for (const s of ['♠', '♥', '♦', '♣'] as Suit[]) {
+      const candidateGame = suitGameMap[s];
+      if (!candidates.some((a) => a.type === 'declare' && a.game === candidateGame)) continue;
+      const score = isIgra ? hand.filter((c) => c.suit === s).length : countDeclarerTricks(hand, s);
+      if (score > bestScore) {
+        bestScore = score;
+        bestSuit = s;
+      }
+    }
+    if (bestSuit) declareHeuristicPick = suitGameMap[bestSuit];
+  }
+  const DECLARE_HEURISTIC_BONUS = 3;
+
   if (candidates.length === 1) return candidates[0]!;
 
   let best = candidates[0]!;
@@ -421,7 +490,7 @@ export function searchChooseAction(
       samples,
       rng,
       applyCandidate: (g) => applyLegalAction(g, action),
-    });
+    }) + (action.type === 'declare' && action.game === declareHeuristicPick ? DECLARE_HEURISTIC_BONUS : 0);
     if (score > bestScore) {
       bestScore = score;
       best = action;
