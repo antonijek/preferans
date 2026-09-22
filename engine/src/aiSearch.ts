@@ -11,6 +11,7 @@ import { Game } from './game.js';
 import { makeDeck, shuffle } from './deck.js';
 import { applyHeuristicTurn } from './aiAutoplay.js';
 import { estimatedMaxLevel } from './aiHandEval.js';
+import { choosePlayCard } from './aiDiscardPlay.js';
 import type { Card, GameState, LegalAction, Position, Suit } from './types.js';
 
 export type Rng = () => number;
@@ -259,6 +260,47 @@ export function searchChoosePlayCard(
   }
   if (legal.length === 1) return legal[0]!;
 
+  // Uzivo prijavljen bag (2026-09-22, korisnik: "sve pravilo koje smo
+  // pominjali... trebalo je da implementiras i da ga naucis da igra... a ti
+  // to uopste nisi koristio"): sve konvencije u choosePlayCard() (vodi
+  // JAKO kroz partnera / SLABO kroz nosioca, napad na poznato-prazan adut
+  // nosioca, cuvanje stopera, itd. — svaka uzivo kalibrisana kroz stvarne
+  // odigrane ruke) su se koristile SAMO posredno, kao rollout politika za
+  // OSTATAK simulirane ruke — NIKAD kao direktan uticaj na koren-odluku
+  // ovde. Sa ogranicenim brojem uzoraka, statisticki sum povremeno
+  // "pregласi" cak i dobro utemeljenu konvenciju kad je razlika u proseku
+  // mala. Ispravka: heuristikin PREDLOG dobija eksplicitnu prednost (bonus)
+  // pre poredjenja — search i dalje MOZE da ga pregласi, ali samo ako
+  // pronadje STVARNO bolji rezultat, ne samo sumnji marginalnu razliku.
+  let heuristicPick: string | null = null;
+  try {
+    const isDeclarer = seat === state.winner;
+    const avoidTricks = isDeclarer && (state.declaredGame === 'Betl' || state.declaredGame === 'Igra-Betl');
+    const heuristicCard = choosePlayCard({
+      hand: state.players[seat]!.hand,
+      currentTrick: state.currentTrick,
+      trump: state.trump,
+      declaredGame: state.declaredGame!,
+      winnerTricks: state.players[state.winner!]!.tricksWon,
+      avoidTricks,
+      isDeclarer,
+      kontraLevel: state.kontraLevel,
+      trickCount: state.trickCount,
+      myPosition: seat,
+      declarer: state.winner,
+      tricks: state.tricks,
+      nextActivePosition: probe.nextActivePlayer(seat),
+    });
+    heuristicPick = heuristicCard?.id ?? null;
+  } catch {
+    heuristicPick = null; // heuristika ne uspe da odluci (npr. nepotpun kontekst) — search bira bez prednosti
+  }
+  // Bonus kalibrisan na tipicnu skalu nagrade vidjenu u bench-ai-strength.ts
+  // (pojedinacne ruke cesto vrede desetine poena) — dovoljno da nadjaca
+  // sum od par uzoraka koji slucajno padnu drugacije, ali NE dovoljno da
+  // preglasa search kad stvarno nadje jasno bolju alternativu.
+  const HEURISTIC_BONUS = 3;
+
   let best = legal[0]!;
   let bestScore = -Infinity;
   for (const card of legal) {
@@ -268,7 +310,7 @@ export function searchChoosePlayCard(
       samples,
       rng,
       applyCandidate: (g) => g.playCard(seat, card.id),
-    });
+    }) + (card.id === heuristicPick ? HEURISTIC_BONUS : 0);
     if (score > bestScore) {
       bestScore = score;
       best = card;
