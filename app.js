@@ -2000,6 +2000,9 @@ function aiPlayCard(player) {
     trickCount: s.trickCount,
     myPosition: player,
     declarer: s.winner,
+    tricks: s.tricks,
+    nextActivePosition: game.nextActivePlayer ? game.nextActivePlayer(player) : null,
+    bidLevels: [s.players[0].bidLevel, s.players[1].bidLevel, s.players[2].bidLevel],
   });
   return card ? card.id : legal[0].id;
 }

@@ -72,11 +72,16 @@ export function choosePlayCard(args: {
   // pogresno bas u solo-odbrani (jedini scenario gde razlika uopste
   // postoji, jer se tad neko preskace).
   nextActivePosition?: Position | null;
+  // Najvisa vrednost do koje je SVAKI igrac licitirao ovu rundu (traje kroz
+  // celu ruku, resetuje se tek na newHand() — vidi Player.bidLevel).
+  // Koristi se za konvenciju ispod: partnerova licitacija otkriva boju.
+  bidLevels?: [number, number, number];
 }): Card | null {
   const {
     hand, currentTrick, trump, avoidTricks = false,
     isDeclarer = false, kontraLevel = null, trickCount = 0,
     myPosition, declarer, tricks = [], nextActivePosition = null,
+    bidLevels,
   } = args;
   const legal = hand.filter(c => isCardLegal(c, hand, currentTrick, trump));
   if (legal.length === 0) return null;
@@ -122,6 +127,28 @@ export function choosePlayCard(args: {
       const attackCards = legal.filter(c => declarerVoidSuits.has(c.suit));
       if (attackCards.length > 0) {
         return attackCards.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
+      }
+    }
+    // Napad na boju koju je PARTNER "prijavio" LICITACIJOM (korisnikova
+    // uzivo zapazena taktika, 2026-09-22): svaka standardna vrednost bida
+    // odgovara TACNO jednoj boji (2=Pik,3=Karo,4=Herc,5=Tref) — ako je moj
+    // odbrambeni partner licitirao BAS do te vrednosti pa ga je nosilac
+    // nadmasio (partner NIJE nosilac, ali bidLevel>0 znaci da je aktivno
+    // licitirao dotle), to je jak signal da partner drzi dugu/jaku tu boju.
+    // Isti razlog kao declarerVoidSuits iznad (primoraj nosioca da trosi
+    // adut), samo RANIJI signal — dostupan i pre nego sto se bilo koji stih
+    // uopste odigra, dok declarerVoidSuits zahteva vec odigrane stihove.
+    // Provereno SAMO kad declarerVoidSuits (iznad) nije vec nasao nesto —
+    // direktno posmatrano void je pouzdaniji dokaz od licitacione indicije.
+    if (!isDeclarer && trump && declarer != null && myPosition != null && bidLevels) {
+      const partner = ([0, 1, 2] as Position[]).find(p => p !== myPosition && p !== declarer);
+      const BID_VALUE_TO_SUIT: Record<number, Suit> = { 2: '♠', 3: '♦', 4: '♥', 5: '♣' };
+      const signaledSuit = partner !== undefined ? BID_VALUE_TO_SUIT[bidLevels[partner]] : undefined;
+      if (signaledSuit && signaledSuit !== trump) {
+        const signalCards = legal.filter(c => c.suit === signaledSuit);
+        if (signalCards.length > 0) {
+          return signalCards.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
+        }
       }
     }
     // Odbrambena konvencija (korisnikova, zabelezena uzivo 2026-09-06/07,

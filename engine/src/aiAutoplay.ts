@@ -220,6 +220,7 @@ export function applyHeuristicTurn(game: Game): AutoplayStepResult {
           declarer: s.winner,
           tricks: s.tricks,
           nextActivePosition: game.nextActivePlayer(seat),
+          bidLevels: [s.players[0]!.bidLevel, s.players[1]!.bidLevel, s.players[2]!.bidLevel],
         });
         cardId = card ? card.id : legal[0]!.id;
       }
