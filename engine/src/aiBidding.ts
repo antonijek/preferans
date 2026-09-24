@@ -150,46 +150,6 @@ export function chooseBidAction(ctx: BidContext): BidAction {
   return { type: 'PASS' };
 }
 
-// === IGRA CONFIRM STRATEGIJA ===
-//
-// "Pratioci kažu jaču Igra igru ako imaju dovoljno karata, inače 'dalje'"
-// "Igra-Betl i Igra-Sans su jače od standardnih Igra igara"
-
-export interface IgraConfirmContext {
-  hand: Card[];
-  declaredGame: Game;
-  passedAlready: boolean;
-}
-
-const IGRA_VALUES: Record<string, number> = {
-  'Igra-Pik': 3,
-  'Igra-Karo': 4,
-  'Igra-Herc': 5,
-  'Igra-Tref': 6,
-  'Igra-Betl': 7,
-  'Igra-Sans': 8,
-};
-
-export function chooseIgraConfirm(ctx: IgraConfirmContext): { action: 'IGRA' | 'DALJE'; game?: Game } {
-  if (ctx.passedAlready) return { action: 'DALJE' };
-  const currentVal = IGRA_VALUES[ctx.declaredGame] || GAME_VALUES[ctx.declaredGame] || 0;
-  const evalRes = evaluateHand(ctx.hand);
-  const best = evalRes.bestSuit;
-  const igraMap: Record<Suit, Game> = {
-    '♠': 'Igra-Pik', '♥': 'Igra-Herc',
-    '♦': 'Igra-Karo', '♣': 'Igra-Tref',
-  };
-  // Ako imamo jaču Igra igru sa bar 4+ karte iste boje i jakim kartama
-  if (best && best.count >= 4 && best.topCard) {
-    const myIgra = igraMap[best.suit];
-    const myVal = IGRA_VALUES[myIgra] || 0;
-    if (myVal > currentVal && RANK_VALUE[best.topCard.rank] >= 4) {
-      return { action: 'IGRA', game: myIgra };
-    }
-  }
-  return { action: 'DALJE' };
-}
-
 // === USE REFE STRATEGIJA ===
 //
 // "Koristiti refe kad ima dovoljno jaku ruku (>=5 u boji sa bar 1 jakom)"

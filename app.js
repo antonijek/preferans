@@ -11,6 +11,7 @@ import {
   chooseKontra as aiChooseKontra,
   choosePlayCard as aiChoosePlayCard,
   chooseDeclareGame as aiChooseDeclareGame,
+  isIgraWorthy,
 } from './engine/dist/ai.js';
 import { searchChoosePlayCard, searchChooseAction, applyLegalAction } from './engine/dist/aiSearch.js';
 import { sfx } from './sfx.js';
@@ -1842,13 +1843,16 @@ function aiBidTurn(player) {
   // (evaluateHand().bestSuit: 6+ karata, 2+ visoke, najjaca bar Dama/J>=4)
   // radi konzistentnosti dve grane koje odlucuju o istoj stvari.
   if (s.igraPlayer !== null && s.igraPlayer !== player) {
-    const best = evaluateHand(hand).bestSuit;
     // RULES 3.4: Igra sme SAMO na igracev prvi potez u rundi (igraEligible)
     // — bez ove provere, AI bi pokusao sayIgra() posle sopstvenog ranijeg
     // broja/dalje, engine bi ga tiho odbio (vraca false), i partija bi
     // ostala zaglavljena zauvek na ovom igracu (uzivo prijavljen rizik).
-    const canIgra = s.players[player].igraEligible && best && best.count >= 6 && best.highCards >= 2 &&
-      best.topCard && rankValue(best.topCard.rank) >= 4;
+    // Uzivo prijavljen bag (2026-09-22/23, audit): ranije je ovde bio
+    // POSEBAN, slabiji prag (count>=6, highCards>=2, rank>=4 preko
+    // evaluateHand) — razlicit i od isIgraWorthy() (koju koristi
+    // aiChooseBidAction za PRVI Igra-poziv) i od search-ove verzije ove
+    // iste odluke (aiSearch.ts). Sad ista provera svuda.
+    const canIgra = s.players[player].igraEligible && isIgraWorthy(hand);
     if (canIgra) {
       game.sayIgra(player);
     } else {
