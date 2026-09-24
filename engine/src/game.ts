@@ -1348,12 +1348,22 @@ private checkBiddingEnd(): void {
 
       case 'FOLLOW_DECLARING': {
         const followers = ([0, 1, 2] as Position[]).filter(p => p !== s.winner);
-        // Prikazi DODJEM/NE_DODJEM za svakog pratioca koji jos nije odlucio
-        for (const f of followers) {
-          if (s.followChoices[f] === null) {
-            actions.push({ type: 'follow', player: f, choice: 'DODJEM', label: 'Dodjem' });
-            actions.push({ type: 'follow', player: f, choice: 'NE_DODJEM', label: 'Ne dodjem' });
-          }
+        // Uzivo prijavljen bag (2026-09-24, otkriveno preko simulacije koja se
+        // zaglavila za nosioca na sedistu 1): ranije je ovo nudilo DODJEM/
+        // NE_DODJEM za OBA nedecided pratioca odjednom, u pozicionom redosledu
+        // — follow() i dalje ispravno odbija pogresan redosled (RULES 5.1,
+        // desni od nosioca prvi), ali "legalna akcija" koja se tiho odbije
+        // kad se stvarno pokusa nije zaista legalna. Bilo koji pozivalac koji
+        // ne primeni SVOJ zaseban right-then-third filter (kao sto
+        // aiAutoplay.ts rollout ranije nije) dobija kandidat koji NIKAD ne
+        // uspeva — u aiAutoplay.ts slucaju je to zaglavljivalo celu simulaciju
+        // do maxSteps za oko trecinu svih ruku (nosilac na sedistu 1). Sad
+        // nudi SAMO stvarno ocekivanog pratioca, isto kao KONTRA_DECLARING
+        // vec radi preko expectedKontraPlayer().
+        const expected = this.expectedFollowPlayer();
+        if (expected !== null) {
+          actions.push({ type: 'follow', player: expected, choice: 'DODJEM', label: 'Dodjem' });
+          actions.push({ type: 'follow', player: expected, choice: 'NE_DODJEM', label: 'Ne dodjem' });
         }
         // Ako su svi odlucili ali caller nije postavljen, DODJEM bira
         if (s.followChoices.every((c, i) => i === s.winner || c !== null) && s.caller === null) {

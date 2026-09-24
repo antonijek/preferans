@@ -71,7 +71,7 @@ test('getLegalActions: DECLARING — vraća igre >= contract', () => {
   }
 });
 
-test('getLegalActions: FOLLOW_DECLARING — DODJEM/NE_DODJEM za pratioce', () => {
+test('getLegalActions: FOLLOW_DECLARING — DODJEM/NE_DODJEM SAMO za pratioca na potezu (RULES 5.1)', () => {
   const g = new Game({ seed: 1 });
   g.newHand(0);
   g.bid(1, 2);
@@ -83,10 +83,20 @@ test('getLegalActions: FOLLOW_DECLARING — DODJEM/NE_DODJEM za pratioce', () =>
   g.discard(0, [h[0]!.id, h[1]!.id]);
   g.declareGame(0, 'Herc');
   assert.equal(g.state.phase, 'FOLLOW_DECLARING');
-  const actions = g.getLegalActions();
-  // Treba da ima DODJEM i NE_DODJEM za P1 i P2
-  const choices = actions.filter(a => a.type === 'follow');
-  assert.equal(choices.length, 4); // 2 pratioca × 2 opcije
+  // Uzivo prijavljen bag (2026-09-24): ranije je ovo vracalo 4 (DODJEM+
+  // NE_DODJEM za OBA pratioca odjednom, bez obzira na RULES 5.1 redosled) —
+  // follow() bi tiho odbio pogresan redosled, pa je "legalna" akcija za
+  // pratioca koji jos nije na potezu zapravo bila NIKAD izvodljiva. Winner=0
+  // → desni je P1 (right=(0+1)%3=1) — SAMO njegove opcije treba da postoje.
+  const choices = g.getLegalActions().filter(a => a.type === 'follow');
+  assert.equal(choices.length, 2); // samo desni pratilac (P1), 2 opcije
+  assert.ok(choices.every(a => a.player === 1), 'Sve follow opcije treba da budu za P1 (desni od nosioca)');
+
+  g.follow(1, 'DODJEM');
+  // Sad je red na P2 (treci) — njegove opcije treba da se pojave.
+  const choicesAfter = g.getLegalActions().filter(a => a.type === 'follow');
+  assert.equal(choicesAfter.length, 2);
+  assert.ok(choicesAfter.every(a => a.player === 2), 'Posle P1, follow opcije treba da budu za P2');
 });
 
 test('getLegalActions: PLAYING — legalne karte', () => {

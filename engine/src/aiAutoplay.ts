@@ -141,17 +141,30 @@ export function applyHeuristicTurn(game: Game): AutoplayStepResult {
     }
 
     case 'FOLLOW_DECLARING': {
-      const followers = ([0, 1, 2] as Position[]).filter((p) => p !== s.winner);
-      const undecided = followers.find((p) => s.followChoices[p] === null);
-      if (undecided !== undefined) {
+      // Uzivo prijavljen bag (2026-09-24, otkriveno preko Istokove Igra-Herc
+      // ruke koja je dobijala sumnjivo nizak simulacioni skor): ranija verzija
+      // je birala PRVOG nedecided pratioca po POZICIONOM redosledu (0,1,2 sa
+      // izbacenim winner-om), a NE po stvarnom RULES 5.1 redosledu (desni od
+      // nosioca prvi — expectedFollowPlayerPublic()). Za nosioca na sedistu 1
+      // (followers=[0,2] u pozicionom redosledu, ali desni je 2, ne 0) ovo je
+      // znacilo game.follow(0,...) svaki put — follow() ODBIJA pogresan
+      // redosled (vraca false, ali povratna vrednost se nije ni proveravala),
+      // pa se FOLLOW_DECLARING NIKAD nije pomerio i cela simulacija je
+      // zaglavila do maxSteps (60), tiho vracajuci nagradu 0 za taj uzorak —
+      // ovo je sistematski obaralo simulacioni skor SVAKOG kandidata (BIDDING
+      // Igra/bid, DECLARING izbor igre...) cija rukoveza zavrsi sa nosiocem na
+      // sedistu 1, u PRIBLIZNO trecini svih uzorkovanih ruku.
+      const undecided = game.expectedFollowPlayerPublic();
+      if (undecided !== null) {
         const hand = s.players[undecided]!.hand;
         const willFollow =
           chooseFollow({ hand, declaredGame: s.declaredGame! }) === 'DODJEM';
-        game.follow(undecided, willFollow ? 'DODJEM' : 'NE_DODJEM');
-        return 'acted';
+        const ok = game.follow(undecided, willFollow ? 'DODJEM' : 'NE_DODJEM');
+        return ok ? 'acted' : 'no_actor';
       }
       // Oba pratioca odlucila, tacno 1 DODJEM + 1 NE_DODJEM, jos nema caller-a
       // — DODJEM igrac bira Zovi/Igraj sam (RULES 5.3).
+      const followers = ([0, 1, 2] as Position[]).filter((p) => p !== s.winner);
       const neDodjem = followers.find((p) => s.followChoices[p] === 'NE_DODJEM');
       const callerCandidate = followers.find((p) => s.followChoices[p] === 'DODJEM');
       if (neDodjem === undefined || callerCandidate === undefined) return 'no_actor';

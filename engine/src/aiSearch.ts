@@ -13,7 +13,7 @@ import { applyHeuristicTurn } from './aiAutoplay.js';
 import { estimatedMaxLevel, isIgraWorthy } from './aiHandEval.js';
 import { choosePlayCard } from './aiDiscardPlay.js';
 import { chooseKontra, chooseFollow, chooseCallOrAlone } from './aiFollowKontra.js';
-import { chooseDeclareGame } from './aiBidding.js';
+import { chooseDeclareGame, chooseBidAction } from './aiBidding.js';
 import { STANDARD_GAMES, IGRA_GAMES } from './constants.js';
 import type { Card, GameState, LegalAction, Position, Suit } from './types.js';
 
@@ -405,6 +405,40 @@ export function searchChooseAction(
       if (filteredIgra.length > 0) candidates = filteredIgra;
     }
   }
+  // Uzivo prijavljen bag (2026-09-24): Istok drzao 3 asa + K + 3 J
+  // (isIgraWorthy===true, estimatedMaxLevel===4) na SVOJ PRVI potez, a
+  // search je ipak izabrao 'pass'. Filteri iznad SAMO uklanjaju ocigledno
+  // presnazne kandidate (bid preko maxLevel, igra bez isIgraWorthy) — ali
+  // nista nije sprecavalo search da IPAK odabere 'pass' cistim
+  // simulacionim sumom, cak i kad je jaca licitacija/Igra medju preostalim
+  // kandidatima. Ista rupa kao DECLARING/PLAYING (heuristika samo rollout
+  // politika, nikad direktan uticaj na koren) — ovde se manifestovala kao
+  // "prejako pasiranje" umesto "preslabo licitiranje". Isti bonus-obrazac:
+  // racunaj sta bi chooseBidAction() (uzivo kalibrisana, vec interno
+  // koristi estimatedMaxLevel/isIgraWorthy) preporucila, i daj TOJ
+  // konkretnoj akciji prednost.
+  let bidHeuristicMatch: ((a: LegalAction) => boolean) | null = null;
+  if (state.phase === 'BIDDING') {
+    const hand = state.players[seat]!.hand;
+    const passedPlayers = new Set(([0, 1, 2] as Position[]).filter((p) => state.players[p]!.hasPassedBid));
+    const rec = chooseBidAction({
+      hand,
+      currentBid: state.currentBid,
+      bidStartPlayer: state.bidStartPlayer,
+      currentBidder: state.currentBidder,
+      passedPlayers,
+      playerBidLevel: state.players[seat]!.bidLevel,
+      bids: state.bids,
+    });
+    bidHeuristicMatch = (a: LegalAction) => {
+      if (rec.type === 'PASS') return a.type === 'pass';
+      if (rec.type === 'IGRA') return a.type === 'igra';
+      if (rec.type === 'BID') return a.type === 'bid' && a.value === rec.value;
+      if (rec.type === 'MOGU') return a.type === 'mogu' && a.value === rec.value;
+      return false;
+    };
+  }
+  const BID_HEURISTIC_BONUS = 3;
   // Uzivo prijavljen bag (2026-09-22, isti dan, isti uzrok): search AI je
   // eskalirao KONTRU sve do MORTKONTRE (16x!) drzeci samo 2 najslabija aduta
   // (9,10 — bez ijedne casne karte), protiv nosioca koji je ispao da drzi
@@ -498,7 +532,8 @@ export function searchChooseAction(
       samples,
       rng,
       applyCandidate: (g) => applyLegalAction(g, action),
-    }) + (action.type === 'declare' && action.game === declareHeuristicPick ? DECLARE_HEURISTIC_BONUS : 0);
+    }) + (action.type === 'declare' && action.game === declareHeuristicPick ? DECLARE_HEURISTIC_BONUS : 0)
+      + (bidHeuristicMatch?.(action) ? BID_HEURISTIC_BONUS : 0);
     if (score > bestScore) {
       bestScore = score;
       best = action;
