@@ -404,6 +404,21 @@ export function searchChooseAction(
       const filteredIgra = candidates.filter((a) => a.type !== 'igra');
       if (filteredIgra.length > 0) candidates = filteredIgra;
     }
+    // Korisnikov zahtev (2026-09-25): "Preferans je dzentlmenska igra, nije
+    // fer ko ima igru da je ne prijavi ili da ne licitira." — ne sme se
+    // pasirati SAMO zato sto simulacija nanjusi da bi odbrana (kontra na
+    // tudju igru) mogla ispasti profitabilnija. Ovo NIJE meki nagovestaj
+    // (kao DECLARE_HEURISTIC_BONUS ispod) vec tvrdo pravilo, isto kao
+    // bid-cap/igra-prag iznad: cim posle gornjih filtera OSTANE bilo koji
+    // opravdan bid/mogu/igra kandidat, 'pass' se uopste ne nudi searchu —
+    // heuristicki put (chooseBidAction) ovo vec radi (nikad ne vraca PASS
+    // dok god maxLevel>0), search je jedina putanja koja je ovo mogla
+    // izbeci.
+    const hasJustifiedAction = candidates.some((a) => a.type === 'bid' || a.type === 'mogu' || a.type === 'igra');
+    if (hasJustifiedAction) {
+      const withoutPass = candidates.filter((a) => a.type !== 'pass');
+      if (withoutPass.length > 0) candidates = withoutPass;
+    }
   }
   // Uzivo prijavljen bag (2026-09-24): Istok drzao 3 asa + K + 3 J
   // (isIgraWorthy===true, estimatedMaxLevel===4) na SVOJ PRVI potez, a
