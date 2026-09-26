@@ -30,6 +30,18 @@ export function requireAuth(req: AuthedRequest, res: Response, next: NextFunctio
   }
   try {
     const payload = verifyToken(header.slice('Bearer '.length));
+    // Uzivo prijavljen bag KROZ AUDIT (2026-09-26): ban se ne moze upisati u
+    // JWT (vec izdati tokeni bi i dalje bili "cisti"), a ovde se ranije
+    // NIKAD nije proveravao — samo na /login i na socket konekciji (vidi
+    // socket/index.ts). Banovan korisnik je zadrzavao pun pristup SVIM
+    // /api/* rutama (ukljucujuci admin, preko requireAdmin koji poziva ovu
+    // funkciju) do isteka tokena (30 dana). Provera direktno iz baze na
+    // SVAKI zahtev (ban mora vaziti odmah, ne tek na sledecu prijavu).
+    const user = get<{ banned: number }>('SELECT banned FROM users WHERE id = ?', [payload.userId]);
+    if (user?.banned) {
+      res.status(403).json({ error: 'Nalog je suspendovan.' });
+      return;
+    }
     req.userId = payload.userId;
     next();
   } catch {
