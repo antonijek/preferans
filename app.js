@@ -247,11 +247,15 @@ window.addEventListener('load', () => {
   }
   // "Sajt je jos u izradi" najava (korisnikov zahtev 2026-09-20) —
   // dismissible, ne dosadjuje posle prvog citanja.
+  // Korisnikov zahtev (2026-09-26): "Nemoj jos stavljati poruku dobrodosli" —
+  // ne prikazuj banner za sada (ostaje spreman, samo iskljucen dok se ne
+  // zatrazi da se vrati).
   const noticeBanner = document.getElementById('siteNoticeBanner');
   const noticeDismiss = document.getElementById('siteNoticeDismiss');
-  if (noticeBanner && localStorage.getItem('siteNoticeDismissed') !== '1') {
-    noticeBanner.style.display = '';
-  }
+  // if (noticeBanner && localStorage.getItem('siteNoticeDismissed') !== '1') {
+  //   noticeBanner.style.display = '';
+  // }
+  void noticeBanner;
   if (noticeDismiss) {
     noticeDismiss.onclick = () => {
       localStorage.setItem('siteNoticeDismissed', '1');
