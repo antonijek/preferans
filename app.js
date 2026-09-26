@@ -819,6 +819,10 @@ function renderState() {
   // Bule
   $('buleInfo').textContent = `${s.bulas[0]} / ${s.bulas[1]} / ${s.bulas[2]}`;
   $('trickInfo').textContent = `${s.trickCount}/10`;
+  // "Do kraja" (korisnikov zahtev 2026-09-26) — RULES 9.1: partija traje
+  // dok zbir bula svih igraca ne padne na 0, pa je zbir trenutnih bula
+  // tacno taj broj (opada kako neko od igraca uspesno prolazi ruke).
+  $('untilEndInfo').textContent = `${s.bulas[0] + s.bulas[1] + s.bulas[2]}`;
 
   // Pojedinačne bule na sedenja
   $(`bule-${seatOf(0)}`).textContent = s.bulas[0];

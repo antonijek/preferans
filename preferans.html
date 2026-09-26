@@ -53,6 +53,12 @@
          obrub), pa tekst gore nije bio potreban ni tu. -->
     <div><div class="label">Bule</div><div class="value" id="buleInfo">100/100/100</div></div>
     <div><div class="label">Štih</div><div class="value" id="trickInfo">0/10</div></div>
+    <!-- "Do kraja" — korisnikov zahtev 2026-09-26, posle poredjenja sa
+         starijom desktop Preferans aplikacijom koja ovo vec prikazuje kao
+         orijentir "koliko jos partija traje". RULES 9.1: partija traje dok
+         zbir bula svih igraca ne padne na 0, pa je zbir trenutnih bula
+         tacno taj broj. -->
+    <div><div class="label">Do kraja</div><div class="value" id="untilEndInfo">300</div></div>
   </div>
   <div class="top-actions">
     <button class="icon-btn" id="chatToggleBtn" onclick="toggleChat()" style="display:none;position:relative">💬<span id="chatUnreadBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#e53935;color:#fff;border-radius:50%;min-width:18px;height:18px;font-size:0.65em;line-height:18px;text-align:center;font-weight:700;padding:0 3px"></span></button>
