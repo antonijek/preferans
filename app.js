@@ -674,8 +674,23 @@ function applyHandFan(container) {
 
 // Klasicne ilustrovane karte (korisnikov zahtev 2026-09-26 — "balkanski
 // izgled", ne tekstualni rank+suit) — CC0 set u icons/cards/, fajlovi
-// imenovani <rank><SUIT_LETTER>.svg (npr. "10S.svg", "AH.svg").
+// imenovani <rank><SUIT_LETTER>.svg (npr. "10S.svg", "AH.svg"). Korisnik je
+// posle toga trazio da izgled bude IZBOR (neki su navikli na stare
+// tekstualne karte, "sad djeluju premale") — cuva se po korisniku
+// (localStorage), cisto kozmetika na klijentu, isti obrazac kao toggleSound.
 const SUIT_TO_FILE_LETTER = { '♠': 'S', '♥': 'H', '♦': 'D', '♣': 'C' };
+function getCardStyle() {
+  try { return localStorage.getItem('cardStyle') === 'text' ? 'text' : 'illustrated'; } catch { return 'illustrated'; }
+}
+function toggleCardStyle() {
+  const next = getCardStyle() === 'illustrated' ? 'text' : 'illustrated';
+  try { localStorage.setItem('cardStyle', next); } catch {}
+  const btn = $('cardStyleToggleBtn');
+  if (btn) btn.title = next === 'illustrated' ? 'Izgled karata: ilustrovane (klik za tekstualne)' : 'Izgled karata: tekstualne (klik za ilustrovane)';
+  render();
+}
+window.toggleCardStyle = toggleCardStyle;
+
 const cardEl = (c, opts = {}) => {
   const klass = ['card', isRed(c.suit) ? 'red' : 'black'];
   if (opts.size === 'tiny') klass.push('tiny');
@@ -683,12 +698,18 @@ const cardEl = (c, opts = {}) => {
   if (opts.playable) klass.push('playable');
   if (opts.disabled) klass.push('disabled');
   if (opts.selected) klass.push('selected');
+  const useText = getCardStyle() === 'text';
+  if (useText) klass.push('text-style');
   const node = el('div', klass.join(' '));
-  const img = document.createElement('img');
-  img.src = `/icons/cards/${c.rank}${SUIT_TO_FILE_LETTER[c.suit]}.svg`;
-  img.alt = `${c.rank}${c.suit}`;
-  img.draggable = false;
-  node.appendChild(img);
+  if (useText) {
+    node.innerHTML = `<div class="rank">${c.rank}</div><div class="suit">${c.suit}</div>`;
+  } else {
+    const img = document.createElement('img');
+    img.src = `/icons/cards/${c.rank}${SUIT_TO_FILE_LETTER[c.suit]}.svg`;
+    img.alt = `${c.rank}${c.suit}`;
+    img.draggable = false;
+    node.appendChild(img);
+  }
   return node;
 };
 

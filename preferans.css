@@ -644,6 +644,24 @@
      slot ispod je stegnut da ga tesno prati. */
   .card.small { width: 58px; height: 82px; font-size: 1.05em; }
 
+  /* Tekstualni stil karata (korisnikov zahtev 2026-09-26 — izbor izmedju
+     ilustrovanih i starih tekstualnih karata, po korisniku preko
+     toggleCardStyle()). Ista border/shadow logika koju su ILUSTROVANE
+     karte izgubile (jer SVG sam crta svoj oblik) — ovde i dalje treba,
+     jer je .rank/.suit samo tekst bez sopstvenog oblika/pozadine. */
+  .card.text-style {
+    background: white;
+    color: #222;
+    border: 1px solid rgba(0,0,0,0.18);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.4), inset 0 0 0 3px rgba(0,0,0,0.05);
+  }
+  .card.text-style .rank { font-size: 1.55em; line-height: 1; }
+  .card.text-style .suit { font-size: 1.95em; line-height: 1; margin-top: 1px; }
+  .card.text-style.tiny .rank { font-size: 1.05em; }
+  .card.text-style.tiny .suit { font-size: 1.3em; }
+  .card.text-style.small .rank { font-size: 1.25em; }
+  .card.text-style.small .suit { font-size: 1.55em; }
+
   /* Lepezasto preklapanje karata u ruci — JS postavlja --rot/--lift po karti
      (vidi applyHandFan u app.js), CSS ih primenjuje + dodaje hover-podizanje
      bez gubljenja bazne rotacije. Samo za ruku (hand-area), ne za talon/stih

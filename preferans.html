@@ -77,6 +77,10 @@
     <button class="icon-btn" id="peekHomeBtn" onclick="peekHomeScreen()" style="display:none" title="Nazad na početnu (ostaješ za stolom)">🏠</button>
     <button class="icon-btn" onclick="toggleScore()">📊</button>
     <button class="icon-btn" id="soundToggleBtn" onclick="toggleSound()" title="Zvuk uklj/isklj">🔊</button>
+    <!-- Korisnikov zahtev (2026-09-26) — "da korisnik bira koje ce karte,
+         one od pre ili ove" — cuva se po korisniku (localStorage), samo
+         kozmetika, klijent-side. -->
+    <button class="icon-btn" id="cardStyleToggleBtn" onclick="toggleCardStyle()" title="Izgled karata (ilustrovane/tekstualne)">🎴</button>
     <button class="icon-btn" onclick="restart()">🔄</button>
   </div>
 </div>
