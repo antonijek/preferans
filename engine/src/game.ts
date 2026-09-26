@@ -572,13 +572,18 @@ private checkBiddingEnd(): void {
   discard(player: Position, cardIds: [string, string]): boolean {
     if (this.state.phase !== 'DISCARDING') return false;
     if (player !== this.state.winner) return false;
+    // Uzivo prijavljen bag KROZ AUDIT (2026-09-26): cardIds dolazi direktno
+    // sa mreze (socket payload) — TS tip ovde NISTA ne garantuje u runtime-u.
+    // Klijent koji posalje {type:'discard'} bez cardIds (ili cardIds:null)
+    // bi ranije SRUSIO CEO SERVER na `cardIds[0]` ispod (TypeError na
+    // undefined/null). Validacija MORA biti PRE bilo kog pristupa indeksu.
+    if (!Array.isArray(cardIds) || cardIds.length !== 2) return false;
     const hand = this.state.players[player]!.hand;
     if (cardIds[0] === cardIds[1]) return false;
     const c1 = hand.find(c => c.id === cardIds[0]);
     const c2 = hand.find(c => c.id === cardIds[1]);
     if (!c1 || !c2) return false;
     if (c1 === c2) return false;
-    if (cardIds.length !== 2) return false;
     this.state.players[player]!.hand = hand.filter(c => c.id !== cardIds[0] && c.id !== cardIds[1]);
     this.state.discard.push(c1, c2);
     this.state.phase = 'DECLARING';

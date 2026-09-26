@@ -73,6 +73,26 @@ async function main(): Promise<void> {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 
+  // Uzivo prijavljen bag KROZ AUDIT (2026-09-26, pred lansiranje): nijedan
+  // socket handler nije imao try/catch — JEDAN los-formiran zahtev od
+  // JEDNOG klijenta (npr. discard sa nedostajucim cardIds) bi bacio
+  // neuhvacen izuzetak i SRUSIO CEO PROCES, obarajuci SVE aktivne partije,
+  // ne samo tog klijenta. Individualni handleri su sad umotani (vidi
+  // wrapSocketErrors u socket/index.ts) — ovo je POSLEDNJA linija odbrane
+  // za bilo sta sto ipak proklizi (npr. greska van bilo kog socket
+  // handlera). Flush-uj bazu (isti razlog kao SIGTERM/SIGINT — persist() je
+  // debounced do 2s) pre nego sto pustimo Node da izadje i PM2 restartuje.
+  process.on('uncaughtException', (err) => {
+    console.error('[FATAL] uncaughtException:', err);
+    try { flushPersist(); } catch (flushErr) { console.error('[FATAL] flush failed:', flushErr); }
+    process.exit(1);
+  });
+  process.on('unhandledRejection', (reason) => {
+    console.error('[FATAL] unhandledRejection:', reason);
+    try { flushPersist(); } catch (flushErr) { console.error('[FATAL] flush failed:', flushErr); }
+    process.exit(1);
+  });
+
   // Svakih 5 minuta ocisti WAITING sobe bez aktivnih igraca starije od 30 min.
   setInterval(() => {
     const removed = removeAbandonedWaitingRooms();

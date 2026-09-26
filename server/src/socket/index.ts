@@ -4,6 +4,34 @@ import { get } from '../db.js';
 import { registerRoomHandlers } from './roomEvents.js';
 import { markOnline, markOffline, getSocketIdsForUser } from '../presence.js';
 
+// Uzivo prijavljen bag KROZ AUDIT (2026-09-26, pred lansiranje): NIJEDAN
+// socket handler (game:action, chat:send, room:create...) nije imao
+// try/catch — jedan los-formiran zahtev od JEDNOG klijenta (npr.
+// {type:'discard'} bez cardIds) baca neuhvacen izuzetak koji SRUSI CEO
+// NODE PROCES, obarajuci SVE aktivne partije na serveru, ne samo tog
+// klijenta. Umesto da se svaki od ~19 socket.on() poziva u roomEvents.ts
+// pojedinacno umota, ovo umotava socket.on SAMO na ovom mestu — svaki
+// handler registrovan POSLE ovog poziva (svi, jer se zove PRE
+// registerRoomHandlers) automatski dobija zastitu. Radi i za sync throw i
+// za odbijen Promise (async handler).
+function wrapSocketErrors(socket: Socket): void {
+  const originalOn = socket.on.bind(socket);
+  socket.on = ((event: string, handler: (...args: unknown[]) => unknown) => {
+    return originalOn(event, (...args: unknown[]) => {
+      try {
+        const result = handler(...args);
+        if (result && typeof (result as Promise<unknown>).catch === 'function') {
+          (result as Promise<unknown>).catch((err: unknown) => {
+            console.error(`[socket:${event}] async error (socket ${socket.id}):`, err);
+          });
+        }
+      } catch (err) {
+        console.error(`[socket:${event}] error (socket ${socket.id}):`, err);
+      }
+    });
+  }) as typeof socket.on;
+}
+
 interface UserRow {
   id: number;
   email: string;
@@ -54,6 +82,7 @@ export function registerSocketHandlers(io: Server): void {
     // existed (production already had real users at the time it was added).
     socket.data.name = user?.name || user?.email || `player-${userId}`;
     console.log(`Socket ${socket.id} authenticated as user ${userId} (${socket.data.name})`);
+    wrapSocketErrors(socket);
     markOnline(socket.id, userId, socket.data.name);
     socket.on('disconnect', () => markOffline(socket.id));
     registerRoomHandlers(io, socket);

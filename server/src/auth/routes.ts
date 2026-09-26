@@ -34,7 +34,18 @@ authRouter.post('/register', async (req, res) => {
   }
 
   const passwordHash = await hashPassword(password);
-  run('INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)', [email, passwordHash, name.trim().slice(0, 40)]);
+  // Uzivo prijavljen bag KROZ AUDIT (2026-09-26): provera iznad i INSERT
+  // ispod nisu atomicni — dva ISTOVREMENA zahteva sa istim emailom oba
+  // prolaze proveru (await hashPassword iznad daje vremena drugom zahtevu
+  // da "utrci"), pa drugi INSERT udari u UNIQUE constraint i baci gresku
+  // unutar async Express handlera BEZ try/catch, sto rusi ceo proces.
+  // try/catch ovde pretvara tu trku u normalan 409 umesto pada servera.
+  try {
+    run('INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)', [email, passwordHash, name.trim().slice(0, 40)]);
+  } catch {
+    res.status(409).json({ error: 'Email already registered' });
+    return;
+  }
   const user = get<Pick<UserRow, 'id'>>('SELECT id FROM users WHERE email = ?', [email]);
   res.status(201).json({ token: signToken(user!.id) });
 });

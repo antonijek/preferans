@@ -7,7 +7,8 @@
     "serve": "node tools/serve.js",
     "test:ui": "node tools/browser-smoke-test.mjs",
     "test:ui:multi": "node tools/multi-smoke.mjs",
-    "visual:check": "node tools/visual-check.mjs"
+    "visual:check": "node tools/visual-check.mjs",
+    "deploy": "bash tools/deploy.sh"
   },
   "devDependencies": {
     "playwright": "^1.62.1"
