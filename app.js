@@ -927,22 +927,21 @@ function renderStatusBar() {
   } else if (showTalonFaceDown) {
     const cardsEl = $('talonCenterCards');
     cardsEl.innerHTML = '';
-    // Korisnikov zahtev (2026-09-27): pozadina talona treba da prati ISTI
-    // toggle kao prednja strana karata — ilustrovana crvena šara ne pristaje
-    // uz tekstualni stil (i deluje strano ("ruzna boja") van tog konteksta).
+    // Korisnikov zahtev (2026-09-27): "prva nek bude kao sto su karte na
+    // balkanu, a na toggle nek bude ista samo plava" — ISTI klasicni
+    // mrezasti/medaljon uzorak (standardan na skoro svakom spilu), samo
+    // dve boje iz istog seta (back-red.svg / back-blue.svg), prati isti
+    // toggle kao prednja strana. Ranija CSS zeleno-zlatna verzija odbijena
+    // ("ne valja ni jedna ni druga") — uklonjena.
     const useText = getCardStyle() === 'text';
     for (let i = 0; i < 2; i++) {
-      if (useText) {
-        cardsEl.appendChild(el('div', 'card small talon-back talon-back-plain'));
-      } else {
-        const back = el('div', 'card small talon-back');
-        const img = document.createElement('img');
-        img.src = '/icons/cards/back.svg';
-        img.alt = 'Talon';
-        img.draggable = false;
-        back.appendChild(img);
-        cardsEl.appendChild(back);
-      }
+      const back = el('div', 'card small talon-back');
+      const img = document.createElement('img');
+      img.src = useText ? '/icons/cards/back-blue.svg' : '/icons/cards/back-red.svg';
+      img.alt = 'Talon';
+      img.draggable = false;
+      back.appendChild(img);
+      cardsEl.appendChild(back);
     }
     talonCenter.style.display = 'flex';
   } else {
