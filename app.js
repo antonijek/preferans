@@ -672,6 +672,10 @@ function applyHandFan(container) {
   });
 }
 
+// Klasicne ilustrovane karte (korisnikov zahtev 2026-09-26 — "balkanski
+// izgled", ne tekstualni rank+suit) — CC0 set u icons/cards/, fajlovi
+// imenovani <rank><SUIT_LETTER>.svg (npr. "10S.svg", "AH.svg").
+const SUIT_TO_FILE_LETTER = { '♠': 'S', '♥': 'H', '♦': 'D', '♣': 'C' };
 const cardEl = (c, opts = {}) => {
   const klass = ['card', isRed(c.suit) ? 'red' : 'black'];
   if (opts.size === 'tiny') klass.push('tiny');
@@ -680,7 +684,11 @@ const cardEl = (c, opts = {}) => {
   if (opts.disabled) klass.push('disabled');
   if (opts.selected) klass.push('selected');
   const node = el('div', klass.join(' '));
-  node.innerHTML = `<div class="rank">${c.rank}</div><div class="suit">${c.suit}</div>`;
+  const img = document.createElement('img');
+  img.src = `/icons/cards/${c.rank}${SUIT_TO_FILE_LETTER[c.suit]}.svg`;
+  img.alt = `${c.rank}${c.suit}`;
+  img.draggable = false;
+  node.appendChild(img);
   return node;
 };
 

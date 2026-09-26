@@ -678,15 +678,12 @@
   .card.playable { box-shadow: 0 0 0 2px rgba(76,175,80,0.6), 0 2px 5px rgba(0,0,0,0.4); }
   .card.red { color: #c62828; }
   .card.black { color: #222; }
-  /* Oznaka karte uvecana (korisnikov zahtev — "da zauzme vise prostora u
-     samoj karti, manji padding") — rank+suit sad dominiraju kartu umesto da
-     ostave dosta praznog prostora oko sebe. */
-  .card .rank { font-size: 1.55em; line-height: 1; }
-  .card .suit { font-size: 1.95em; line-height: 1; margin-top: 1px; }
-  .card.tiny .rank { font-size: 1.05em; }
-  .card.tiny .suit { font-size: 1.3em; }
-  .card.small .rank { font-size: 1.25em; }
-  .card.small .suit { font-size: 1.55em; }
+  /* Prave ilustrovane karte (korisnikov zahtev 2026-09-26 — "klasican
+     balkanski izgled", ne tekstualni rank+suit) — javno-dostupan (CC0) set
+     iz icons/cards/, vidi LICENSE-cards.txt tamo. object-fit:contain (ne
+     cover) jer SVG-ovi imaju svoj sopstveni omjer koji se ne poklapa
+     tacno sa .card kutijom — contain garantuje da se nista ne secce. */
+  .card img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; }
 
   /* === MODAL === */
   .screen {
