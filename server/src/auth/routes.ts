@@ -3,6 +3,24 @@ import { get, run, getMatchesForUser, getMatchById } from '../db.js';
 import { hashPassword, verifyPassword } from './password.js';
 import { signToken, requireAuth } from './middleware.js';
 import type { AuthedRequest } from './middleware.js';
+import { rateLimit } from '../rateLimit.js';
+
+// Uzivo prijavljen bag KROZ AUDIT (2026-09-26, pred lansiranje): nista nije
+// sprecavalo brute-force login pokusaje ili masovnu automatsku registraciju
+// naloga — po IP adresi, ne po naloge (jos ne postoji nalog cije bi se
+// pokusaje ogranicilo kod registracije/pogresnog logina).
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyPrefix: 'login',
+  message: 'Previše pokušaja prijave. Pokušajte ponovo za 15 minuta.',
+});
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  keyPrefix: 'register',
+  message: 'Previše pokušaja registracije. Pokušajte ponovo za sat vremena.',
+});
 
 interface UserRow {
   id: number;
@@ -16,7 +34,7 @@ interface UserRow {
 
 export const authRouter = Router();
 
-authRouter.post('/register', async (req, res) => {
+authRouter.post('/register', registerLimiter, async (req, res) => {
   const { email, password, name } = req.body ?? {};
   if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
     res.status(400).json({ error: 'email and password are required' });
@@ -50,7 +68,7 @@ authRouter.post('/register', async (req, res) => {
   res.status(201).json({ token: signToken(user!.id) });
 });
 
-authRouter.post('/login', async (req, res) => {
+authRouter.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body ?? {};
   if (typeof email !== 'string' || typeof password !== 'string') {
     res.status(400).json({ error: 'email and password are required' });

@@ -27,6 +27,14 @@ async function main(): Promise<void> {
   if (loadedRooms > 0) console.log(`[STARTUP] Restored ${loadedRooms} active room(s) from disk`);
 
   const app = express();
+  // Nginx (proizvodnja) prosledjuje pravu IP adresu klijenta preko
+  // X-Forwarded-For (vidi proxy_set_header u nginx configu), ali Express
+  // NE koristi to zaglavlje za req.ip dok se eksplicitno ne kaze da veruje
+  // proxy-ju — bez ovoga bi req.ip za SVAKI zahtev vracao 127.0.0.1 (samu
+  // nginx masinu), sto bi rate-limiting (dole, po IP-u) ucinilo beskorisnim
+  // (svi korisnici bi delili ISTI "IP"). `1` = veruj tacno jednom hop-u
+  // (nas nginx), ne bilo kom X-Forwarded-For koji klijent sam izmisli.
+  app.set('trust proxy', 1);
   app.use(express.json());
   // BAG (uzivo prijavljen, veceras VISE PUTA: "popravio si ali i dalje isto"
   // — poprvke SU stvarno bile na serveru, ali browser je i dalje ucitavao
