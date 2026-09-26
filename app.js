@@ -908,15 +908,33 @@ function renderStatusBar() {
   // prvog stiha ("2 karte talona koje stoje na stolu smetaju dok se igra
   // prvi stih") — ostaju SAMO dok nosilac ne proglasi igru (DISCARDING +
   // DECLARING), nestaju cim krene FOLLOW_DECLARING.
-  const showTalonCenter = s.lastTalon.length > 0 && (
+  const showTalonRevealed = s.lastTalon.length > 0 && (
     s.phase === 'DISCARDING' || s.phase === 'DECLARING'
   );
+  // Korisnikov zahtev (2026-09-27, RULES: talon lezi na stolu OD DELJENJA,
+  // tokom cele licitacije, dok ga pobednik ne uzme — nismo ga uopste
+  // prikazivali dok se licitira). Okrenute naopako, sadrzaj se ne otkriva
+  // (isti "back.svg" bez obzira koje su karte stvarno u pitanju).
+  const showTalonFaceDown = s.phase === 'BIDDING';
   const talonCenter = $('talonCenter');
-  if (showTalonCenter) {
+  if (showTalonRevealed) {
     const cardsEl = $('talonCenterCards');
     cardsEl.innerHTML = '';
     for (const c of s.lastTalon) {
       cardsEl.appendChild(cardEl(c, { size: 'small' }));
+    }
+    talonCenter.style.display = 'flex';
+  } else if (showTalonFaceDown) {
+    const cardsEl = $('talonCenterCards');
+    cardsEl.innerHTML = '';
+    for (let i = 0; i < 2; i++) {
+      const back = el('div', 'card small talon-back');
+      const img = document.createElement('img');
+      img.src = '/icons/cards/back.svg';
+      img.alt = 'Talon';
+      img.draggable = false;
+      back.appendChild(img);
+      cardsEl.appendChild(back);
     }
     talonCenter.style.display = 'flex';
   } else {

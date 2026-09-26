@@ -700,6 +700,9 @@
      cover) jer SVG-ovi imaju svoj sopstveni omjer koji se ne poklapa
      tacno sa .card kutijom — contain garantuje da se nista ne secce. */
   .card img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; }
+  /* Talon okrenut naopako tokom licitacije (korisnikov zahtev 2026-09-27) —
+     samo dekoracija, ne dugme (bazni .card ima cursor:pointer). */
+  .card.talon-back { cursor: default; }
 
   /* === MODAL === */
   .screen {
