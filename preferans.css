@@ -619,23 +619,21 @@
 
   /* === KARTICE === */
   .card {
-    background: white;
-    color: #222;
     width: 68px;
     height: 96px;
-    border-radius: 7px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     font-weight: 800;
     cursor: pointer;
-    /* Suptilna kajla (korisnikov zahtev: "da izgleda kao prave karte, ne
-       markeri") — tanak sivi rub + blaga UNUTRASNJA linija odvojena od
-       ivice, kao stampani okvir na pravoj karti, pored postojece senke
-       koja daje "podignut" (odvojen od stola) izgled. */
-    border: 1px solid rgba(0,0,0,0.18);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.4), inset 0 0 0 3px rgba(0,0,0,0.05);
+    /* Prave ilustrovane karte (korisnikov zahtev 2026-09-26) vec crtaju
+       SOPSTVENI beli zaobljeni oblik karte unutar SVG-a — border/background/
+       inset-okvir ovde su ranije bili za STARU tekstualnu karticu (bez
+       sopstvenog oblika) i sad su SUVISNI: udvajaju se sa SVG-ovim oblikom i
+       izgledaju kao dupla ivica ("okvir", korisnikov utisak). Samo spoljna
+       senka ostaje (odvaja kartu od stola), bez border/inset-a. */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.4);
     transition: transform 0.15s, box-shadow 0.15s;
     position: relative;
     flex-shrink: 0;
