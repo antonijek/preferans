@@ -927,14 +927,22 @@ function renderStatusBar() {
   } else if (showTalonFaceDown) {
     const cardsEl = $('talonCenterCards');
     cardsEl.innerHTML = '';
+    // Korisnikov zahtev (2026-09-27): pozadina talona treba da prati ISTI
+    // toggle kao prednja strana karata — ilustrovana crvena šara ne pristaje
+    // uz tekstualni stil (i deluje strano ("ruzna boja") van tog konteksta).
+    const useText = getCardStyle() === 'text';
     for (let i = 0; i < 2; i++) {
-      const back = el('div', 'card small talon-back');
-      const img = document.createElement('img');
-      img.src = '/icons/cards/back.svg';
-      img.alt = 'Talon';
-      img.draggable = false;
-      back.appendChild(img);
-      cardsEl.appendChild(back);
+      if (useText) {
+        cardsEl.appendChild(el('div', 'card small talon-back talon-back-plain'));
+      } else {
+        const back = el('div', 'card small talon-back');
+        const img = document.createElement('img');
+        img.src = '/icons/cards/back.svg';
+        img.alt = 'Talon';
+        img.draggable = false;
+        back.appendChild(img);
+        cardsEl.appendChild(back);
+      }
     }
     talonCenter.style.display = 'flex';
   } else {
