@@ -1573,12 +1573,15 @@
   /* === RESPONSIVE === */
   @media (min-width: 700px) {
     body { font-size: 1.1em; }
-    .card { width: 76px; height: 108px; }
-    .card .rank { font-size: 1.75em; }
-    .card .suit { font-size: 2.2em; }
-    .card.small { width: 68px; height: 94px; }
-    .trick-slot { width: 76px; height: 102px; }
-    .hand-area .card + .card { margin-left: -34px; }
+    /* Korisnikov zahtev (2026-09-27, gledao na laptopu): "mogu li karte biti
+       malo vece" — uvecano sa 76x108 na 92x130 (~20%), trick-slot/small/
+       preklapanje u ruci skalirano proporcionalno da ostanu uskladjeni. */
+    .card { width: 92px; height: 130px; }
+    .card.text-style .rank { font-size: 2.1em; }
+    .card.text-style .suit { font-size: 2.6em; }
+    .card.small { width: 82px; height: 114px; }
+    .trick-slot { width: 92px; height: 124px; }
+    .hand-area .card + .card { margin-left: -42px; }
   }
 
   /* Siri raspored: sto + bocni paneli jedan pored drugog (korisnikov
