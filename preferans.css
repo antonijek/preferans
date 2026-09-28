@@ -322,21 +322,43 @@
     width: 104px;
     overflow: hidden;
   }
-  .player-name {
+  /* Ime + avatar u ISTOM redu (korisnikov zahtev 2026-09-28, uzor iz Lora
+     igre na D disku — "kartice sa imenima su ljepse na lori") — pozadina/
+     donja linija koje je ranije nosio SAM .player-name (kad je bio jedini
+     element u tom redu) sad nosi wrapper .player-name-row, da avatar i
+     tekst dele istu "header traku" umesto da avatar sedi na pozadini
+     cele kartice dok tekst ima svoju posebnu kutiju. */
+  .player-name-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
     background: rgba(0,0,0,0.3);
     border-bottom: 1px solid rgba(255,213,110,0.22);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    padding: 4px 4px 3px;
+    padding: 3px 4px 3px 5px;
     margin-bottom: 4px;
+  }
+  .player-seat.you .player-name-row {
+    background: rgba(76,175,80,0.22);
+    border-bottom-color: rgba(129,199,132,0.4);
+  }
+  /* Manja verzija postojeceg .avatar-circle (koristi ista boja/font kao
+     online-users lista — isti "identitet" element, ne novi stil). */
+  .seat-avatar {
+    width: 20px;
+    height: 20px;
+    font-size: 0.62em;
+    flex-shrink: 0;
+  }
+  .player-name {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     text-transform: uppercase;
     letter-spacing: 0.2px;
     color: rgba(255,255,255,0.75);
+    flex: 1;
+    min-width: 0;
+    text-align: left;
   }
-  .player-seat.you .player-name {
-    background: rgba(76,175,80,0.22);
-    border-bottom-color: rgba(129,199,132,0.4);
-    color: #c8e6c9;
-  }
+  .player-seat.you .player-name { color: #c8e6c9; }
   /* Korisnikov zahtev: sediste nekog ko je ispao sa mreze treba ODMAH
      vizuelno da se "isprazni" (ne samo obavestenje) — ugaseno/sivo dok se
      ne vrati. Ime samo (renderSeats()) se menja na "— nema veze —". */
@@ -356,17 +378,20 @@
     50% { box-shadow: 0 0 20px rgba(255,235,59,0.9); }
   }
 
+  /* Gornje-desno + beo krug sa zlatnom ivicom (korisnikov zahtev 2026-09-28,
+     uzor iz Lora igre — cistiji "casino chip" izgled nego zuti krug gore-
+     levo koji je bio ovde ranije). */
   .dealer-badge {
     position: absolute;
-    top: -8px; left: -8px;
-    background: #ffeb3b;
-    color: #1b5e20;
-    font-size: 0.75em;
+    top: -9px; right: -9px;
+    background: #fff;
+    color: #1b1b1b;
+    font-size: 0.7em;
     width: 20px; height: 20px;
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-    border: 1px solid rgba(0,0,0,0.3);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    border: 2px solid var(--gold);
   }
   .player-name { font-weight: 700; font-size: 0.68em; white-space: nowrap; }
   .player-seat.active .player-name { color: #ffeb3b; }

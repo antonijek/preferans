@@ -776,7 +776,15 @@ function renderSeats() {
   for (const pos of [0, 1, 2]) {
     // Kratko — .player-name kutija je uska (104px) i uppercase+bold, duzi
     // tekst ("nema veze") se sece "...".
-    $(`name-${seatOf(pos)}`).textContent = disconnectedSeats.has(pos) ? 'nije tu' : seatDisplayName(pos);
+    const displayName = disconnectedSeats.has(pos) ? 'nije tu' : seatDisplayName(pos);
+    $(`name-${seatOf(pos)}`).textContent = displayName;
+    // Avatar krugic sa inicijalom (korisnikov zahtev 2026-09-28, uzor iz
+    // Lora igre) — isti obrazac kao vec postojeci .avatar-circle za
+    // online-users listu (charAt(0), ne prvo slovo "nije tu" placeholdera).
+    const avatarEl = $(`avatar-${seatOf(pos)}`);
+    if (avatarEl) {
+      avatarEl.textContent = disconnectedSeats.has(pos) ? '?' : (displayName || '?').trim().charAt(0).toUpperCase();
+    }
     $(`seat-${seatOf(pos)}`).classList.toggle('disconnected', disconnectedSeats.has(pos));
   }
   // Bug nadjen 2026-09-18 (korisnikov zahtev: "u boksu sa imenima pise bule
