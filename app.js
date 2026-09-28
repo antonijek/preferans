@@ -1210,18 +1210,6 @@ function renderTrick() {
   _prevTrickLen = trickToShow.length;
 }
 
-// Suptilan watermark u sredini stola sakriva se čim ima BILO KOG stvarnog
-// sadržaja tamo (talon, karte u toku) — korisnikov utisak da je sto "prazan
-// i dosadan" pre nego što krene odigravanje. Trump-banner je uklonjen
-// (korisnikov zahtev — dupliralo je info iz statusne trake i zaklanjalo
-// odigrane karte), pa vise ne ucestvuje u ovoj proveri.
-function updateTableWatermark() {
-  const s = game.state;
-  const hasContent = s.currentTrick.length > 0 ||
-    $('talonCenter').style.display !== 'none';
-  $('tableFelt').classList.toggle('has-center-content', hasContent);
-}
-
 // === BIDDING PANEL ===
 
 function renderBiddingPanel() {
@@ -1830,7 +1818,6 @@ function render() {
   renderSeatExtras();
   renderTrick();
   renderBiddingPanel();
-  updateTableWatermark();
   recordHandIfNew();
   checkRefeToast();
   updateSoundEffects();

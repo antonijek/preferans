@@ -213,10 +213,14 @@
     padding: 10px;
   }
 
-  /* Sto (centar sto). Korisnikov utisak: puni-siroki OVAL (border-radius:200px
-     na sirokom-plitkom kontejneru) izgleda kao razvucena "pilula", ne kao
-     prirodan sto. Zaobljen PRAVOUGAONIK sa umerenim radijusom izgleda
-     prirodnije na bilo kojoj sirini/visini i i dalje jasno cita kao "sto". */
+  /* Sto (centar sto). Korisnikov utisak (2026-09-21, prva runda): puni-siroki
+     OVAL (border-radius:200px) na TADASNJEM sirokom-plitkom kontejneru je
+     izgledao kao razvucena "pilula" — ali to je bilo PRE nego sto su
+     sirina/visina znatno suzene (vidi komentare ispod, "runda 1"/"runda 2")
+     na proporciju blizu 2:1. Korisnikov zahtev (2026-09-28), posle
+     poredjenja sa Lora stolom: na OVIM (uzim/nizim) proporcijama probaj
+     ponovo pun oval — border-radius dovoljno veliki da CSS sam ogranici na
+     "stadium" oblik (polukrug na krajevima), bez menjanja sirine/visine. */
   .table-felt {
     grid-column: 2;
     grid-row: 1;
@@ -237,16 +241,20 @@
        disku) — deblji "wood rail" umesto tanke zelene linije, slojeviti
        box-shadow (tamnija spoljna kontura + dublja unutrasnja senka +
        podignuta senka na stolu) daje utisak pravog stola sa drvenim
-       okvirom oko čoje, ne samo obojenu granicu. Oblik (zaobljeni
-       pravougaonik, NE puna ovalna "pilula") namerno NIJE menjan — ranije
-       vec probano i odbijeno (korisnikov utisak: "izgleda razvučeno"),
-       vidi komentar iznad ove klase. */
+       okvirom oko čoje, ne samo obojenu granicu. */
     /* Korisnikov utisak (2026-09-28): "malo veci ovaj drveni okvir je kod
        lore" — Lora koristi responsive clamp(8px, 1.4vw, 16px), ne fiksnih
        10px, pa na širim ekranima ispadne primetno deblji. Isti pristup
        ovde. */
     border: clamp(8px, 1.4vw, 16px) solid #6b4424;
-    border-radius: 46px;
+    /* Pun oval (korisnikov zahtev 2026-09-28, "ipak postavi isti sto kao
+       kod lore, zaobljen") — 999px je vece od polovine bilo koje realne
+       sirine/visine stola, pa CSS sam ogranici na "stadium" oblik (ravne
+       gornja/donja ivica, polukrugovi levo/desno) — isti efekat kao Lorin
+       border-radius:999px, bez potrebe da se racuna tacan px po velicini
+       stola. Sirina/visina NISU menjane (vidi komentare ispod, "runda 1"/
+       "runda 2") — samo oblik. */
+    border-radius: 999px;
     box-shadow: 0 0 0 4px #4a2e17, inset 0 0 60px rgba(0,0,0,0.4), 0 12px 30px rgba(0,0,0,0.5);
     position: relative;
     z-index: 0;
@@ -285,29 +293,6 @@
     min-height: 160px;
     align-self: center;
   }
-  /* Suptilan watermark u sredini stola — popunjava prazninu pre nego što
-     ima karata/talona/trump-a da se prikaže (korisnikov utisak "sto deluje
-     prazno"). display:none-ovan cim ima bilo kog drugog sadrzaja u sredini
-     (klasa .table-felt.has-center-content, postavlja se iz JS-a). */
-  .table-watermark {
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    /* Korisnikov zahtev (2026-09-21): "na stolu da pise pref ili preferans
-       kao zig" — tekst umesto emoji ikone. clamp() da stane na uzim
-       stolovima bez overflow-a umesto fiksnog font-size. */
-    font-family: 'Cinzel', Georgia, serif;
-    font-weight: 700;
-    font-size: clamp(1.4em, 9vw, 3.6em);
-    letter-spacing: 0.12em;
-    color: var(--gold-bright);
-    white-space: nowrap;
-    opacity: 0.07;
-    pointer-events: none;
-    user-select: none;
-    z-index: 0;
-  }
-  .table-felt.has-center-content .table-watermark { display: none; }
 
   /* Zapad/Istok su sad na uskim bocnim marginama stola (vidi pozicije
      sedenja ispod) — korisnikov zahtev da se ove kutije smanje da bi stale.
