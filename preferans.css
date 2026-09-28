@@ -223,10 +223,16 @@
     /* Suptilna tkanina-tekstura (ukrstene tanke linije niskog kontrasta)
        preko postojece boje — bez toga sto izgleda kao ravna boja umesto
        platna, korisnikov utisak "moze da bude lepse". */
+    /* Boja/razvučenost preuzeta iz Lora stola (2026-09-28, korisnikov
+       utisak: "boja stola za loru je ljepsa, druga zelena i lepo
+       razvucena") — #177245/#0e4d2e (dublja, vise "emerald" nego travnato-
+       zelena #2e7d32/#1b5e20 koje je ovo zamenilo), i gradijent stane na
+       75% umesto 100% — svetliji centar se brze gasi ka ivici, izrazenija
+       "razvucenost" nego ravnomeran prelaz do same ivice. */
     background:
       repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 5px),
       repeating-linear-gradient(-45deg, rgba(0,0,0,0.03) 0px, rgba(0,0,0,0.03) 1px, transparent 1px, transparent 5px),
-      radial-gradient(ellipse at center, #2e7d32 0%, #1b5e20 100%);
+      radial-gradient(ellipse at center, #177245 0%, #0e4d2e 75%);
     /* Drveni rub (korisnikov zahtev 2026-09-28, uzor iz Lora igre na D
        disku) — deblji "wood rail" umesto tanke zelene linije, slojeviti
        box-shadow (tamnija spoljna kontura + dublja unutrasnja senka +
@@ -1501,7 +1507,7 @@
      obojeni bedzevi/pilule ispod stvarno iskoce umesto da se izgube u
      istoj zelenoj podlozi. */
   #resultBox { background: linear-gradient(180deg, #232a20 0%, #12140f 100%); }
-  #resultBox.match-over { background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%); }
+  #resultBox.match-over { background: linear-gradient(180deg, #177245 0%, #0e4d2e 100%); }
   .result-contract { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
   .result-declarer { font-weight: 700; }
   .result-game-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 14px; font-weight: 700; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); }
