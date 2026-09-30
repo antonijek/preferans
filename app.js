@@ -70,6 +70,17 @@ function debugSeedOverride() {
   } catch { return null; }
 }
 
+// ?room=KOD u linku (poslat preko copyRoomLink, npr. na Viber/WhatsApp) —
+// otvaranje tog linka treba samog da uvede u sobu, ne samo da pokaze
+// pocetni ekran. Vidi init na dnu fajla (bira login umesto setup ekrana)
+// i 'room:none' handler (auto-join kad se utvrdi da korisnik jos nije u sobi).
+const wantedRoomCode = (() => {
+  try {
+    const v = new URLSearchParams(location.search).get('room');
+    return v ? v.trim().toUpperCase() : null;
+  } catch { return null; }
+})();
+
 // Vidljiv natpis NA EKRANU (ne u konzoli — lakse za prevideti/filtrirati)
 // koji pokazuje sve tri ruke + talon kad je ?seed= aktivan. Postavlja se
 // JEDNOM po deljenju (poziva se iz startGame() posle newHand(0)) — ne
@@ -2755,6 +2766,22 @@ async function connectOnlineSocket() {
   onlineSocket.on('room:none', () => {
     document.body.classList.remove('online-in-game');
     $('loginScreen').classList.remove('active');
+    // Stigli smo preko linka za sobu (copyRoomLink) i jos nismo probali da se
+    // pridruzimo ovom konekcijom — uradi to sam umesto da prvo pokazes
+    // pocetni ekran. sessionStorage cuvar sprekava beskonacno ponavljanje
+    // ako je soba puna/zakljucana/vise ne postoji (join ce tad ispisati
+    // gresku u roomError, a korisnik ostaje na room ekranu da vidi zasto).
+    if (wantedRoomCode) {
+      let alreadyTried = false;
+      try { alreadyTried = sessionStorage.getItem(`pref_tried_room:${wantedRoomCode}`) === '1'; } catch (e) { /* ok bez pamcenja */ }
+      if (!alreadyTried) {
+        try { sessionStorage.setItem(`pref_tried_room:${wantedRoomCode}`, '1'); } catch (e) { /* ok bez pamcenja */ }
+        goToRoomScreen();
+        $('roomCodeInput').value = wantedRoomCode;
+        joinRoomOnline();
+        return;
+      }
+    }
     $('homeScreen').classList.add('active');
     $('roomScreen').classList.remove('active');
   });
@@ -2767,7 +2794,7 @@ async function connectOnlineSocket() {
     if (info.seat !== null) mySeat = info.seat;
     if (info.code) { $('roomCodeInput').value = info.code; myRoomCode = info.code; updateRoomJoinButtonState(); }
     if (game.state?.phase === 'WAITING' || !game.state) {
-      $('roomStatus').innerHTML = `Kod sobe: <b style="font-size:1.3em">${info.code}</b> — čeka se još igrača...`;
+      $('roomStatus').innerHTML = `Kod sobe: <b style="font-size:1.3em">${info.code}</b> <button class="mode-btn" id="copyRoomLinkBtn" onclick="copyRoomLink(this)" style="padding:2px 10px;font-size:0.85em;vertical-align:middle;margin-left:6px">🔗 Kopiraj link</button> — čeka se još igrača...`;
       $('homeScreen').classList.remove('active');
       $('roomScreen').classList.add('active');
     }
@@ -3241,7 +3268,7 @@ function createRoomOnline() {
     myRoomCode = res.code;
     resetHandHistoryForNewRoom();
     $('roomCodeInput').value = res.code;
-    $('roomStatus').innerHTML = `Kod sobe: <b style="font-size:1.3em">${res.code}</b> — podeli ga sa drugarima. Čeka se još igrača...`;
+    $('roomStatus').innerHTML = `Kod sobe: <b style="font-size:1.3em">${res.code}</b> <button class="mode-btn" id="copyRoomLinkBtn" onclick="copyRoomLink(this)" style="padding:2px 10px;font-size:0.85em;vertical-align:middle;margin-left:6px">🔗 Kopiraj link</button> — čeka se još igrača...`;
     updateRoomJoinButtonState();
   });
 }
@@ -3254,7 +3281,7 @@ function joinRoomOnline() {
     mySeat = res.seat;
     myRoomCode = res.code;
     resetHandHistoryForNewRoom();
-    $('roomStatus').textContent = `Pridružen sobi ${res.code}, čeka se početak...`;
+    $('roomStatus').innerHTML = `Pridružen sobi <b style="font-size:1.3em">${res.code}</b> <button class="mode-btn" id="copyRoomLinkBtn" onclick="copyRoomLink(this)" style="padding:2px 10px;font-size:0.85em;vertical-align:middle;margin-left:6px">🔗 Kopiraj link</button>, čeka se početak...`;
     updateRoomJoinButtonState();
   });
 }
@@ -3272,6 +3299,27 @@ function joinAsSpectatorOnline() {
     updateRoomJoinButtonState();
   });
 }
+
+// Kopira link sobe (sa ?room=KOD) u clipboard za deljenje van sajta
+// (Viber/WhatsApp) — otvaranje tog linka samo uvede drugara u sobu, vidi
+// wantedRoomCode i 'room:none' handler. Isti obrazac kao u Lori.
+function copyRoomLink(btn) {
+  if (!myRoomCode) return;
+  const url = `${location.origin}${location.pathname}?room=${myRoomCode}`;
+  const label = btn || document.getElementById('copyRoomLinkBtn');
+  const showCopied = () => {
+    if (!label) return;
+    const old = label.textContent;
+    label.textContent = 'Kopirano ✓';
+    setTimeout(() => { label.textContent = old; }, 2000);
+  };
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(url).then(showCopied).catch(() => prompt('Link sobe:', url));
+  } else {
+    prompt('Link sobe:', url);
+  }
+}
+window.copyRoomLink = copyRoomLink;
 
 function toggleLockOnline() {
   onlineSocket.emit('room:toggle-lock', {}, (res) => {
@@ -3633,6 +3681,11 @@ if (onlineToken) {
   $('loginScreen').classList.add('active');
   $('loginError').textContent = 'Povezivanje...';
   connectOnlineSocket();
+} else if (wantedRoomCode) {
+  // Stigli smo preko linka za sobu ali nismo ulogovani — pokazi login
+  // (umesto lokalnog setup ekrana za igru protiv racunara) da bi se posle
+  // prijave odmah otislo u tu sobu (vidi 'room:none' handler).
+  $('loginScreen').classList.add('active');
 } else {
   $('setupScreen').classList.add('active');
 }
