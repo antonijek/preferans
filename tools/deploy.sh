@@ -20,8 +20,8 @@ ssh -o ConnectTimeout=10 "$VPS_HOST" "
   set -e
   cd $REMOTE_DIR
   git pull
-  cd engine && npm run build
-  cd ../server && npm run build
+  cd engine && npm install --no-audit --no-fund --loglevel=error && npm run build
+  cd ../server && npm install --no-audit --no-fund --loglevel=error && npm run build
   pm2 restart pref-server
   sleep 1
   pm2 logs pref-server --lines 15 --nostream
