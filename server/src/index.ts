@@ -2,12 +2,14 @@ import 'dotenv/config';
 import http from 'node:http';
 import path from 'node:path';
 import express from 'express';
+import compression from 'compression';
 import { Server as SocketIOServer } from 'socket.io';
 import { initDb, flushPersist } from './db.js';
 import { authRouter } from './auth/routes.js';
 import { adminRouter } from './admin/routes.js';
 import { registerSocketHandlers } from './socket/index.js';
 import { removeAbandonedWaitingRooms, loadPersistedRooms } from './rooms/RoomManager.js';
+import { seoRouter } from './seo.js';
 
 // dist/index.js -> server/dist -> server -> project root, where
 // preferans.html/app.js/engine/dist all live. Serving them same-origin
@@ -36,6 +38,13 @@ async function main(): Promise<void> {
   // (nas nginx), ne bilo kom X-Forwarded-For koji klijent sam izmisli.
   app.set('trust proxy', 1);
   app.use(express.json());
+  // Sazimanje (gzip) — JS/CSS/SVG/JSON ranije su isli nesazeti (nginx
+  // sazima samo HTML). Isti obrazac kao D:\lora\server\src\index.ts.
+  app.use(compression());
+  // robots.txt, sitemap.xml, IndexNow kljuc, pregled linka sobe — MORA pre
+  // express.static ispod (inace bi staticki robots.txt/sitemap.xml, ako bi
+  // ih neko vratio, senčili dinamicke verzije).
+  app.use(seoRouter(PROJECT_ROOT));
   // BAG (uzivo prijavljen, veceras VISE PUTA: "popravio si ali i dalje isto"
   // — poprvke SU stvarno bile na serveru, ali browser je i dalje ucitavao
   // STARI app.js iz keša). express.static bez opcija ne salje Cache-Control
@@ -43,10 +52,12 @@ async function main(): Promise<void> {
   // eksplicitnog zahteva, pa cak ni tvrdi F5 ne garantuje sveze ucitavanje.
   // no-cache (ne "no-store") i dalje dozvoljava keširanje ali FORSIRA
   // revalidaciju (If-None-Match/304) na SVAKI zahtev — uvek sveze, uz skoro
-  // istu brzinu jer 304 odgovor nema telo.
+  // istu brzinu jer 304 odgovor nema telo. IZUZETAK: icons/ (karte,
+  // favicon...) se nikad ne menjaju pod istim imenom — pregledac ih cuva
+  // nedelju dana, sledece posete su brze (korisnikov zahtev, isto kao Lora).
   app.use(express.static(PROJECT_ROOT, {
-    setHeaders: (res) => {
-      res.setHeader('Cache-Control', 'no-cache');
+    setHeaders: (res, filePath) => {
+      res.setHeader('Cache-Control', /[\\/]icons[\\/]/.test(filePath) ? 'public, max-age=604800' : 'no-cache');
     },
   }));
 

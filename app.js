@@ -719,6 +719,11 @@ const cardEl = (c, opts = {}) => {
     img.src = `/icons/cards/${c.rank}${SUIT_TO_FILE_LETTER[c.suit]}.svg`;
     img.alt = `${c.rank}${c.suit}`;
     img.draggable = false;
+    // Width/height (CSS i dalje odredjuje stvarnu velicinu, .card je uvek
+    // fiksne dimenzije) — Google/Lighthouse trazi eksplicitne atribute na
+    // <img> da bi se izbeglo layout-shift upozorenje (CLS metrika).
+    img.width = 68;
+    img.height = 96;
     node.appendChild(img);
   }
   return node;
@@ -959,6 +964,8 @@ function renderStatusBar() {
       img.src = useText ? '/icons/cards/back-blue.svg' : '/icons/cards/back-red.svg';
       img.alt = 'Talon';
       img.draggable = false;
+      img.width = 68;
+      img.height = 96;
       back.appendChild(img);
       cardsEl.appendChild(back);
     }

@@ -8,7 +8,9 @@
     "test:ui": "node tools/browser-smoke-test.mjs",
     "test:ui:multi": "node tools/multi-smoke.mjs",
     "visual:check": "node tools/visual-check.mjs",
-    "deploy": "bash tools/deploy.sh"
+    "deploy": "bash tools/deploy.sh",
+    "og-image": "node tools/og-image.mjs",
+    "indexnow": "node tools/notify-indexnow.mjs"
   },
   "devDependencies": {
     "playwright": "^1.62.1"
