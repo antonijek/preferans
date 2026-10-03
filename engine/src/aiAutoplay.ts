@@ -187,9 +187,11 @@ export function applyHeuristicTurn(game: Game): AutoplayStepResult {
         ({ KONTRA: 1, REKONTRA: 2, SUBKONTRA: 3, MORTKONTRA: 4 } as Record<string, number>)[
           s.kontraLevel ?? ''
         ] ?? 0;
+      const partner = ([0, 1, 2] as Position[]).find((p) => p !== seat && p !== s.winner)!;
+      const partnerCame = s.followChoices[partner] === 'DODJEM';
       const willKontra =
         s.kontraLevel !== 'MORTKONTRA' &&
-        chooseKontra({ hand, trump: s.trump, currentLevel: levelNum }) === 'KONTRA';
+        chooseKontra({ hand, trump: s.trump, currentLevel: levelNum, partnerCame }) === 'KONTRA';
       if (willKontra) {
         const nextLevel = KONTRA_NEXT[s.kontraLevel ?? 'NONE']!;
         game.kontra(seat, nextLevel);

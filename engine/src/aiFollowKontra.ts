@@ -64,12 +64,32 @@ export interface KontraContext {
   hand: Card[];
   trump: Suit | null;
   currentLevel: number; // 0 = nema, 1 = KONTRA, 2 = REKONTRA, 3 = SUBKONTRA, 4 = MORTKONTRA
+  // Da li je DRUGI pratilac rekao "Dođem" (javna informacija u trenutku
+  // kontre — praćenje je vec zavrseno). Podrazumevano true (stari pozivi
+  // bez ovog polja zadrzavaju staro ponasanje) — vidi ispravku ispod.
+  partnerCame?: boolean;
 }
 
+// ISPRAVKA (2026-10-03, uzivo prijavljeno + potvrdjeno rezultatom — nosilac
+// 7 stihova, odbrana samo 3 od potrebnih 5): Istok je dao kontru sa 4 aduta
+// (Q,9,8,7 tref — SAMO Dama kao casna karta, ostalo sitne) dok je Zapad VEC
+// rekao "Ne dođem" PRE kontre — javna informacija da partner signalizira
+// slabu ruku. Staro pravilo "4+ aduta = kontra" ne gleda uopste da li
+// partner dolazi — racuna da ce partner nadoknaditi razliku do 5 cak i kad
+// je partner vec rekao da nema cime. Kad partner NIJE dosao, cista duzina
+// (bez casnih karata) vise nije dovoljna — podigni prag: ili 5+ aduta, ili
+// 4+ aduta ALI sa bar 2 casne (isti kvalitetni prag kao grana za 3 aduta).
 export function chooseKontra(ctx: KontraContext): KontraAction {
   if (ctx.trump === null) return 'MOZE';
   const trumps = ctx.hand.filter(c => c.suit === ctx.trump);
   const highTrumps = trumps.filter(c => RANK_VALUE[c.rank] >= 4).length;
+  const partnerCame = ctx.partnerCame ?? true;
+  if (!partnerCame) {
+    if (trumps.length >= 5) return 'KONTRA';
+    if (trumps.length >= 4 && highTrumps >= 2) return 'KONTRA';
+    if (trumps.length >= 3 && highTrumps >= 2) return 'KONTRA';
+    return 'MOZE';
+  }
   // 4+ aduta → kontra
   if (trumps.length >= 4) return 'KONTRA';
   // 3 aduta sa 2+ visoke → kontra

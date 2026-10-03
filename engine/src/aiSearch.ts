@@ -480,7 +480,10 @@ export function searchChooseAction(
     const levelNum = ({ KONTRA: 1, REKONTRA: 2, SUBKONTRA: 3, MORTKONTRA: 4 } as Record<string, number>)[
       state.kontraLevel ?? ''
     ] ?? 0;
-    const heuristicSaysKontra = chooseKontra({ hand, trump: state.trump, currentLevel: levelNum }) === 'KONTRA';
+    const kontraPartner = ([0, 1, 2] as Position[]).find((p) => p !== seat && p !== state.winner)!;
+    const partnerCame = state.followChoices[kontraPartner] === 'DODJEM';
+    const heuristicSaysKontra =
+      chooseKontra({ hand, trump: state.trump, currentLevel: levelNum, partnerCame }) === 'KONTRA';
     if (!heuristicSaysKontra) {
       const filtered = candidates.filter((a) => a.type !== 'kontra');
       if (filtered.length > 0) candidates = filtered;
