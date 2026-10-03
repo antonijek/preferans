@@ -385,12 +385,25 @@ export function searchChooseAction(
   // faze/grananja unose previse suma). Umesto da se search prepusti da
   // "otkrije" isti prag simulacijom, kandidat-akcije koje bi digle licitaciju
   // IZNAD onoga sto ruka realno opravdava se ovde UOPSTE ne nude searchu —
-  // ne razmatra ih, ne trosi uzorke na njih. 'Mogu' NIKAD ne prelazi
-  // trenutni currentBid (samo ga potvrdjuje), pa se ne filtrira.
+  // ne razmatra ih, ne trosi uzorke na njih.
+  //
+  // DRUGI bag, isti koren (uzivo prijavljen 2026-10-03, "Istok proglasio Sans
+  // sa samo 3 stiha umesto Pik sa 5"): originalni komentar ovde je tvrdio
+  // "'Mogu' NIKAD ne prelazi trenutni currentBid, pa se ne filtrira" — TACNO
+  // da mogu ne DIZE licitaciju iznad currentBid, ali POTPUNO nebitno za
+  // pitanje da li je TA vrednost (currentBid) uopste u okviru onoga sto OVA
+  // ruka realno nosi. 'Mogu' je i dalje bio potpuno nefiltriran, pa je
+  // search mogao da potvrdi (umesto da pasira) vrednost vecu od maxLevel —
+  // i kad se to desi, DECLARING kasnije bira izmedju samo jos gorih opcija
+  // (sve boje ispod licitirane vrednosti postaju NELEGALNE, vidi
+  // chooseDeclareGame-ov GAME_VALUES[g] < contractValue filter u
+  // aiBidding.ts), pa ispadne "najbolja od losih" umesto realno dobre igre.
+  // aiChooseBidAction (heuristicki put) ovo vec ispravno cuva — vidi njegov
+  // "Mogu SME da potvrdi SAMO ako..." komentar ispod. Sad isto i ovde.
   if (state.phase === 'BIDDING') {
     const hand = state.players[seat]!.hand;
     const maxLevel = estimatedMaxLevel(hand);
-    const filtered = candidates.filter((a) => a.type !== 'bid' || a.value <= maxLevel);
+    const filtered = candidates.filter((a) => (a.type !== 'bid' && a.type !== 'mogu') || a.value <= maxLevel);
     if (filtered.length > 0) candidates = filtered;
     // Proaktivno pronadjeno (2026-09-22, audit posle korisnikovog "pogledaj
     // dobro"): ISTA rupa vazi za 'igra' kandidat — getLegalActions() ga nudi
