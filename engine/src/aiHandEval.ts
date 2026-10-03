@@ -290,16 +290,34 @@ export function isBetlSafe(hand: Card[]): boolean {
 // nema "izvlacenja" protivnickih karata, pa se stihovi broje SAMO kao
 // neprekinuti niz OD ASA NADOLE po boji (A sam=1, A+K=2, A+Q BEZ K=i dalje
 // samo 1 — "nema vezanih karata", prekid lanca znaci da Kralj kod nekog
-// drugog moze da uzme pre nego sto Dama dodje na red). Rizik da neko drugi
-// drzi 5 najjacih u boji gde ja nemam nista je uglavnom samo-eliminisan:
-// ako bi neko IMAO takvu boju, taj bi vec bio licitirao pre nego sto je red
-// dosao do mene da proglasim Sans.
+// drugog moze da uzme pre nego sto Dama dodje na red).
+//
+// ISPRAVKA (2026-10-03, uzivo prijavljeno + potvrdjeno konkretnom rukom):
+// ranije je ovde stajalo da je rizik "neko drugi drzi 5 najjacih u boji gde
+// ja nemam nista" uglavnom samo-eliminisan, jer bi taj neko vec licitirao
+// pre nego sto dodje red na mene. Korisnikov protivprimer (Zapad: A♣ K♠ Q♣
+// J♣ 10♣ Q♥ A♠ A♦ K♦ Q♦ — samo JEDNA herc karta, bez asa te boje) to
+// obara: countSansTricks je vracao tacno 6 (prag za prolaz), proglasio je
+// Sans, i pao — baš u toj usamljenoj boji, jer protivnik koji drzi asa
+// herca NIJE morao da ima dovoljno JAKU celu ruku da bi licitirao, dovoljno
+// je bilo da drzi samo tu jednu boju. Sada: svaka boja gde NEMAM asa i
+// imam najvise JEDNU kartu (prazna ili "suva" usamljena) nosi stvarni
+// rizik — protivnik sa asom te boje moze da je povede kad god hoce, uzme
+// moju jedinu kartu (ili odmah, ako sam prazan), i ja ostajem bez ikakvog
+// otpora u njoj do kraja ruke. Svaka takva boja skida 1 stih od ukupne
+// procene (ne ispod 0).
 export function countSansTricks(hand: Card[]): number {
   let total = 0;
   for (const s of SUITS) {
     total += sequentialRunFromAce(hand, s);
   }
-  return total;
+  let risk = 0;
+  for (const s of SUITS) {
+    const cards = hand.filter(c => c.suit === s);
+    const hasAce = cards.some(c => c.rank === 'A');
+    if (!hasAce && cards.length <= 1) risk += 1;
+  }
+  return Math.max(0, total - risk);
 }
 
 // Samo ADUTSKI deo sigurnih stihova (bez vanadutskih asova/kraljeva) —
