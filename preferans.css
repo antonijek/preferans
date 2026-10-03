@@ -1846,4 +1846,24 @@
     .talon-center-cards .card.small .rank { font-size: 1em; }
     .talon-center-cards .card.small .suit { font-size: 1.15em; }
     .talon-center-label { font-size: 0.6em; }
+    /* Korisnikov zahtev (2026-10-03): i dalje smeta na uskom stolu i kad je
+       smanjen — na telefonu talon na stolu uopste ne mora da se vidi (ionako
+       postoji status-bar tekst baner za to), radije ostavi prostor stolu. */
+    .talon-center { display: none !important; }
+
+    /* Korisnikov zahtev (2026-10-03, uzivo prijavljeno): "kartice sa
+       imenima... prevelike, ne vidi se sto dovoljno" — .player-seat ima
+       FIKSNU sirinu 104px (vidi gore) koja se NIGDE ne smanjuje za uske
+       telefone, pa Zapad/Istok (10px od ivice stola, vidi #seat-west/east)
+       prekrivaju vecinu stola na ~375px sirokom ekranu. Znatno kompaktnija
+       verzija ovde, isti princip kao vec postojeci landscape (max-height:480)
+       blok iznad, samo za portret. */
+    .player-seat { width: 72px; padding: 0 0 4px; border-radius: 10px; }
+    .player-name-row { padding: 2px 3px; gap: 3px; margin-bottom: 2px; }
+    .seat-avatar { width: 15px; height: 15px; font-size: 0.55em; }
+    .player-name { font-size: 0.6em; letter-spacing: 0.1px; }
+    .player-bule { font-size: 0.85em; }
+    .player-tricks { font-size: 0.52em; }
+    #seat-west { left: 4px; }
+    #seat-east { right: 4px; }
   }
