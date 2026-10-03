@@ -228,6 +228,38 @@ export function choosePlayCard(args: {
         }
       }
     }
+    // Nosilac u Sansu/Igra-Sansu (BEZ aduta): uzivo prijavljen bag
+    // (2026-10-03, analiza korisnikove stvarne ruke — Zapad drzao A,K,Q,J,10
+    // trefa (duga jaka boja) ali je posle prvog stiha odigrao usamljenu
+    // Damu herc, jedinu kartu te boje, umesto da vodi iz trefa). Gornja
+    // "izvuci adut pa igraj najdužu boju" grana je gatovana sa `trump` i
+    // NIKAD se ne izvrsava kad adута nema — nosilac u Sansu je bez IKAKVE
+    // logike za izbor boje padao pravo na generican "najmanje poena"
+    // fallback ispod, koji NE zna niti mu je bitno iz koje je boje karta.
+    // Isto pravilo kao kod trefa/aduta: vodi iz NAJDUZE (pa najjace) boje —
+    // u no-trump igri dugacka boja na kraju nosi dodatne stihove kad se
+    // protivnicke karte u njoj istrose, usamljena casna karta u kratkoj
+    // boji samo gubi od prve vise karte koju drzi neko od pratilaca.
+    if (isDeclarer && !trump) {
+      const bySuit = new Map<Suit, Card[]>();
+      for (const c of legal) {
+        if (!bySuit.has(c.suit)) bySuit.set(c.suit, []);
+        bySuit.get(c.suit)!.push(c);
+      }
+      const bestSuitCards = [...bySuit.values()].sort((a, b) => {
+        if (b.length !== a.length) return b.length - a.length;
+        const topA = Math.max(...a.map(c => RANK_VALUE[c.rank]));
+        const topB = Math.max(...b.map(c => RANK_VALUE[c.rank]));
+        return topB - topA;
+      })[0];
+      // SAMO kad postoji stvarna duzina (2+ karte) — bez toga (sve same
+      // jedinke, kao sto test niz pokazuje) nema koga da "razvijes", pa
+      // propadni na stari "najslabija karta" fallback ispod (cuva jaku
+      // kartu, npr. Asa, za kasnije umesto da je potrosi bez razloga sad).
+      if (bestSuitCards && bestSuitCards.length >= 2) {
+        return bestSuitCards.slice().sort((a, b) => RANK_VALUE[b.rank] - RANK_VALUE[a.rank])[0]!;
+      }
+    }
     // Konvencija vodjenja "kroz nosioca slabom, kroz partnera jakom kartom"
     // (istrazivanje 2026-09-18, preferans.hr signalizacija — korisnikov
     // zahtev da se ugradi): kad pratilac vodi NOVI stih (bilo koji, ne samo
