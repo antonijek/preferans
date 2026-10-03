@@ -8,7 +8,7 @@ import { initDb, flushPersist } from './db.js';
 import { authRouter } from './auth/routes.js';
 import { adminRouter } from './admin/routes.js';
 import { registerSocketHandlers } from './socket/index.js';
-import { removeAbandonedWaitingRooms, loadPersistedRooms } from './rooms/RoomManager.js';
+import { removeAbandonedWaitingRooms, removeStuckRooms, loadPersistedRooms } from './rooms/RoomManager.js';
 import { seoRouter } from './seo.js';
 
 // dist/index.js -> server/dist -> server -> project root, where
@@ -112,10 +112,14 @@ async function main(): Promise<void> {
     process.exit(1);
   });
 
-  // Svakih 5 minuta ocisti WAITING sobe bez aktivnih igraca starije od 30 min.
+  // Svakih 5 minuta ocisti WAITING sobe bez aktivnih igraca starije od 30 min,
+  // i sobe usred partije gde bas niko (nijedno sediste) nije bio 24h+ (vidi
+  // removeStuckRooms — razlicit, mnogo duzi prag od gornjeg).
   setInterval(() => {
     const removed = removeAbandonedWaitingRooms();
     if (removed > 0) console.log(`[CLEANUP] Removed ${removed} abandoned waiting room(s)`);
+    const removedStuck = removeStuckRooms();
+    if (removedStuck > 0) console.log(`[CLEANUP] Removed ${removedStuck} stuck room(s) (no one connected for 24h+)`);
   }, 5 * 60 * 1000);
 }
 

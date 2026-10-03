@@ -104,8 +104,10 @@ export function clearUserLocation(userId: number): void {
 
 // WAITING soba (partija jos nije pocela) koja nema aktivnih konekcija se
 // automatski brise posle 30 min — sprecava curenje memorije kad igrac
-// napravi sobu i zaboravi na nju. Za sobe u toku partije NE vazi (M6
-// reconnect moze da ceka neograniceno).
+// napravi sobu i zaboravi na nju. Za sobe u toku partije NE vazi ovde (M6
+// reconnect moze da ceka neograniceno PO SEDISTU — vidi komentar na
+// game:leave u roomEvents.ts) — ali pogledaj removeStuckRooms ispod za
+// izuzetak kad bas NIKO (nijedno od sva tri sedista) nije tu, jako dugo.
 const ABANDONED_WAITING_MS = 30 * 60 * 1000;
 
 export function removeAbandonedWaitingRooms(): number {
@@ -117,6 +119,39 @@ export function removeAbandonedWaitingRooms(): number {
       Array.from(room.spectators.values()).some((s) => s.socket !== null);
     const isWaiting = room.game.state.phase === 'WAITING';
     if (isWaiting && !anyoneConnected && now - room.createdAt > ABANDONED_WAITING_MS) {
+      roomsByCode.delete(code);
+      deleteActiveRoom(code);
+      removed++;
+    }
+  }
+  return removed;
+}
+
+// Uzivo prijavljen bag (2026-10-03): soba usred ruke (ne WAITING) gde su sva
+// tri sedista diskonektovala (npr. test sesija ostavljena nasred FOLLOW_
+// DECLARING) nikad nije cisceni ciljem gornje funkcije (ta cuva SAMO
+// WAITING), niti ikad postane abandonedSeat/AI (disconnect handler to radi
+// NAMERNO samo kad je BAR neko drugi jos za stolom da "primeti" — vidi
+// komentar u roomEvents.ts). Takva soba prezivljava restart servera
+// (perzistencija) i svaki put ponovo "otme" prijavu vlasnika naloga nazad u
+// nju (M6 reconnect ne zna da je mrtva). Ovde je prag NAMERNO mnogo duzi
+// (24h, ne 30min) da se nikad ne obrise soba koja je legitimno "vratiću se
+// sutra" na SVA tri sedista odjednom — ako proslo 24h i doslovno niko nije
+// ni dotakao sobu, mrtva je.
+const STUCK_ROOM_MS = 24 * 60 * 60 * 1000;
+
+export function removeStuckRooms(): number {
+  const now = Date.now();
+  let removed = 0;
+  for (const [code, room] of roomsByCode) {
+    const anyoneConnected =
+      room.sockets.some((s) => s !== null) ||
+      Array.from(room.spectators.values()).some((s) => s.socket !== null);
+    const isWaiting = room.game.state.phase === 'WAITING';
+    if (!isWaiting && !anyoneConnected && now - room.lastActivityAt > STUCK_ROOM_MS) {
+      for (const uid of room.seatUserIds) {
+        if (uid !== null) clearUserLocation(uid);
+      }
       roomsByCode.delete(code);
       deleteActiveRoom(code);
       removed++;
@@ -142,6 +177,7 @@ interface SerializedRoom {
   gameConfig: { refePerPlayer: number; initialBule: number };
   locked: boolean;
   createdAt: number;
+  lastActivityAt?: number;
   seatUserIds: [number | null, number | null, number | null];
   seatNames: [string | null, string | null, string | null];
   chatLog: RoomState['chatLog'];
@@ -162,6 +198,7 @@ function serializeRoom(room: RoomState): SerializedRoom {
     gameConfig: room.game.getConfig(),
     locked: room.locked,
     createdAt: room.createdAt,
+    lastActivityAt: room.lastActivityAt,
     seatUserIds: room.seatUserIds,
     seatNames: room.seatNames,
     chatLog: room.chatLog,
@@ -207,6 +244,12 @@ export function loadPersistedRooms(): number {
       game,
       locked: parsed.locked,
       createdAt: parsed.createdAt,
+      // Stariji perzistovani zapisi (pre ovog polja) nemaju lastActivityAt —
+      // fallback na createdAt je bezbedan (gore je stareno, izlozice se
+      // cistacu PRE nego sto bi trebalo za sobu koja je stvarno jos ziva,
+      // ali ziva soba ce odmah dobiti svez broadcastRoomState() i time
+      // ispraviti vrednost; nikad obrnuto — nikad NE podceni koliko je stara).
+      lastActivityAt: parsed.lastActivityAt ?? parsed.createdAt,
       seatUserIds: parsed.seatUserIds,
       seatNames: parsed.seatNames,
       sockets: [null, null, null],

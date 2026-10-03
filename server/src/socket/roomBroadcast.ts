@@ -99,6 +99,7 @@ export function broadcastRoomState(room: RoomState): void {
   // pokriva SVAKU stvarnu promenu partije, isto mesto gde se i klijentima
   // salje sveze stanje. Jeftino (samo azurira in-memory sql.js, stvarni
   // disk-upis je vec debounced preko db.ts persist()).
+  room.lastActivityAt = Date.now();
   persistRoom(room);
   maybeDriveAiTurn(room);
   maybeAutoAdvanceHand(room);

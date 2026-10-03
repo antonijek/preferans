@@ -24,6 +24,11 @@ export interface RoomState {
   game: Game;
   locked: boolean;
   createdAt: number;
+  // Kad je soba poslednji put stvarno promenila stanje (broadcastRoomState()
+  // je azurira, isti choke point kao persistRoom() — vidi RoomManager.ts).
+  // Odvojeno od createdAt (koje ostaje fiksno) — koristi se da se prepozna
+  // soba u kojoj je SVAKO sediste prazno vec dugo (vidi removeStuckRooms).
+  lastActivityAt: number;
   seatUserIds: [number | null, number | null, number | null];
   seatNames: [string | null, string | null, string | null];
   sockets: [Socket | null, Socket | null, Socket | null];
@@ -105,6 +110,7 @@ export function createRoomState(code: string, options: RoomOptions = {}): RoomSt
     game: new Game({ seed: Date.now(), ...options }),
     locked: false,
     createdAt: Date.now(),
+    lastActivityAt: Date.now(),
     seatUserIds: [null, null, null],
     seatNames: [null, null, null],
     sockets: [null, null, null],
