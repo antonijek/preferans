@@ -274,12 +274,23 @@ function isSuitBetlSafe(hand: Card[], suit: Suit): boolean {
     const opponentsRemaining = 8 - cards.length;
     return lowCount >= opponentsRemaining;
   }
-  // Svi korisnikovi potvrdjeni primeri (7,9,J / 7,9,10,D) imaju NAJVISE 1
-  // visoku kartu po boji — "bar 1 niska, bez obzira koliko visokih" je
-  // prejaka ekstrapolacija (npr. K,D,J + samo 1 niska NIJE bezbedno: 2 od 3
-  // visokih karata ostaju bez pokrica). Zahtevaj niske >= visoke.
+  // ISPRAVKA (2026-10-03, uzivo prijavljeno — ruka 10,9♠ / D,7♥ / 8,7♦ /
+  // 8,J,10,K♣, igrana Igra Betl, pala): "niske>=visoke" (staro pravilo) je
+  // ovde JOS UVEK pogresno proglasavalo SVAKU od tri opasne boje bezbednom —
+  // pik (10,9: 2 niske/0 visoke) nema NI JEDNU pravu dnovnu kartu (7 ili 8),
+  // pa 9/10 nemaju iza cega da se sakriju ako su bas sedmica/osmica te boje
+  // kod protivnika; herc (D,7: 1/1) samo IZJEDNACUJE nisku i visoku, ne
+  // pokriva je; tref (8,J,10,K: 2/2) isto samo izjednacuje. Dva pooštrenja,
+  // oba potvrdjena da i dalje prolaze ranije uzivo potvrdjene primere
+  // (7,9,J i 7,9,10,D):
+  //   1) MORA postojati bar jedna 7 ili 8 te boje (bez "dna" nema sigurnog
+  //      bacanja kad boja dodje na red vise puta) — pik gore pada ovde.
+  //   2) niske MORAJU biti STROGO vise od visokih, ne samo jednake — herc i
+  //      tref gore padaju ovde (1>1 i 2>2 oboje false).
+  const hasBottomAnchor = cards.some(c => c.rank === '7' || c.rank === '8');
+  if (!hasBottomAnchor) return false;
   const highCount = cards.length - lowCount;
-  return lowCount >= highCount;
+  return lowCount > highCount;
 }
 
 export function isBetlSafe(hand: Card[]): boolean {
