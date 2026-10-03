@@ -86,6 +86,12 @@ const wantedRoomCode = (() => {
 // JEDNOM po deljenju (poziva se iz startGame() posle newHand(0)) — ne
 // azurira se posle toga (namerno: ostatak ruke se prati kroz stvarne
 // poteze, ne kroz ponovno citanje ruku koje bi vec bile promenjene).
+// Korisnikov zahtev (2026-10-03): ranija verzija je bila position:fixed
+// preko CELE sirine i do 30vh visine — PREKRIVALA je pravi header (logo,
+// Bule/Stih/Do kraja) umesto da ga gurne dole, pa se nije videlo sta
+// igraci rade. Sad je skupljena pilula u gornjem desnom uglu, pune karte
+// se vide tek na klik.
+let seedDebugExpanded = false;
 function renderSeedDebugBanner() {
   const seed = debugSeedOverride();
   let el = document.getElementById('seedDebugBanner');
@@ -96,20 +102,22 @@ function renderSeedDebugBanner() {
   if (!el) {
     el = document.createElement('div');
     el.id = 'seedDebugBanner';
-    el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;' +
-      'background:#ffeb3b;color:#000;font:12px monospace;padding:6px 10px;' +
-      'white-space:pre-wrap;word-break:break-all;max-height:30vh;overflow:auto;' +
-      'border-bottom:3px solid #f57f17;';
+    el.style.cssText = 'position:fixed;top:4px;right:4px;z-index:99999;' +
+      'background:#ffeb3b;color:#000;font:11px monospace;padding:3px 8px;' +
+      'white-space:pre-wrap;word-break:break-all;max-width:90vw;max-height:40vh;overflow:auto;' +
+      'border:2px solid #f57f17;border-radius:6px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4);';
+    el.onclick = () => { seedDebugExpanded = !seedDebugExpanded; renderSeedDebugBanner(); };
     document.body.appendChild(el);
   }
   const s = game.state;
   const fmt = (hand) => hand.map((c) => c.rank + c.suit).join(' ');
-  el.textContent =
-    `SEED DEBUG — seed=${seed}\n` +
-    `Jug: ${fmt(s.players[0].hand)}\n` +
-    `Istok: ${fmt(s.players[1].hand)}\n` +
-    `Zapad: ${fmt(s.players[2].hand)}\n` +
-    `Talon: ${fmt(s.talon)}`;
+  el.textContent = seedDebugExpanded
+    ? `SEED DEBUG — seed=${seed} (klikni za skupi)\n` +
+      `Jug: ${fmt(s.players[0].hand)}\n` +
+      `Istok: ${fmt(s.players[1].hand)}\n` +
+      `Zapad: ${fmt(s.players[2].hand)}\n` +
+      `Talon: ${fmt(s.talon)}`
+    : `🐛 seed=${seed} (klikni za karte)`;
 }
 
 // Delegacija na SVAKI klik dugmeta u celom dokumentu — pokriva bidding,
