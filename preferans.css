@@ -1602,6 +1602,13 @@
     border-radius: 8px;
   }
   .talon-center-cards { display: flex; gap: 4px; }
+  /* Korisnikov zahtev (2026-10-03, ponovljeno — vec vazi za mobilni): talon
+     NA STOLU treba da ostane malen na SVIM sirinama, ne samo mobilnom.
+     .card.small se inace povecava na desktop prelomu ispod (za ruku/stih),
+     ali ta ista klasa se ovde koristi za talon — kompaktna selector (2
+     klase) namerno nadjaca onu opstiju (1 klasa) bez obzira na redosled u
+     fajlu, pa ovo vazi i unutar desktop media query-ja ispod. */
+  .talon-center-cards .card.small { width: 46px; height: 64px; }
 
   /* === RESPONSIVE === */
   @media (min-width: 700px) {
@@ -1615,6 +1622,17 @@
     .card.small { width: 82px; height: 114px; }
     .trick-slot { width: 92px; height: 124px; }
     .hand-area .card + .card { margin-left: -42px; }
+
+    /* Korisnikov zahtev (2026-10-03, laptop): donja (sopstvena) kartica
+       treba da bude duza i ZNATNO niza — bazni .player-seat (104px, sve
+       slozeno jedno ispod drugog) ovde ostaje za Zapad/Istok, ali Jug ima
+       vise prostora ispod stola da bude siri red umesto uskog tornja.
+       display:flex pretvara 3 slozena reda (ime, bula, stihovi) u JEDAN
+       vodoravan red. */
+    #seat-south { width: 230px; display: flex; align-items: center; gap: 10px; padding: 6px 14px; }
+    #seat-south .player-name-row { background: none; border-bottom: none; padding: 0; margin-bottom: 0; flex-shrink: 0; }
+    #seat-south .bula-row { margin-top: 0; }
+    #seat-south .player-tricks { margin-top: 0; white-space: nowrap; }
   }
 
   /* Siri raspored: sto + bocni paneli jedan pored drugog (korisnikov
