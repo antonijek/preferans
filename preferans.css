@@ -1609,6 +1609,11 @@
      klase) namerno nadjaca onu opstiju (1 klasa) bez obzira na redosled u
      fajlu, pa ovo vazi i unutar desktop media query-ja ispod. */
   .talon-center-cards .card.small { width: 46px; height: 64px; }
+  /* Korisnikov zahtev (2026-10-03): kad se talon OTVORI (prave karte,
+     DISCARDING/DECLARING) treba da budu malo vece/citljivije — za razliku
+     od naopako okrenutih karata tokom licitacije (.talon-back), koje ostaju
+     male jer se ionako ne citaju. :not(.talon-back) cilja SAMO otvorene. */
+  .talon-center-cards .card.small:not(.talon-back) { width: 64px; height: 90px; }
 
   /* === RESPONSIVE === */
   @media (min-width: 700px) {
