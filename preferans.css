@@ -629,7 +629,7 @@
     background: rgba(0,0,0,0.3);
     border-top: 1px solid rgba(255,255,255,0.12);
     box-shadow: inset 0 3px 8px -4px rgba(0,0,0,0.5);
-    padding: 10px 6px 6px;
+    padding: 10px 6px 6px 32px;
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
@@ -704,7 +704,15 @@
   }
   /* Karte blize jedna drugoj (korisnikov zahtev — "kao da ih osoba drzi") —
      vece preklapanje nego ranije. */
-  .hand-area .card + .card { margin-left: -26px; }
+  /* BAG (uzivo prijavljen 2026-10-04, tacno na 480px sirine): '.card + .card'
+     (margin SAMO na karte koje NISU prve u DOM-u) ostavljao je PRVU kartu
+     SVAKOG novog reda (posle flex-wrap preloma) bez tog minusa, dok je
+     justify-content:center i dalje racunao sirinu reda kao da ga ima — karta
+     je vizuelno "iskakala" iz reda. Ispravka: margin na SVAKU kartu
+     (ukljucujuci prvu u celoj ruci) + nadoknada kroz padding-left na
+     .hand-area gore — tako je svaki red (posle preloma, ne samo prvi)
+     dosledan, bez posebnog slucaja za "prva karta u DOM-u". */
+  .hand-area .card { margin-left: -26px; }
   /* Zeleno umesto zuto (korisnikov zahtev, doslednije sa .playable ivicom
      ispod) + podignute gore preko translateY, iznad baznog --lift-a iz
      applyHandFan-a da se lepezasta rotacija/preklapanje ne izgubi. */
@@ -1626,7 +1634,10 @@
     .card.text-style .suit { font-size: 2.6em; }
     .card.small { width: 82px; height: 114px; }
     .trick-slot { width: 92px; height: 124px; }
-    .hand-area .card + .card { margin-left: -42px; }
+    /* Isti wrap-bag kao gore (vidi komentar u baznom bloku) — margin na
+       SVAKU kartu + odgovarajuca nadoknada u padding-left. */
+    .hand-area { padding-left: 48px; }
+    .hand-area .card { margin-left: -42px; }
 
     /* Korisnikov zahtev (2026-10-03, laptop): donja (sopstvena) kartica
        treba da bude duza i ZNATNO niza — bazni .player-seat (104px, sve
@@ -1739,15 +1750,16 @@
        dovoljna za ovaj konkretniji (12-karata) slucaj — rezervisi prostor
        direktno na .hand-area da karte NIKAD ne renderuju u tom uglu, bez
        obzira koliko redova ikonice zauzmu. */
-    .hand-area { min-height: 60px; gap: 4px; padding-right: 150px; }
+    .hand-area { min-height: 60px; gap: 4px; padding-right: 150px; padding-left: 8px; }
     .side-panel { padding: 6px; gap: 4px; }
     .card { width: 46px; height: 66px; }
     .card .rank { font-size: 1.2em; }
     .card .suit { font-size: 1.4em; }
     /* Suprotno od portret/desktop "kao u ruci" preklapanja — na telefonu
        horizontalno korisnik trazi VISE razmaka izmedju karata, lakse za
-       tacan tap prstom, ne gust izgled "kao drzano u ruci". */
-    .hand-area .card + .card { margin-left: -2px; }
+       tacan tap prstom, ne gust izgled "kao drzano u ruci". Isti wrap-bag
+       kao gore (margin na SVAKU kartu, ne samo "+ .card"). */
+    .hand-area .card { margin-left: -2px; }
     .bid-btn { padding: 5px 10px; min-height: 28px; font-size: 0.85em; }
     .bid-log { padding: 2px 6px; min-height: 18px; font-size: 0.75em; }
     /* .trick-slot je fiksno 68x92 u baznom CSS-u (podesavano za znatno
