@@ -1866,7 +1866,13 @@
      drugi igrac prekrije kartu prvog"). Manji slotovi + razmaknutije
      pozicije (30% umesto 37%, 38% umesto 42%) drze sve tri karte
      medjusobno razdvojene i na najuzim ekranima. */
-  @media (max-width: 480px) and (orientation: portrait) {
+  /* Korisnikov zahtev (2026-10-04): prag prosiren sa 480px na 699px — tacno
+     dokle dopire ispod @media(min-width:700px) desktop bloka — bez PRAZNINE
+     izmedju njih. Neki Android telefoni (podesavanja "velicina prikaza"/zum)
+     prijavljuju efektivnu CSS sirinu preko 480px iako su fizicki telefoni;
+     u toj prazini nije vazilo NI mobilno (sakriven talon, smanjena sedista)
+     NI desktop pravilo, pa je talon ostajao pun/veliki. */
+  @media (max-width: 699px) and (orientation: portrait) {
     .table-area { padding: 3px; gap: 5px; }
     .table-felt { max-width: 97vw; }
     .trick-slot { width: 50px; height: 68px; }
