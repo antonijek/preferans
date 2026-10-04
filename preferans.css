@@ -1755,6 +1755,16 @@
     .card { width: 46px; height: 66px; }
     .card .rank { font-size: 1.2em; }
     .card .suit { font-size: 1.4em; }
+    /* BAG (uzivo prijavljeno 2026-10-04, "karte su vece od stola" na
+       landscape telefonu): odigrana karta u stih-slotu nosi KLASE "card
+       small" (cardEl(card,{size:'small'})), ne samo "card" — baznо ".card"
+       pravilo gore ima specificnost (0,0,1), ali desktop ".card.small"
+       (0,0,2, linija ~1635) je JACE i pobedjivao je ovde kad god je telefon
+       istovremeno dovoljno SIROK (min-width:700px) i dovoljno NIZAK
+       (max-height:480px) — tacno obican landscape telefon. Isti problem bi
+       pogodio i talon .card.small da ta linija (dole) ne postoji vec
+       posebno — ovde ga resi generalno, za SVAKI .card.small u landscape-u. */
+    .card.small { width: 40px; height: 56px; }
     /* Suprotno od portret/desktop "kao u ruci" preklapanja — na telefonu
        horizontalno korisnik trazi VISE razmaka izmedju karata, lakse za
        tacan tap prstom, ne gust izgled "kao drzano u ruci". Isti wrap-bag
@@ -1857,6 +1867,25 @@
        dodjem, ko je zvao, poslednji stih) je bio prevelik za usku 120px
        kolonu na niskom ekranu — smanjen sa baznog 0.85em. */
     .side-panel .defense-info, .side-panel .last-trick-info { padding: 6px 4px; font-size: 0.72em; }
+
+    /* Korisnikov zahtev (2026-10-04): na kraju ruke "Igraj" dugme je bilo
+       ispod linije vidljivosti, moralo se skrolati. .screen .box VEC ima
+       overflow-y:auto (scroll RADI, nije zaglavljeno), ali cilj je da UOPSTE
+       ne bude potrebno na ovako niskom ekranu — manji padding/fontovi
+       ostavljaju vise prostora sadrzaju pre nego sto mora da se skroluje.
+       !important na dugmetu jer HTML nosi inline style="min-height:48px". */
+    .screen .box { padding: 10px 14px; max-height: 96vh; }
+    .screen .box h2 { font-size: 1.05em; margin: 0 0 6px; }
+    #resultBox #resultMsg { font-size: 0.82em; line-height: 1.35; }
+    #resultBox .mode-btn { min-height: 34px !important; padding: 6px 10px; font-size: 0.88em; margin-bottom: 4px !important; }
+    /* Jug/Istok/Zapad bula-kartice (3 u redu) su jos uvek najdeblji deo
+       rezultata kad ima refe/kontra/zvanje teksta iznad — smanjene da ostavi
+       vise sanse da ceo rezultat stane bez skrola. */
+    #resultBox .score-players-row { gap: 4px; margin-top: 4px; }
+    #resultBox .score-player-card { padding: 3px 6px; min-width: 0; flex: 1; }
+    #resultBox .score-player-name { font-size: 0.78em; }
+    #resultBox .score-player-bula { font-size: 1em; }
+    #resultBox .score-player-rank { font-size: 0.6em; margin-bottom: 0; }
   }
 
   /* Portret uzan telefon: sto sto sire (skoro do ivica ekrana — korisnikov
