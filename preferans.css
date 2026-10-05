@@ -809,13 +809,22 @@
      stola za vreme igre — ovaj ekran to zaobilazi sopstvenim overflow-y). */
   .screen.rich-page {
     display: none; overflow-y: auto;
-    /* Bez PUNE neprovidnosti ovde, sto ispod (koji i dalje postoji u DOM-u,
-       samo vizuelno "iza") delimicno probija kroz — bazno .screen ima samo
-       85% (rgba(0,0,0,0.85)), racunato za kratkotrajne modale, ne za celu
-       stranicu koja stoji preko. */
-    background: radial-gradient(ellipse at top, #1e3320 0%, #10201a 45%, #060807 100%);
+    /* Korisnikov zahtev (2026-10-05, poredjenje sa Lorom): "tamo su modali
+       na finoj pozadini, ovde je skroz drugacije" — ista tehnika kao Lora
+       (vidi D:\lora\lora.css ".screen, body.page"): sitna ponavljajuca SVG
+       sara (4 boje karata, jedva vidljiva) ispod radijalnog zelenog
+       gradijenta, umesto cistog jednolicnog gradijenta. */
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cg fill='%23ffffff' fill-opacity='.035' font-family='serif' font-size='26'%3E%3Ctext x='12' y='38'%3E%E2%99%A0%3C/text%3E%3Ctext x='72' y='38'%3E%E2%99%A5%3C/text%3E%3Ctext x='42' y='96'%3E%E2%99%A3%3C/text%3E%3Ctext x='100' y='96'%3E%E2%99%A6%3C/text%3E%3C/g%3E%3C/svg%3E"),
+      radial-gradient(ellipse at top, #1e3320 0%, #10201a 45%, #060807 100%);
+    background-attachment: fixed;
   }
-  .screen.rich-page.active { display: block; }
+  /* Korisnikov zahtev (2026-10-05): nazad na centriranu karticu-modal (kao
+     Lora) umesto pune-sirine protoka sekcija — vidi .home-panel/.room-panel-
+     wrap ispod. flex umesto block, centrira .box dete i dalje dozvoljava
+     vertikalni skrol (overflow-y:auto ostaje na roditelju) kad kartica ne
+     stane u visinu ekrana. */
+  .screen.rich-page.active { display: flex; flex-direction: column; align-items: center; padding: 90px 16px 40px; }
 
   .home-hero {
     padding: 90px 24px 40px;
@@ -851,6 +860,10 @@
        zavrsavao SAKRIVEN iza fiksnog .full-page-header (60px, z-index:210)
        na samom ucitavanju stranice, pre bilo kakvog skrolovanja. */
     max-width: 680px; margin: 74px auto 0; padding: 14px 16px;
+    /* Korisnikov zahtev (2026-10-05): sad je UGNJEZDEN unutar .home-panel
+       kartice (vidi ispod), koja je vec pozicionirana ispod headera preko
+       .screen.rich-page.active padding-top — ne treba mu VISE sopstveni
+       74px razmak iznad, samo bi dupliralo prazninu. */
     background: linear-gradient(135deg, rgba(212,169,79,0.14) 0%, rgba(212,169,79,0.05) 100%);
     border: 1px solid rgba(212,169,79,0.35); border-radius: 14px;
     box-shadow: 0 4px 18px rgba(0,0,0,0.25);
@@ -898,6 +911,30 @@
      vecu specificnost, i ovo dugme (jedino vidljivo kad nema pravog
      beforeinstallprompt-a, npr. iOS) bi se razvuklo bez ovoga. */
   .pwa-install-actions .icon-btn { width: auto; min-width: 28px; min-height: 28px; padding: 2px; margin-top: 0; }
+
+  /* === Pocetna/Soba kao centrirana kartica-modal (Lora-stil, korisnikov
+     zahtev 2026-10-05) — banneri izgubili svoj raniji "prvi element na
+     punoj stranici" kontekst sad kad su ugnjezdeni u .home-panel. === */
+  .home-panel .site-notice-banner,
+  .home-panel .pwa-install-banner { margin-top: 0; max-width: none; }
+  /* Soba — ista kartica-modal ideja, samo sira (2 panela jedan pored
+     drugog unutra, kao Lorin .panel.wide). .room-hero je ranije imao
+     90px top-padding SAMO zato sto je bio prvi element na punoj stranici
+     ispod fiksnog headera — sad je ugnjezden, ne treba mu taj razmak. */
+  .screen .box.room-panel-wrap { max-width: 820px; }
+  .room-panel-wrap .room-hero { padding: 0 0 16px; background: none; }
+  .home-panel-divider {
+    border: none; border-top: 1px solid rgba(255,255,255,0.12);
+    margin: 18px 0;
+  }
+  .home-bullets p {
+    font-size: 0.92em; line-height: 1.5; color: rgba(255,255,255,0.85);
+    margin: 0 0 12px;
+  }
+  .home-bullets strong { color: var(--gold-bright); }
+  .home-panel-links { text-align: center; margin-top: 4px; }
+  .home-panel-links a { color: var(--gold-bright); text-decoration: none; font-weight: 600; }
+  .home-panel-links a:hover { text-decoration: underline; }
 
   .home-section { max-width: 980px; margin: 0 auto; padding: 36px 24px; }
   .section-title {
@@ -980,7 +1017,12 @@
 
   .room-panels {
     max-width: 980px; margin: 0 auto; padding: 20px 24px 10px;
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;
+    /* BAG (uocen 2026-10-05, kartica uza nego ranija puna sirina stranice):
+       cist minmax(320px,...) se NE smanjuje ispod 320px cak ni kad
+       kontejner nema toliko mesta — panel bi preklopio/isekao drugi umesto
+       da padne u 1 kolonu. min(320px,100%) ogranicava minimum na sirinu
+       kontejnera, garantuje 1 kolona kad 2 ne mogu stati. */
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 20px;
     /* Korisnikov zahtev: "leva strana kraca od desne" — grid default bi
        vec bio stretch, ali eksplicitno "start" (ranija verzija) je terao
        svaki panel da se skupi na SOPSTVENU visinu sadrzaja. Stretch = oba
