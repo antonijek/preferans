@@ -394,7 +394,11 @@
         <label for="roomCodeInput">Ili unesi kod sobe ručno</label>
         <input type="text" id="roomCodeInput" placeholder="npr. 9A7AU" style="text-transform:uppercase" oninput="updateRoomJoinButtonState()">
       </div>
-      <div style="display:flex;gap:8px">
+      <!-- Korisnikov zahtev (2026-10-05): "napravi novu sobu i pridruzi se
+           treba da su u istoj ravni" — ova dugmad i "Napravi novu sobu"
+           (levi panel) sad oba koriste .room-panel-bottom-row da se obe
+           prilepe za dno svog (jednako visokog, align-items:stretch) panela. -->
+      <div class="room-panel-bottom-row" style="display:flex;gap:8px">
         <button class="mode-btn" id="roomJoinBtn" onclick="joinRoomOnline()">Pridruži se</button>
         <button class="mode-btn" onclick="joinAsSpectatorOnline()">Kibiciraj</button>
       </div>
