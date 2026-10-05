@@ -841,7 +841,12 @@
      donjeg). align-items:start (umesto center) drzi vrh kartice UVEK na
      fiksnoj poziciji (odmah posle top paddinga), skrol onda prirodno
      otkriva SAMO ono sto se preliva na dnu — nikad ne gubi vrh. */
-  .screen.rich-page.active { display: grid; justify-items: center; align-items: start; padding: 90px 16px 40px; }
+  /* Korisnikov zahtev (2026-10-05): "i dalje ne vidim odjednom svu visinu"
+     — top/bottom padding ovde + .home-footer paddinzi ispod su bili glavni
+     "mrtvi" prostor (preko 100px) koji je gurao sadrzaj preko visine
+     uobicajenog laptop prozora (1366x720 i slicno) bez da sam sadrzaj
+     raste. Smanjeno na minimum koji jos uvek cisti fiksni header (60px). */
+  .screen.rich-page.active { display: grid; justify-items: center; align-items: start; padding: 76px 16px 8px; }
 
   .home-hero {
     padding: 90px 24px 40px;
@@ -861,7 +866,7 @@
     background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent;
     text-shadow: 0 2px 12px rgba(0,0,0,0.4);
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
   .home-tagline { color: rgba(255,255,255,0.7); font-size: 1.05em; margin-bottom: 22px; }
   .home-stat-pill {
@@ -873,7 +878,7 @@
      delile jedan red na vrhu pozdravnog ekrana (.home-stats-row) i gurale
      CTA dugme nize — razdvojene da oslobode prostor: "igraca" premesteno
      na Sobu (vidi .room-hero .home-stat-pill), "soba" na dno kartice. */
-  .home-panel .home-stat-pill-bottom { display: block; width: fit-content; margin: 16px auto 10px; }
+  .home-panel .home-stat-pill-bottom { display: block; width: fit-content; }
   .home-cta {
     max-width: 420px; margin: 0 auto; display: block;
     min-height: 58px; font-size: 1.1em;
@@ -962,13 +967,20 @@
   /* Korisnikov zahtev (4. runda): jos sira — izjednaceno sa Sobom (820px),
      "nek bude dosta sirok" je ponovljeno posle prve (nedovoljne) 640px
      probe. */
-  .screen .box.home-panel { max-width: 820px; max-height: none; overflow-y: visible; }
+  .screen .box.home-panel { max-width: 820px; max-height: none; overflow-y: visible; padding: 14px 24px; }
   /* Korisnikov zahtev: sve stane bez skrola — zbijeniji razmaci u ovoj
      (sad siroj, sadrzajnijoj) kartici. */
-  .home-panel .home-tagline { margin-bottom: 14px; font-size: 0.98em; }
+  .home-panel .home-tagline { margin-bottom: 10px; font-size: 0.98em; }
   .home-panel .home-cta { margin-bottom: 4px; }
-  .home-panel .home-panel-divider { margin: 14px 0; }
+  .home-panel .home-panel-divider { margin: 10px 0; }
   .home-panel .setup-suits { margin-bottom: 6px; }
+  .home-panel .home-stat-pill-bottom { margin: 6px auto 2px; }
+  /* Korisnikov zahtev (2026-10-05): na uskim/niskim telefonima (npr.
+     iPhone SE, 667px visine) opis-recenica i dalje lomi u 3+ reda —
+     manji font ovde je lakse zrtvovati nego funkcionalne elemente. */
+  @media (max-width: 400px) {
+    .home-panel .home-tagline { font-size: 0.8em; }
+  }
   /* Soba — ista kartica-modal ideja, samo sira (2 panela jedan pored
      drugog unutra, kao Lorin .panel.wide). .room-hero je ranije imao
      90px top-padding SAMO zato sto je bio prvi element na punoj stranici
@@ -1011,17 +1023,40 @@
   /* Korisnikov zahtev (4. runda): "kartice su 3 pa jedna, prevelike" —
      auto-fit sa 4 kartice na 820px daje neravnomeran 3+1 raspored umesto
      urednog 2x2. Eksplicitno tacno 2 kolone (ima SAMO 4 kartice, uvek
-     cist 2x2 bez obzira na sirinu), 1 kolona ispod 480px ne-sirine. */
-  .home-features-grid-compact { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  @media (max-width: 480px) {
-    .home-features-grid-compact { grid-template-columns: 1fr; }
+     cist 2x2 bez obzira na sirinu). Korisnikov zahtev (2026-10-05): "i
+     dalje ne vidim odjednom svu visinu" — 1 kolona na uskim telefonima
+     DUPLIRA visinu ove mreze (4 reda umesto 2), sto je bio glavni razlog
+     skrola na mobilnom. Kartice su sad dovoljno kompaktne (mali padding/
+     fontovi) da ostanu 2x2 i na uskim ekranima — prag spusten na 340px
+     (realno vise ne okida ni na jednom telefonu). */
+  .home-features-grid.home-features-grid-compact { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  @media (max-width: 340px) {
+    .home-features-grid.home-features-grid-compact { grid-template-columns: 1fr; }
   }
   /* Korisnikov zahtev: "smanji kartice po visini dosta" — znatno manji
      padding/fontovi/razmaci nego prva proba. */
-  .home-features-grid-compact .feature-card { padding: 8px 10px; }
-  .home-features-grid-compact .feature-icon { font-size: 1.15em; margin-bottom: 1px; }
-  .home-features-grid-compact h3 { font-size: 0.85em; margin: 0 0 2px; }
-  .home-features-grid-compact p { font-size: 0.75em; line-height: 1.25; margin: 0; }
+  /* Korisnikov zahtev (2026-10-05, nastavak): na uskom telefonu (145px
+     kolona) opis-tekst se lomio u 4-5 redova i to je bio pravi razlog
+     zasto cela stranica ne staje bez skrola, ne ikonica/naslov. Ikonica+
+     naslov sad dele JEDAN red (flex), umesto da ikonica bude svoj
+     sopstveni red iznad naslova — stedi ceo red po kartici bez obzira
+     na sirinu.
+     BAG NADJEN ovde (isti dan): selektori su ranije bili SAMO
+     ".home-features-grid-compact h3"/"p" (JEDNA klasa + tag) — ISTA
+     specificnost kao bazno ".feature-card h3"/".feature-card p" ispod,
+     koje u izvoru dolazi POSLE ovoga, pa je TIHO pobedjivalo (font-size/
+     margin/line-height su ostajali na starim vecim vrednostima uprkos
+     izmenama ovde — zato "smanji kartice" i dalje nije bilo dovoljno).
+     Selektor sad koristi OBE klase kontejnera (".home-features-grid
+     .home-features-grid-compact") da specificnost pouzdano bude veca
+     bez obzira na redosled u fajlu. */
+  .home-features-grid.home-features-grid-compact .feature-card {
+    padding: 6px 8px;
+    display: flex; flex-wrap: wrap; align-items: center; column-gap: 7px;
+  }
+  .home-features-grid.home-features-grid-compact .feature-icon { font-size: 1.1em; margin-bottom: 0; flex: 0 0 auto; }
+  .home-features-grid.home-features-grid-compact h3 { font-size: 0.85em; margin: 0; flex: 1 1 auto; }
+  .home-features-grid.home-features-grid-compact p { font-size: 0.75em; line-height: 1.25; margin: 3px 0 0; flex: 1 1 100%; }
   /* Korisnikov zahtev (2026-09-21): kartice na pocetnoj su delovale "bled" —
      ravne, bez hover/klik reakcije. Dodat suptilan lift+glow na hover svima
      (i onima koje nisu linkovi — cisto ziva, "dodirljiva" povrsina), i
@@ -1165,7 +1200,9 @@
   .home-empty { grid-column: 1 / -1; text-align: center; color: rgba(255,255,255,0.55); padding: 12px; }
 
   .home-footer {
-    display: flex; justify-content: center; padding: 30px 24px 50px;
+    /* Korisnikov zahtev (2026-10-05): bilo 30px/50px oko sitnog linka —
+       znatno smanjeno, glavni doprinos ukupnoj visini stranice. */
+    display: flex; justify-content: center; padding: 2px 24px 6px;
   }
   /* Korisnikov zahtev (2026-09-21): "Nazad na lokalni mod" je bilo tesko
      dugme preko cele sirine ekrana (.screen button{width:100%} pravilo) —
@@ -1174,7 +1211,7 @@
      "← Nazad na igru" linkovi na pravila.html/matches.html), centriran,
      bez teskog dugme-chrome-a. */
   .home-footer .mode-btn {
-    width: auto; min-height: unset; padding: 8px 4px;
+    width: auto; min-height: unset; padding: 4px 4px;
     background: none; border: none; box-shadow: none;
     color: rgba(255,255,255,0.55); font-weight: 600; font-size: 0.9em;
     text-decoration: underline; text-decoration-color: transparent;
