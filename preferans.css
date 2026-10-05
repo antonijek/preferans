@@ -825,7 +825,10 @@
   .home-hero .setup-suits { font-size: 1.6em; margin-bottom: 10px; }
   .home-greeting {
     font-family: 'Cinzel', serif; font-weight: 800; font-size: clamp(1.8em, 5vw, 2.6em);
-    background: linear-gradient(180deg, #ffffff 0%, #c8e6c9 100%);
+    /* Korisnikov zahtev (2026-10-05): isti zlatni naslov kao setup/soba
+       ekran, umesto bledog belo-zelenog gradijenta — dosledno kroz sve tri
+       "pocetne" stranice. */
+    background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent;
     text-shadow: 0 2px 12px rgba(0,0,0,0.4);
     margin-bottom: 6px;
@@ -964,7 +967,9 @@
   }
   .room-hero-title {
     font-family: 'Cinzel', serif; font-weight: 800; font-size: clamp(1.8em, 5vw, 2.4em);
-    background: linear-gradient(180deg, #ffffff 0%, #c8e6c9 100%);
+    /* Korisnikov zahtev (2026-10-05): isti zlatni naslov kao setup ekran,
+       umesto bledog belo-zelenog gradijenta. */
+    background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent;
     text-shadow: 0 2px 12px rgba(0,0,0,0.4);
     margin-bottom: 8px;
@@ -988,6 +993,9 @@
     border-radius: 14px; padding: 22px 20px;
     display: flex; flex-direction: column;
   }
+  /* Korisnikov zahtev (2026-10-05): zlatni naslovi panela ovde (ne diramo
+     deljeni .section-title na pocetnoj stranici drugde na sajtu). */
+  .room-panel .section-title { color: var(--gold-bright); }
   .room-footer-actions {
     max-width: 980px; margin: 0 auto; padding: 24px 24px 50px;
     display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
@@ -1069,8 +1077,12 @@
      Login) su ostali "sve zeleno, jednolicno" dok su .table-area paneli vec
      presli na drvo/zlato. Isti ton ovde; zeleno ostaje SAMO na samom stolu
      i kao poseban "wow" akcenat za MATCH_OVER (.box.match-over ispod). */
+  /* Korisnikov zahtev (2026-10-05, poredjenje sa Lorom): braon/drvo
+     pozadina kartice je delovala "teze" i van teme u odnosu na ostatak
+     sajta (zeleno+zlatno svuda drugde) — ista tamno-zelena porodica kao
+     Lorina pocetna kartica, ne nova boja. */
   .screen .box {
-    background: linear-gradient(180deg, #3c2b1a 0%, #1e150c 100%);
+    background: linear-gradient(180deg, #16301f 0%, #0a1810 100%);
     border-radius: 18px;
     padding: 24px;
     max-width: 460px;
@@ -1104,7 +1116,9 @@
     font-family: 'Cinzel', serif;
     font-size: 2.2em !important;
     font-weight: 800;
-    background: linear-gradient(180deg, #ffffff 0%, #c8e6c9 100%);
+    /* Korisnikov zahtev (2026-10-05): belo-zeleni gradijent je delovao
+       bledo/mutno — zlatan, kao Lorin naslov, da se naslov stvarno istakne. */
+    background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent;
     text-shadow: 0 2px 12px rgba(0,0,0,0.4);
     letter-spacing: 0.5px;
@@ -1311,7 +1325,11 @@
     display: flex; align-items: center; justify-content: space-between;
     margin: 14px 0 6px; font-size: 0.85em; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px;
   }
-  .room-list-header .icon-btn { min-width: unset; padding: 4px 8px; font-size: 0.9em; box-shadow: none; }
+  /* BAG (uocen 2026-10-05 pri poredjenju sa Lorom): .icon-btn ovde nasledjuje
+     deljeno "button{width:100%}" pravilo — min-width:unset ne dovoljno,
+     treba eksplicitan width:auto da ostane mala kvadratna ikonica umesto da
+     se rastegne na celu sirinu reda i obori "Otvorene sobe" tekst u 2 reda. */
+  .room-list-header .icon-btn { width: auto; min-width: unset; padding: 4px 8px; font-size: 0.9em; box-shadow: none; }
   .room-list { text-align: left; max-height: 180px; overflow-y: auto; margin-bottom: 6px; }
   .room-list-empty { opacity: 0.6; font-size: 0.9em; padding: 8px 0; text-align: center; }
   .room-list-row {
