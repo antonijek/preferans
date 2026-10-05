@@ -833,8 +833,15 @@
      648px umesto stvarnih 777px) — nejasan flex quirk. Lora koristi
      grid+place-items:center (D:\lora\lora.css ".screen") za isti
      "centriraj dete, pusti roditelja da skroluje ako ne stane" efekat —
-     grid ovde NE stize dete, probano i potvrdjeno. */
-  .screen.rich-page.active { display: grid; place-items: center; padding: 90px 16px 40px; }
+     grid ovde NE stize dete, probano i potvrdjeno.
+     Korisnikov zahtev (4. runda, "gornji deo je odsecen"): place-items:
+     CENTER (vertikalno) je poznat CSS problem kad je dete VISE od
+     kontejnera — sadrzaj se preliva PODJEDNAKO gore i dole, ali skrol
+     po standardu ne dozvoljava da se dodje do GORNJEG preliva (samo do
+     donjeg). align-items:start (umesto center) drzi vrh kartice UVEK na
+     fiksnoj poziciji (odmah posle top paddinga), skrol onda prirodno
+     otkriva SAMO ono sto se preliva na dnu — nikad ne gubi vrh. */
+  .screen.rich-page.active { display: grid; justify-items: center; align-items: start; padding: 90px 16px 40px; }
 
   .home-hero {
     padding: 90px 24px 40px;
@@ -939,7 +946,10 @@
      overflow-y:auto (skroluje CELU stranicu) — isto kao Lorin .screen.
      Kartica ovde sad raste koliko joj sadrzaj treba, bez sopstvenog
      skrola — tacno Lorino ponasanje (njen .panel nema max-height). */
-  .screen .box.home-panel { max-width: 640px; max-height: none; overflow-y: visible; }
+  /* Korisnikov zahtev (4. runda): jos sira — izjednaceno sa Sobom (820px),
+     "nek bude dosta sirok" je ponovljeno posle prve (nedovoljne) 640px
+     probe. */
+  .screen .box.home-panel { max-width: 820px; max-height: none; overflow-y: visible; }
   /* Korisnikov zahtev: sve stane bez skrola — zbijeniji razmaci u ovoj
      (sad siroj, sadrzajnijoj) kartici. */
   .home-panel .home-tagline { margin-bottom: 14px; font-size: 0.98em; }
