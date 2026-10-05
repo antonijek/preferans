@@ -3644,8 +3644,12 @@ function appendChatMessageOnline(m, isLive = true) {
 
 function setGameMode(m) {
   mode = m;
-  $('mode3ai').classList.toggle('active', m === '3ai');
-  $('mode1v2').classList.toggle('active', m === '1v2');
+  // Korisnikov zahtev (2026-10-05): "3 AI" i "Vi + 2 AI" dugmad takodje
+  // uklonjena sa vidljivog setup ekrana (svedeno na 2 glavna izbora kao
+  // Lora) — ista zastita kao vec postoji za "Vi na sve 3" ispod, elementi
+  // vise ne postoje pa se moraju zastititi.
+  $('mode3ai')?.classList.toggle('active', m === '3ai');
+  $('mode1v2')?.classList.toggle('active', m === '1v2');
   // "Vi na sve 3" dugme je uklonjeno sa vidljivog setup ekrana (korisnikov
   // zahtev), ali mod ostaje dostupan preko konzole (setGameMode('3human'))
   // za testiranje — element vise ne postoji pa se ovo mora zastititi.
