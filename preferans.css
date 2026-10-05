@@ -1142,6 +1142,14 @@
   /* Korisnikov zahtev (2026-10-05): zlatni naslovi panela ovde (ne diramo
      deljeni .section-title na pocetnoj stranici drugde na sajtu). */
   .room-panel .section-title { color: var(--gold-bright); }
+  /* BAG (korisnikov zahtev 2026-10-05, "sredi ovaj modal malo bolje"):
+     bazno .mode-btn ima flex:1 (za redove dugmadi kao Pridruzi se/Kibiciraj
+     ispod) — kad je dugme DIREKTAN dete .room-panel (column-flex), to ga
+     je teralo da naraste i popuni CELU visinu panela (ovde "Napravi novu
+     sobu" rasteglo se na ~200px dok mu je tekst ostao nasred, da se
+     izjednaci sa visinom visljeg "Pridruzi se" panela). Vraceno na normalnu
+     dugme-visinu, margin-top:auto ga i dalje lepo lepi za dno panela. */
+  .room-panel > .mode-btn { flex: none; margin-top: auto; }
   .room-footer-actions {
     max-width: 980px; margin: 0 auto; padding: 24px 24px 50px;
     display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
@@ -1199,28 +1207,10 @@
      preko SVIH kolona kad je jedini/prazan sadrzaj. */
   .home-empty { grid-column: 1 / -1; text-align: center; color: rgba(255,255,255,0.55); padding: 12px; }
 
-  .home-footer {
-    /* Korisnikov zahtev (2026-10-05): bilo 30px/50px oko sitnog linka —
-       znatno smanjeno, glavni doprinos ukupnoj visini stranice. */
-    display: flex; justify-content: center; padding: 2px 24px 6px;
-  }
-  /* Korisnikov zahtev (2026-09-21): "Nazad na lokalni mod" je bilo tesko
-     dugme preko cele sirine ekrana (.screen button{width:100%} pravilo) —
-     ovo je sporedna, retko koriscena "izlazna" akcija, ne zasluzuje istu
-     tezinu kao primarni CTA-ovi. Sad je mali, diskretan link (isti duh kao
-     "← Nazad na igru" linkovi na pravila.html/matches.html), centriran,
-     bez teskog dugme-chrome-a. */
-  .home-footer .mode-btn {
-    width: auto; min-height: unset; padding: 4px 4px;
-    background: none; border: none; box-shadow: none;
-    color: rgba(255,255,255,0.55); font-weight: 600; font-size: 0.9em;
-    text-decoration: underline; text-decoration-color: transparent;
-    transition: color 0.15s ease, text-decoration-color 0.15s ease;
-  }
-  .home-footer .mode-btn:hover {
-    background: none; color: rgba(255,255,255,0.85);
-    text-decoration-color: rgba(255,255,255,0.5);
-  }
+  /* Korisnikov zahtev (2026-10-05): "nazad na pocetni ekran" link je sad
+     drugi link u .home-panel-links (vidi HTML) umesto posebnog .home-footer
+     ispod kartice — ".home-panel-links a" stil ispod vec pokriva oba. */
+  .home-panel-links-sep { color: rgba(255,255,255,0.3); margin: 0 6px; }
   /* "Klasicna kockarnica" pravac — korisnikov utisak: modali (Soba/Setup/
      Login) su ostali "sve zeleno, jednolicno" dok su .table-area paneli vec
      presli na drvo/zlato. Isti ton ovde; zeleno ostaje SAMO na samom stolu

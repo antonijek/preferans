@@ -326,12 +326,19 @@
          oslobodi prostor na vrhu kartice. -->
     <div class="home-stat-pill home-stat-pill-bottom" id="homeRoomCount">🃏 učitavanje...</div>
 
-    <p class="home-panel-links"><a href="/pravila.html">Pravila preferansa</a></p>
+    <!-- Korisnikov zahtev (2026-10-05): "nazad na lokalni mod je zapravo
+         povratak na PRVI modal (izbor racunar/online), a ne pokretanje
+         lokalne partije — ispravi" — bilo je pogresno imenovano dugme
+         (backToSetup() ide na setupScreen, ne na partiju). Preimenovano da
+         tacno opisuje sta radi, i premesteno UNUTAR kartice kao link
+         (umesto posebnog footer dugmeta ispod kartice, koje je i trosilo
+         dodatan vertikalni prostor). -->
+    <p class="home-panel-links">
+      <a href="/pravila.html">Pravila preferansa</a>
+      <span class="home-panel-links-sep">·</span>
+      <a href="#" onclick="backToSetup(); return false;">← Nazad na početni ekran</a>
+    </p>
   </div>
-
-  <footer class="home-footer">
-    <button class="mode-btn" onclick="backToSetup()">← Nazad na lokalni mod</button>
-  </footer>
 </div>
 
 <!-- Online: soba -->
@@ -353,9 +360,10 @@
   <section class="room-hero">
     <h1 class="room-hero-title">Soba</h1>
     <div id="roomStatus" class="room-status-line"></div>
-    <!-- Korisnikov zahtev (2026-10-05): "0 igraca" premesteno ovde sa
-         pozdravnog ekrana, da oslobodi prostor tamo. -->
-    <div class="home-stat-pill" id="homeOnlineCount">🟢 učitavanje...</div>
+    <!-- Korisnikov zahtev (2026-10-05): "0 igraca" pilula ovde je bila
+         DUPLIKAT istog broja koji vec pise na "Ko je online" dugmetu ispod
+         — uklonjena. #homeOnlineCount i dalje postoji u JS-u (renderOnlineUsers)
+         ali vise ne postoji u DOM-u ovde; taj kod ima null-guard pa ne puca. -->
     <button class="mode-btn room-online-toggle" id="onlineUsersToggleBtn" onclick="toggleOnlineUsersPanel()">👥 Ko je online (<span id="onlineUsersCount">0</span>)</button>
     <div id="onlineUsersList" class="room-list" style="display:none"><div class="room-list-empty">Učitavanje...</div></div>
   </section>
