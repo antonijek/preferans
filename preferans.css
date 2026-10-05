@@ -1012,10 +1012,12 @@
   @media (max-width: 480px) {
     .home-features-grid-compact { grid-template-columns: 1fr; }
   }
-  .home-features-grid-compact .feature-card { padding: 14px 12px; }
-  .home-features-grid-compact .feature-icon { font-size: 1.5em; margin-bottom: 4px; }
-  .home-features-grid-compact h3 { font-size: 0.95em; margin-bottom: 4px; }
-  .home-features-grid-compact p { font-size: 0.82em; }
+  /* Korisnikov zahtev: "smanji kartice po visini dosta" — znatno manji
+     padding/fontovi/razmaci nego prva proba. */
+  .home-features-grid-compact .feature-card { padding: 8px 10px; }
+  .home-features-grid-compact .feature-icon { font-size: 1.15em; margin-bottom: 1px; }
+  .home-features-grid-compact h3 { font-size: 0.85em; margin: 0 0 2px; }
+  .home-features-grid-compact p { font-size: 0.75em; line-height: 1.25; margin: 0; }
   /* Korisnikov zahtev (2026-09-21): kartice na pocetnoj su delovale "bled" —
      ravne, bez hover/klik reakcije. Dodat suptilan lift+glow na hover svima
      (i onima koje nisu linkovi — cisto ziva, "dodirljiva" povrsina), i
