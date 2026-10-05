@@ -256,10 +256,6 @@
     <div class="setup-suits"><span class="red">♥</span><span class="black">♠</span><span class="red">♦</span><span class="black">♣</span></div>
     <h1 class="home-greeting" id="homeGreeting">Zdravo!</h1>
     <p class="home-tagline">Preferans online — igraj preferans uživo (poznat i kao balkanski preferans ili preferanc) sa pravim igračima, besplatno u browseru.</p>
-    <div class="home-stats-row">
-      <div class="home-stat-pill" id="homeOnlineCount">🟢 učitavanje...</div>
-      <div class="home-stat-pill" id="homeRoomCount">🃏 učitavanje...</div>
-    </div>
     <button class="mode-btn primary home-cta" onclick="goToRoomScreen()">🎮 Sobe — napravi ili se pridruži</button>
     <!-- Korisnikov zahtev: "nema mogucnost da neko izadje na home page pa
          da se vrati" — vidljivo SAMO dok je igrac usred aktivne partije i
@@ -318,6 +314,11 @@
       </div>
     </div>
 
+    <!-- Korisnikov zahtev (2026-10-05): "0 igraca" premesteno na Sobu (vidi
+         #homeOnlineCount dole), ovo ("za sobe") ostaje ovde ali na dnu da
+         oslobodi prostor na vrhu kartice. -->
+    <div class="home-stat-pill home-stat-pill-bottom" id="homeRoomCount">🃏 učitavanje...</div>
+
     <p class="home-panel-links"><a href="/pravila.html">Pravila preferansa</a></p>
   </div>
 
@@ -345,6 +346,9 @@
   <section class="room-hero">
     <h1 class="room-hero-title">Soba</h1>
     <div id="roomStatus" class="room-status-line"></div>
+    <!-- Korisnikov zahtev (2026-10-05): "0 igraca" premesteno ovde sa
+         pozdravnog ekrana, da oslobodi prostor tamo. -->
+    <div class="home-stat-pill" id="homeOnlineCount">🟢 učitavanje...</div>
     <button class="mode-btn room-online-toggle" id="onlineUsersToggleBtn" onclick="toggleOnlineUsersPanel()">👥 Ko je online (<span id="onlineUsersCount">0</span>)</button>
     <div id="onlineUsersList" class="room-list" style="display:none"><div class="room-list-empty">Učitavanje...</div></div>
   </section>

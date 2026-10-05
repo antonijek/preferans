@@ -864,11 +864,16 @@
     margin-bottom: 6px;
   }
   .home-tagline { color: rgba(255,255,255,0.7); font-size: 1.05em; margin-bottom: 22px; }
-  .home-stats-row { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
   .home-stat-pill {
     background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
     border-radius: 20px; padding: 8px 18px; font-size: 0.95em; font-weight: 600;
+    display: inline-block;
   }
+  /* Korisnikov zahtev (2026-10-05): "0 igraca" i "X soba" pilule su ranije
+     delile jedan red na vrhu pozdravnog ekrana (.home-stats-row) i gurale
+     CTA dugme nize — razdvojene da oslobode prostor: "igraca" premesteno
+     na Sobu (vidi .room-hero .home-stat-pill), "soba" na dno kartice. */
+  .home-panel .home-stat-pill-bottom { display: block; width: fit-content; margin: 16px auto 10px; }
   .home-cta {
     max-width: 420px; margin: 0 auto; display: block;
     min-height: 58px; font-size: 1.1em;
@@ -961,7 +966,6 @@
   /* Korisnikov zahtev: sve stane bez skrola — zbijeniji razmaci u ovoj
      (sad siroj, sadrzajnijoj) kartici. */
   .home-panel .home-tagline { margin-bottom: 14px; font-size: 0.98em; }
-  .home-panel .home-stats-row { margin-bottom: 16px; }
   .home-panel .home-cta { margin-bottom: 4px; }
   .home-panel .home-panel-divider { margin: 14px 0; }
   .home-panel .setup-suits { margin-bottom: 6px; }
@@ -1076,6 +1080,7 @@
     margin-bottom: 8px;
   }
   .room-status-line { color: rgba(255,255,255,0.75); min-height: 1.4em; margin-bottom: 14px; }
+  .room-hero .home-stat-pill { margin-bottom: 14px; }
   .room-hero .room-online-toggle { max-width: 320px; margin: 0 auto; }
   .room-hero #onlineUsersList { max-width: 640px; margin: 10px auto 0; }
 
