@@ -814,9 +814,13 @@
        (vidi D:\lora\lora.css ".screen, body.page"): sitna ponavljajuca SVG
        sara (4 boje karata, jedva vidljiva) ispod radijalnog zelenog
        gradijenta, umesto cistog jednolicnog gradijenta. */
+    /* Korisnikov zahtev (2026-10-05, 2. runda — "pozadina je druge boje, na
+       Lori je lepsa"): prve boje su bile preblizu crnoj. Sad TACNE Lorine
+       vrednosti (D:\lora\lora.css ".screen, body.page") — svetlija, zivlja
+       zelena. */
     background-image:
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cg fill='%23ffffff' fill-opacity='.035' font-family='serif' font-size='26'%3E%3Ctext x='12' y='38'%3E%E2%99%A0%3C/text%3E%3Ctext x='72' y='38'%3E%E2%99%A5%3C/text%3E%3Ctext x='42' y='96'%3E%E2%99%A3%3C/text%3E%3Ctext x='100' y='96'%3E%E2%99%A6%3C/text%3E%3C/g%3E%3C/svg%3E"),
-      radial-gradient(ellipse at top, #1e3320 0%, #10201a 45%, #060807 100%);
+      radial-gradient(ellipse at 50% 35%, #1b8f56 0%, #12663f 45%, #0b3a23 100%);
     background-attachment: fixed;
   }
   /* Korisnikov zahtev (2026-10-05): nazad na centriranu karticu-modal (kao
@@ -917,6 +921,17 @@
      punoj stranici" kontekst sad kad su ugnjezdeni u .home-panel. === */
   .home-panel .site-notice-banner,
   .home-panel .pwa-install-banner { margin-top: 0; max-width: none; }
+  /* Korisnikov zahtev (2. runda): "neka bude velika kartica da sve lepo
+     moze da stane, ne zelim da mi se pojavljuje scroll, nek bude dosta
+     sirok" — znatno sira nego pocetnih 460px. */
+  .screen .box.home-panel { max-width: 640px; }
+  /* Korisnikov zahtev: sve stane bez skrola — zbijeniji razmaci u ovoj
+     (sad siroj, sadrzajnijoj) kartici. */
+  .home-panel .home-tagline { margin-bottom: 14px; font-size: 0.98em; }
+  .home-panel .home-stats-row { margin-bottom: 16px; }
+  .home-panel .home-cta { margin-bottom: 4px; }
+  .home-panel .home-panel-divider { margin: 14px 0; }
+  .home-panel .setup-suits { margin-bottom: 6px; }
   /* Soba — ista kartica-modal ideja, samo sira (2 panela jedan pored
      drugog unutra, kao Lorin .panel.wide). .room-hero je ranije imao
      90px top-padding SAMO zato sto je bio prvi element na punoj stranici
@@ -954,6 +969,13 @@
   .home-features-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px;
   }
+  /* Iste bezbedne minmax (vidi .room-panels) — sprecava preklapanje/secenje
+     na uskom telefonu unutar uze (640px) .home-panel kartice. */
+  .home-features-grid-compact { grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr)); gap: 10px; }
+  .home-features-grid-compact .feature-card { padding: 14px 12px; }
+  .home-features-grid-compact .feature-icon { font-size: 1.5em; margin-bottom: 4px; }
+  .home-features-grid-compact h3 { font-size: 0.95em; margin-bottom: 4px; }
+  .home-features-grid-compact p { font-size: 0.82em; }
   /* Korisnikov zahtev (2026-09-21): kartice na pocetnoj su delovale "bled" —
      ravne, bez hover/klik reakcije. Dodat suptilan lift+glow na hover svima
      (i onima koje nisu linkovi — cisto ziva, "dodirljiva" povrsina), i
@@ -1123,13 +1145,18 @@
      pozadina kartice je delovala "teze" i van teme u odnosu na ostatak
      sajta (zeleno+zlatno svuda drugde) — ista tamno-zelena porodica kao
      Lorina pocetna kartica, ne nova boja. */
+  /* Korisnikov zahtev (2026-10-05, 2. runda): "stavi isti okvir kao na
+     Lori, unutrašnjost takođe iste boje" — TACNE Lorine vrednosti
+     (D:\lora\lora.css .panel): debeo drveni obrub (ista boja kao nas
+     sto-rail, #6b4424/#4a2e17 — ne nova boja) umesto tanke zlatne linije. */
   .screen .box {
-    background: linear-gradient(180deg, #16301f 0%, #0a1810 100%);
-    border-radius: 18px;
+    background: linear-gradient(180deg, #11281c 0%, #0a1b13 100%);
+    border-radius: 20px;
     padding: 24px;
     max-width: 460px;
     width: 100%;
-    border: 2px solid rgba(var(--gold-rgb),0.4);
+    border: 6px solid #6b4424;
+    box-shadow: 0 0 0 2px #4a2e17, 0 24px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.07);
     max-height: 90vh;
     overflow-y: auto;
     transition: border-color 0.3s, box-shadow 0.3s;
