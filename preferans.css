@@ -974,7 +974,7 @@
   .home-panel .home-cta { margin-bottom: 4px; }
   .home-panel .home-panel-divider { margin: 10px 0; }
   .home-panel .setup-suits { margin-bottom: 6px; }
-  .home-panel .home-stat-pill-bottom { margin: 6px auto 2px; }
+  .home-panel .home-stat-pill-bottom { margin: 20px auto 2px; }
   /* Korisnikov zahtev (2026-10-05): na uskim/niskim telefonima (npr.
      iPhone SE, 667px visine) opis-recenica i dalje lomi u 3+ reda —
      manji font ovde je lakse zrtvovati nego funkcionalne elemente. */
@@ -1029,7 +1029,7 @@
      skrola na mobilnom. Kartice su sad dovoljno kompaktne (mali padding/
      fontovi) da ostanu 2x2 i na uskim ekranima — prag spusten na 340px
      (realno vise ne okida ni na jednom telefonu). */
-  .home-features-grid.home-features-grid-compact { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .home-features-grid.home-features-grid-compact { grid-template-columns: repeat(2, 1fr); gap: 20px; }
   @media (max-width: 340px) {
     .home-features-grid.home-features-grid-compact { grid-template-columns: 1fr; }
   }
