@@ -850,7 +850,11 @@
   }
   .home-hero .setup-suits { font-size: 1.6em; margin-bottom: 10px; }
   .home-greeting {
-    font-family: 'Cinzel', serif; font-weight: 800; font-size: clamp(1.8em, 5vw, 2.6em);
+    font-family: 'Cinzel', serif; font-weight: 800;
+    /* Korisnikov zahtev (4. runda): "preveliko" — gornja granica spustena
+       (2.6em -> 1.9em), i manji vw-faktor (5 -> 3) jer sad u SIROJ (820px)
+       kartici 5vw brzo dostize gornju granicu. */
+    font-size: clamp(1.5em, 3vw, 1.9em);
     /* Korisnikov zahtev (2026-10-05): isti zlatni naslov kao setup/soba
        ekran, umesto bledog belo-zelenog gradijenta — dosledno kroz sve tri
        "pocetne" stranice. */
@@ -934,6 +938,10 @@
      punoj stranici" kontekst sad kad su ugnjezdeni u .home-panel. === */
   .home-panel .site-notice-banner,
   .home-panel .pwa-install-banner { margin-top: 0; max-width: none; }
+  /* BAG (4. runda, "Zdravo Antonije nije centrirano"): .home-hero (koje je
+     nosilo text-align:center) je UKLONJEN kad je sadrzaj spljosten direktno
+     u .home-panel — centriranje teksta se izgubilo usput. Vraceno ovde. */
+  .home-panel { text-align: center; }
   /* Korisnikov zahtev (2. runda): "neka bude velika kartica da sve lepo
      moze da stane, ne zelim da mi se pojavljuje scroll, nek bude dosta
      sirok" — znatno sira nego pocetnih 460px. */
@@ -996,7 +1004,14 @@
   }
   /* Iste bezbedne minmax (vidi .room-panels) — sprecava preklapanje/secenje
      na uskom telefonu unutar uze (640px) .home-panel kartice. */
-  .home-features-grid-compact { grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr)); gap: 10px; }
+  /* Korisnikov zahtev (4. runda): "kartice su 3 pa jedna, prevelike" —
+     auto-fit sa 4 kartice na 820px daje neravnomeran 3+1 raspored umesto
+     urednog 2x2. Eksplicitno tacno 2 kolone (ima SAMO 4 kartice, uvek
+     cist 2x2 bez obzira na sirinu), 1 kolona ispod 480px ne-sirine. */
+  .home-features-grid-compact { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  @media (max-width: 480px) {
+    .home-features-grid-compact { grid-template-columns: 1fr; }
+  }
   .home-features-grid-compact .feature-card { padding: 14px 12px; }
   .home-features-grid-compact .feature-icon { font-size: 1.5em; margin-bottom: 4px; }
   .home-features-grid-compact h3 { font-size: 0.95em; margin-bottom: 4px; }
