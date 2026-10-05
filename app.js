@@ -2493,6 +2493,9 @@ function startGame() {
   game.newHand(0);
   renderSeats();
   render();
+  // Korisnikov zahtev: dugme za povratak na glavni meni dok se igra protiv
+  // racunara (startGame() je iskljucivo lokalni ulaz, vidi backToSetup()).
+  $('localMenuBtn').style.display = '';
   // NAPOMENA: render() -> renderBiddingPanel() vec sam zakazuje AI potez
   // (ispravno, sa `player` zakljucanim u trenutku renderovanja). Ranije je
   // ovde postojao DUPLIRAN setTimeout koji je citao game.state.currentBidder
@@ -2884,6 +2887,7 @@ async function connectOnlineSocket() {
       $('chatToggleBtn').style.display = '';
       $('matchMenuBtn').style.display = '';
       $('peekHomeBtn').style.display = '';
+      $('localMenuBtn').style.display = 'none';
       document.querySelector('.top-actions [onclick="restart()"]')?.style.setProperty('display', 'none');
       stopRoomListPolling();
       renderSeats();
@@ -3002,6 +3006,7 @@ function backToSetup() {
   $('peekHomeBtn').style.display = 'none';
   $('backToTableBtn').style.display = 'none';
   $('kibicRequestPanel').style.display = 'none';
+  $('localMenuBtn').style.display = 'none';
   $('setupScreen').classList.add('active');
 }
 

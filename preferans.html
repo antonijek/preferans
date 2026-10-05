@@ -84,6 +84,13 @@
       </div>
     </div>
     <button class="icon-btn" id="peekHomeBtn" onclick="peekHomeScreen()" style="display:none" title="Nazad na početnu (ostaješ za stolom)">🏠</button>
+    <!-- Korisnikov zahtev (2026-10-05): "kad igram protiv kompjutera nemam
+         dugme da izadjem u glavni meni" — lokalni mod (protiv racunara)
+         nema svoj ekvivalent peekHomeBtn-a (koji je samo za online), pa je
+         jedini nacin povratka na setupScreen bilo osvezavanje stranice.
+         Vidljivo SAMO u lokalnom modu (startGame()/backToSetup() upravljaju
+         display), isti icon-btn stil kao ostali. -->
+    <button class="icon-btn" id="localMenuBtn" onclick="backToSetup()" style="display:none" title="Nazad na glavni meni">🏠</button>
     <button class="icon-btn" onclick="toggleScore()">📊</button>
     <button class="icon-btn" id="soundToggleBtn" onclick="toggleSound()" title="Zvuk uklj/isklj">🔊</button>
     <!-- Korisnikov zahtev (2026-09-26) — "da korisnik bira koje ce karte,
