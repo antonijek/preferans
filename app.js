@@ -2645,6 +2645,16 @@ window.closeRevealedHands = closeRevealedHands;
 // === ONLINE: login/registracija ===
 
 function goOnline() {
+  // Korisnikov zahtev (2026-10-06): "na pocetnoj ima opcija za bule i za
+  // refe ali kad podesim pa kliknem na online vodi me u sobu gde opet
+  // podesavam" — lokalna (setup) i online (room) bula/refe polja su bila
+  // dva odvojena, nepovezana para istih podesavanja. Prenesi vrednosti
+  // ovde (jednom, pri prelasku na online) da soba pocne tamo gde je
+  // korisnik vec stao, umesto da ponovo kuca iste brojeve.
+  const setupBula = $('setupStartBula').value;
+  const setupRefe = $('setupRefeCount').value;
+  if (setupBula) $('roomStartBula').value = setupBula;
+  if (setupRefe) $('roomRefeCount').value = setupRefe;
   $('setupScreen').classList.remove('active');
   $('loginScreen').classList.add('active');
   $('loginError').textContent = '';
