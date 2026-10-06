@@ -873,7 +873,10 @@
      "mrtvi" prostor (preko 100px) koji je gurao sadrzaj preko visine
      uobicajenog laptop prozora (1366x720 i slicno) bez da sam sadrzaj
      raste. Smanjeno na minimum koji jos uvek cisti fiksni header (60px). */
-  .screen.rich-page.active { display: grid; justify-content: stretch; justify-items: center; align-items: start; padding: 76px 16px 8px; }
+  /* Korisnikov zahtev (2026-10-06): "pomeri ga malo dolje" — kartica je
+     bila prilepljena skoro odmah ispod headera, isti razmak kao login
+     modal ispod (90px, vidi .screen.full-page). */
+  .screen.rich-page.active { display: grid; justify-content: stretch; justify-items: center; align-items: start; padding: 90px 16px 8px; }
 
   .home-hero {
     padding: 90px 24px 40px;
