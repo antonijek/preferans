@@ -764,19 +764,29 @@
      sajta (koji ISTU pozadinu koristi ali centrirano, vidi .screen default
      koji setupScreen vec uspesno koristi). Vertikalno centriranje vraceno. */
   .screen.full-page {
-    background: radial-gradient(ellipse at center, #1e3320 0%, #10201a 60%, #0a0b0c 100%);
     /* Korisnikov zahtev (vise puta prijavljeno): "ne vidi se vrh modala".
        Pravi uzrok — .screen.full-page je i dalje inset:0 (od baznog
        .screen), a fiksni .full-page-header (z-index:210, VISI od ovog
        ekrana na z-index:200) sedi PREKO gornjih ~50px. Kad se kutija
        centrira unutar CELE visine (racunajuci i taj gornji pojas iza
        headera), njen vrh moze zavrsiti bas ispod/iza headera — nevidljiv,
-       ne "isecen" nego doslovno pokriven. top:56px svodi centriranje SAMO
-       na prostor ISPOD headera, umesto da top ostane fiksno menjan svaki
-       put (raniji pokusaj sa align-items:flex-start je davao ogromnu
-       praznu povrsinu za KRATAK sadrzaj — ovo resava oba slucaja jer i
-       dalje centrira, samo unutar manje visine). */
-    top: 56px;
+       ne "isecen" nego doslovno pokriven.
+       BAG NADJEN 2026-10-06 (dok sam resavao "i drugi modal za igraj
+       online malo odvoji od vrha"): raniji "top:56px" je POMERAO CEO
+       fiksni ekran (ukljucujuci sopstvenu pozadinu) 56px nize umesto da
+       samo gura SADRZAJ — gornjih 56px je ostajalo BEZ screen pozadine,
+       a .full-page-header je tu providan (rgba(0,0,0,0.55)) — kroz njega
+       je providelo sta god je ISPOD u normalnom toku dokumenta: ziva
+       .top-bar (igra-header sa Bule/Stih/dugmadima), uvek u DOM-u bez
+       obzira koji je screen aktivan. Na login ekranu se zato nazirao
+       "duh" partije koja i ne postoji.
+       Ispravka: screen ostaje PUNE visine (inset:0 iz baznog .screen,
+       sopstvena NEPROVIDNA pozadina pokriva .top-bar celom visinom), a
+       razmak od headera se sad pravi preko padding-top na SADRZAJU (flex
+       centriranje i dalje radi, samo unutar manje visine) — i malo vece
+       nego pre (90px) da kutija bude odvojenija od vrha, ne zalepljena
+       odmah ispod headera. */
+    padding-top: 90px;
   }
   .screen.full-page .box { max-width: 480px; }
   /* Fiksni brend-red na vrhu (isti obrazac kao .top-bar za vreme igre) —
@@ -821,6 +831,23 @@
     background-image:
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cg fill='%23ffffff' fill-opacity='.035' font-family='serif' font-size='26'%3E%3Ctext x='12' y='38'%3E%E2%99%A0%3C/text%3E%3Ctext x='72' y='38'%3E%E2%99%A5%3C/text%3E%3Ctext x='42' y='96'%3E%E2%99%A3%3C/text%3E%3Ctext x='100' y='96'%3E%E2%99%A6%3C/text%3E%3C/g%3E%3C/svg%3E"),
       radial-gradient(ellipse at 50% 35%, #1b8f56 0%, #12663f 45%, #0b3a23 100%);
+    background-color: #0e4d2e;
+    background-attachment: fixed;
+  }
+  /* Korisnikov zahtev (2026-10-06): "pocetni ekran nema pozadinu kao u
+     Lori a trazio sam nekoliko puta to" — "rich-page" tretman je ranije
+     dobio SAMO homeScreen/roomScreen (ekrani POSLE logina). #setupScreen
+     je STVARNI prvi ekran (pre logina, prikazuje se odmah na otvaranju
+     sajta) i #loginScreen (".screen.full-page", "Igraj online" modal) su
+     ga obojica propustila — ostali na starim pozadinama (providna crna /
+     obican gradijent bez SARE). Lora koristi JEDNO pravilo za SVE "screen"
+     ekrane (D:\lora\lora.css ".screen, body.page") — ovde isto, ista
+     tekstura na sva tri. */
+  #setupScreen, .screen.full-page {
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cg fill='%23ffffff' fill-opacity='.035' font-family='serif' font-size='26'%3E%3Ctext x='12' y='38'%3E%E2%99%A0%3C/text%3E%3Ctext x='72' y='38'%3E%E2%99%A5%3C/text%3E%3Ctext x='42' y='96'%3E%E2%99%A3%3C/text%3E%3Ctext x='100' y='96'%3E%E2%99%A6%3C/text%3E%3C/g%3E%3C/svg%3E"),
+      radial-gradient(ellipse at 50% 35%, #1b8f56 0%, #12663f 45%, #0b3a23 100%);
+    background-color: #0e4d2e;
     background-attachment: fixed;
   }
   /* Korisnikov zahtev (2026-10-05): nazad na centriranu karticu-modal (kao
