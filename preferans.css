@@ -2101,6 +2101,25 @@
     #resultBox .score-player-name { font-size: 0.78em; }
     #resultBox .score-player-bula { font-size: 1em; }
     #resultBox .score-player-rank { font-size: 0.6em; margin-bottom: 0; }
+    /* BAG (2026-10-07, "continue checking landscape result-screen
+       compacting test" — Playwright odigrao pravu ruku sa refom+kontrom
+       do kraja, izmereno #resultBox.scrollHeight=421 > 400px viewport,
+       dugme "Igraj" van vidljive visine): gornje kompaktovanje je
+       pokrivalo SAMO .score-player-* (MATCH_OVER — kraj CELE partije).
+       Obican kraj RUKE (svaka ruka, mnogo cesce) koristi SASVIM DRUGE
+       klase (.result-contract/.result-outcome/.result-line/.result-supe-*/
+       .result-scoreboard/.result-mini-*) koje nikad nisu dobile isti
+       tretman — otuda overflow bas na ovom (mnogo cescem) ekranu. */
+    #resultBox .result-contract { margin-bottom: 5px; gap: 5px; }
+    #resultBox .result-outcome { font-size: 1em; padding: 4px; margin-bottom: 5px; }
+    #resultBox .result-line { font-size: 0.78em; margin-bottom: 3px; }
+    #resultBox .result-supe-row { margin-bottom: 5px; gap: 4px; }
+    #resultBox .result-supe-chip { padding: 2px 8px; font-size: 0.72em; }
+    #resultBox .result-scoreboard { margin-top: 4px; gap: 4px; }
+    #resultBox .result-mini-card { padding: 4px 8px; min-width: 0; flex: 1; }
+    #resultBox .result-mini-name { font-size: 0.62em; }
+    #resultBox .result-mini-bula { font-size: 1em; }
+    #resultBox .result-mini-tricks { font-size: 0.62em; margin-top: 0; }
   }
 
   /* Portret uzan telefon: sto sto sire (skoro do ivica ekrana — korisnikov
