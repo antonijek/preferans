@@ -216,54 +216,79 @@ if ('serviceWorker' in navigator) {
 }
 
 // Korisnikov zahtev (2026-09-20): preporuci instalaciju app-a mobilnim
-// korisnicima na pocetnom ekranu — Android/Chrome hvata beforeinstallprompt
-// i nudi pravo dugme "Instaliraj"; iOS Safari nema taj event uopste, pa
-// tamo umesto dugmeta stoji uputstvo (Deli → Dodaj na Home Screen). Ne
-// koristi $() (definisan kasnije u fajlu) — koristi document.getElementById
-// direktno da ne zavisi od redosleda deklaracija.
+// korisnicima — Android/Chrome hvata beforeinstallprompt i nudi pravo dugme
+// "Instaliraj"; gde tog eventa nema (iOS, ugradjeni pregledac Vibera/
+// Facebook-a, Samsung Internet, Chrome koji jos nije ponudio) stoji
+// uputstvo za TAJ pregledac. Ne koristi $() (definisan kasnije u fajlu) —
+// koristi document direktno da ne zavisi od redosleda deklaracija.
+//
+// Korisnikov zahtev (2026-10-12, hitno): traka je ranije postojala SAMO na
+// pocetnom ekranu prijavljenog igraca, a do njega vecina nikad ne stigne —
+// nov posetilac sleti na setupScreen, a pozvan linkom ide login → pravo u
+// sobu. Sad je traka (.pwa-install-banner) na sva tri ekrana; sadrzaj
+// pravi JS ovde, da tekst postoji na jednom mestu.
 let deferredPwaInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPwaInstallPrompt = e;
   maybeShowPwaInstallBanner();
 });
+function hidePwaInstallBanners() {
+  document.querySelectorAll('.pwa-install-banner').forEach(b => { b.style.display = 'none'; });
+}
 window.addEventListener('appinstalled', () => {
   deferredPwaInstallPrompt = null;
-  const banner = document.getElementById('pwaInstallBanner');
-  if (banner) banner.style.display = 'none';
+  hidePwaInstallBanners();
 });
+function pwaInstallHint() {
+  const ua = navigator.userAgent;
+  // iPadOS 13+ se predstavlja kao Mac — razlikuje ga ekran na dodir
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  // ugradjeni pregledaci aplikacija (linkovi iz Vibera/Facebook-a/Instagrama);
+  // "; wv)" je Android WebView — ni on ne moze da instalira
+  const inApp = /FBAN|FBAV|FB_IAB|Instagram|Viber|WhatsApp|Line\/|; wv\)/i.test(ua);
+  if (deferredPwaInstallPrompt) return { text: '📲 Igraš na telefonu? Instaliraj Preferans kao aplikaciju — brže se otvara i radi kao prava aplikacija.', button: true };
+  if (isIOS && inApp) return { text: '📲 Instaliraj Preferans kao aplikaciju: otvori ovu stranicu u Safariju, pa dodirni Deli (kvadratić sa strelicom nagore) → „Dodaj na početni ekran“.' };
+  if (isIOS) return { text: '📲 Instaliraj Preferans kao aplikaciju: dodirni Deli (kvadratić sa strelicom nagore) → „Dodaj na početni ekran“.' };
+  if (inApp) return { text: '📲 Instaliraj Preferans kao aplikaciju: u meniju (⋮) izaberi „Otvori u Chrome-u“, pa u Chrome-u meni ⋮ → „Instaliraj aplikaciju“.' };
+  return { text: '📲 Instaliraj Preferans kao aplikaciju: u meniju pregledača (⋮) izaberi „Instaliraj aplikaciju“ ili „Dodaj na početni ekran“.' };
+}
 function maybeShowPwaInstallBanner() {
-  const banner = document.getElementById('pwaInstallBanner');
-  if (!banner) return;
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const banners = document.querySelectorAll('.pwa-install-banner');
+  if (!banners.length) return;
+  const ua = navigator.userAgent;
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   if (!isMobile || isStandalone) return;
-  if (localStorage.getItem('pwaInstallDismissed') === '1') return;
-  banner.style.display = '';
-  const installBtn = document.getElementById('pwaInstallBtn');
-  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-  if (deferredPwaInstallPrompt) {
-    installBtn.style.display = '';
-    installBtn.onclick = async () => {
-      deferredPwaInstallPrompt.prompt();
-      await deferredPwaInstallPrompt.userChoice.catch(() => {});
-      deferredPwaInstallPrompt = null;
-      banner.style.display = 'none';
+  try { if (localStorage.getItem('pwaInstallDismissed') === '1') return; } catch (e) { /* ok bez pamcenja */ }
+  const hint = pwaInstallHint();
+  banners.forEach(banner => {
+    banner.innerHTML = `
+      <span class="pwa-install-text"></span>
+      <div class="pwa-install-actions">
+        ${hint.button ? '<button class="mode-btn primary pwa-install-btn">Instaliraj</button>' : ''}
+        <button class="icon-btn pwa-install-dismiss" title="Zatvori">✕</button>
+      </div>`;
+    banner.querySelector('.pwa-install-text').textContent = hint.text;
+    const installBtn = banner.querySelector('.pwa-install-btn');
+    if (installBtn) {
+      installBtn.onclick = async () => {
+        if (!deferredPwaInstallPrompt) return;
+        deferredPwaInstallPrompt.prompt();
+        await deferredPwaInstallPrompt.userChoice.catch(() => {});
+        deferredPwaInstallPrompt = null;
+        hidePwaInstallBanners();
+      };
+    }
+    banner.querySelector('.pwa-install-dismiss').onclick = () => {
+      try { localStorage.setItem('pwaInstallDismissed', '1'); } catch (e) { /* ok bez pamcenja */ }
+      hidePwaInstallBanners();
     };
-  } else if (isIOS) {
-    const txt = document.getElementById('pwaInstallText');
-    if (txt) txt.textContent = '📲 Igraš na iPhone-u? Dodaj Preferans na Home Screen: dodirni Deli (kvadratić sa strelicom nagore) pa "Dodaj na Home Screen".';
-  }
+    banner.style.display = '';
+  });
 }
 window.addEventListener('load', () => {
   maybeShowPwaInstallBanner();
-  const dismissBtn = document.getElementById('pwaInstallDismiss');
-  if (dismissBtn) {
-    dismissBtn.onclick = () => {
-      localStorage.setItem('pwaInstallDismissed', '1');
-      document.getElementById('pwaInstallBanner').style.display = 'none';
-    };
-  }
   // "Sajt je jos u izradi" najava (korisnikov zahtev 2026-09-20) —
   // dismissible, ne dosadjuje posle prvog citanja.
   // Korisnikov zahtev (2026-09-26): "Nemoj jos stavljati poruku dobrodosli" —

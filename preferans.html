@@ -203,6 +203,8 @@
          je vec '1v2' po podrazumevanoj vrednosti u app.js). -->
     <button class="mode-btn primary" style="min-height:56px;font-size:1.1em" onclick="startGame()">🎮 Igraj protiv računara</button>
     <button class="mode-btn" style="margin-top:10px" onclick="goOnline()">🌐 Igraj online</button>
+    <!-- predlog instalacije app-a (samo telefon) — sadrzaj pravi app.js, vidi maybeShowPwaInstallBanner -->
+    <div class="pwa-install-banner" style="display:none"></div>
 
     <div class="setup-field" style="margin-top:20px">
       <label for="setupStartBula">Početna bula (svi igrači)</label>
@@ -285,13 +287,7 @@
     <!-- Korisnikov zahtev (2026-09-20): preporuci instalaciju app-a mobilnim
          korisnicima — samo mobilni, samo ako jos nije instaliran, i samo
          ako korisnik nije ranije zatvorio. -->
-    <div class="pwa-install-banner" id="pwaInstallBanner" style="display:none">
-      <span class="pwa-install-text" id="pwaInstallText">📲 Igraš na telefonu? Instaliraj Preferans kao app — brže se otvara i radi kao prava aplikacija.</span>
-      <div class="pwa-install-actions">
-        <button class="mode-btn primary" id="pwaInstallBtn" style="display:none">Instaliraj</button>
-        <button class="icon-btn" id="pwaInstallDismiss" title="Zatvori">✕</button>
-      </div>
-    </div>
+    <div class="pwa-install-banner" style="display:none"></div>
 
     <hr class="home-panel-divider">
 
@@ -366,6 +362,8 @@
          ali vise ne postoji u DOM-u ovde; taj kod ima null-guard pa ne puca. -->
     <button class="mode-btn room-online-toggle" id="onlineUsersToggleBtn" onclick="toggleOnlineUsersPanel()">👥 Ko je online (<span id="onlineUsersCount">0</span>)</button>
     <div id="onlineUsersList" class="room-list" style="display:none"><div class="room-list-empty">Učitavanje...</div></div>
+    <!-- pozvani linkom (WhatsApp/Viber) idu login → pravo ovde, pocetni ekran nikad ne vide -->
+    <div class="pwa-install-banner" style="display:none"></div>
   </section>
 
   <section class="room-panels">
