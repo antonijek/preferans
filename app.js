@@ -2822,7 +2822,7 @@ async function connectOnlineSocket() {
     if (info.seat !== null) mySeat = info.seat;
     if (info.code) { $('roomCodeInput').value = info.code; myRoomCode = info.code; updateRoomJoinButtonState(); }
     if (game.state?.phase === 'WAITING' || !game.state) {
-      $('roomStatus').innerHTML = `Kod sobe: <b style="font-size:1.3em">${info.code}</b> <button class="mode-btn" id="copyRoomLinkBtn" onclick="copyRoomLink(this)" style="padding:2px 10px;font-size:0.85em;vertical-align:middle;margin-left:6px">🔗 Kopiraj link</button> — čeka se još igrača...`;
+      $('roomStatus').innerHTML = `Kod sobe: <b style="font-size:1.3em">${info.code}</b>${renderRoomShareRow(info.code)} — čeka se još igrača...`;
       $('homeScreen').classList.remove('active');
       $('roomScreen').classList.add('active');
     }
@@ -3298,7 +3298,7 @@ function createRoomOnline() {
     myRoomCode = res.code;
     resetHandHistoryForNewRoom();
     $('roomCodeInput').value = res.code;
-    $('roomStatus').innerHTML = `Kod sobe: <b style="font-size:1.3em">${res.code}</b> <button class="mode-btn" id="copyRoomLinkBtn" onclick="copyRoomLink(this)" style="padding:2px 10px;font-size:0.85em;vertical-align:middle;margin-left:6px">🔗 Kopiraj link</button> — čeka se još igrača...`;
+    $('roomStatus').innerHTML = `Kod sobe: <b style="font-size:1.3em">${res.code}</b>${renderRoomShareRow(res.code)} — čeka se još igrača...`;
     updateRoomJoinButtonState();
   });
 }
@@ -3311,7 +3311,7 @@ function joinRoomOnline() {
     mySeat = res.seat;
     myRoomCode = res.code;
     resetHandHistoryForNewRoom();
-    $('roomStatus').innerHTML = `Pridružen sobi <b style="font-size:1.3em">${res.code}</b> <button class="mode-btn" id="copyRoomLinkBtn" onclick="copyRoomLink(this)" style="padding:2px 10px;font-size:0.85em;vertical-align:middle;margin-left:6px">🔗 Kopiraj link</button>, čeka se početak...`;
+    $('roomStatus').innerHTML = `Pridružen sobi <b style="font-size:1.3em">${res.code}</b>${renderRoomShareRow(res.code)}, čeka se početak...`;
     updateRoomJoinButtonState();
   });
 }
@@ -3329,6 +3329,34 @@ function joinAsSpectatorOnline() {
     updateRoomJoinButtonState();
   });
 }
+
+// Korisnikov zahtev (2026-10-12): "nemam dugmad kao u lori za whatsapp i
+// viber da mogu da zovem druge igrace" — isti obrazac kao Lora (D:\lora
+// online.js renderShare()): WhatsApp (wa.me, uvek), Viber (viber://
+// forward, SAMO na telefonu — ne postoji desktop ekvivalent), "Jos..."
+// (navigator.share native share sheet, SAMO na telefonu kad postoji) i
+// Kopiraj link (uvek). HTML string se ubacuje pored koda sobe u
+// #roomStatus na sva 3 mesta gde se taj status prikazuje (napravi/
+// pridruzi se/reconnect) — vidi pozive ispod.
+const IS_PHONE_UA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+function renderRoomShareRow(code) {
+  const url = `${location.origin}${location.pathname}?room=${code}`;
+  const text = encodeURIComponent(`Hajde da igramo Preferans! Uđi u moju sobu: ${url}`);
+  const showMore = IS_PHONE_UA && typeof navigator.share === 'function';
+  return `<span class="room-share-row">` +
+    `<a class="share-btn wa" href="https://wa.me/?text=${text}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5a8.5 8.5 0 0 0-7.3 12.8L3.5 20.5l4.3-1.1A8.5 8.5 0 1 0 12 3.5z"/><path d="M9.2 8.4c-.4 2.9 3.2 6.6 6.3 6.4l.9-1.5-1.8-.9-.9.8a4.6 4.6 0 0 1-2.1-2.1l.8-.9-.9-1.8z"/></svg>WhatsApp</a>` +
+    (IS_PHONE_UA ? `<a class="share-btn viber" href="viber://forward?text=${text}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h12a2.5 2.5 0 0 1 2.5 2.5v8a2.5 2.5 0 0 1-2.5 2.5h-6l-4.5 3.5v-3.5H6A2.5 2.5 0 0 1 3.5 14V6A2.5 2.5 0 0 1 6 3.5z"/><path d="M9.3 7.4c-.3 2.4 2.6 5.3 5.1 5.1l.7-1.2-1.5-.7-.7.6a3.8 3.8 0 0 1-1.7-1.7l.6-.7-.7-1.5z"/></svg>Viber</a>` : '') +
+    (showMore ? `<button class="share-btn" type="button" onclick="shareRoomMore('${code}')"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8l7.6-4.1M8.2 13.2l7.6 4.1"/></svg>Još…</button>` : '') +
+    `<button class="share-btn" id="copyRoomLinkBtn" type="button" onclick="copyRoomLink(this)">🔗 Kopiraj link</button>` +
+    `</span>`;
+}
+window.renderRoomShareRow = renderRoomShareRow;
+
+function shareRoomMore(code) {
+  const url = `${location.origin}${location.pathname}?room=${code}`;
+  navigator.share({ title: 'Preferans', text: 'Hajde da igramo Preferans! Uđi u moju sobu:', url }).catch(() => { /* korisnik otkazao deljenje */ });
+}
+window.shareRoomMore = shareRoomMore;
 
 // Kopira link sobe (sa ?room=KOD) u clipboard za deljenje van sajta
 // (Viber/WhatsApp) — otvaranje tog linka samo uvede drugara u sobu, vidi
