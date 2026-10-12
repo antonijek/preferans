@@ -10,6 +10,7 @@ import { adminRouter } from './admin/routes.js';
 import { registerSocketHandlers } from './socket/index.js';
 import { removeAbandonedWaitingRooms, removeStuckRooms, loadPersistedRooms } from './rooms/RoomManager.js';
 import { seoRouter } from './seo.js';
+import { initPush } from './push.js';
 
 // dist/index.js -> server/dist -> server -> project root, where
 // preferans.html/app.js/engine/dist all live. Serving them same-origin
@@ -19,6 +20,9 @@ const PROJECT_ROOT = path.resolve(import.meta.dirname, '../..');
 
 async function main(): Promise<void> {
   await initDb();
+  // Push obaveštenja adminu (korisnikov zahtev 2026-10-12) — generiše/učitava
+  // VAPID ključeve iz baze. Mora posle initDb() (settings tabela).
+  initPush();
 
   // Korisnikov zahtev (2026-09-18): "da se pamte ruke i partija koje nisu
   // zavrsene, da se moze nastaviti u drugom terminu" — vraca sve

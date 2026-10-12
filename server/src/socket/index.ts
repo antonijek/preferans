@@ -2,7 +2,8 @@ import type { Server, Socket } from 'socket.io';
 import { verifyToken } from '../auth/middleware.js';
 import { get } from '../db.js';
 import { registerRoomHandlers } from './roomEvents.js';
-import { markOnline, markOffline, getSocketIdsForUser } from '../presence.js';
+import { markOnline, markOffline, getSocketIdsForUser, listOnlineUsers } from '../presence.js';
+import { playerArrived } from '../push.js';
 
 // Uzivo prijavljen bag KROZ AUDIT (2026-09-26, pred lansiranje): NIJEDAN
 // socket handler (game:action, chat:send, room:create...) nije imao
@@ -36,6 +37,7 @@ interface UserRow {
   id: number;
   email: string;
   name: string | null;
+  is_admin: number;
 }
 
 // Admin "banuj nalog" (2026-09-17) — login/socket-connect provere same
@@ -77,13 +79,19 @@ export function registerSocketHandlers(io: Server): void {
 
   io.on('connection', (socket: Socket) => {
     const userId: number = socket.data.userId;
-    const user = get<UserRow>('SELECT id, email, name FROM users WHERE id = ?', [userId]);
+    const user = get<UserRow>('SELECT id, email, name, is_admin FROM users WHERE id = ?', [userId]);
     // name fallback to email covers accounts registered before this column
     // existed (production already had real users at the time it was added).
     socket.data.name = user?.name || user?.email || `player-${userId}`;
     console.log(`Socket ${socket.id} authenticated as user ${userId} (${socket.data.name})`);
     wrapSocketErrors(socket);
     markOnline(socket.id, userId, socket.data.name);
+    // Push obaveštenje adminu kad je igrač sam online (korisnikov zahtev
+    // 2026-10-12, vidi push.ts) — adminova SOPSTVENA konekcija ne okida
+    // (nema smisla da se admin sam sebi javi da je "sam online").
+    if (!user?.is_admin) {
+      playerArrived(socket.data.name, listOnlineUsers().filter((u) => u.userId !== userId).length);
+    }
     socket.on('disconnect', () => markOffline(socket.id));
     registerRoomHandlers(io, socket);
   });

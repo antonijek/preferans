@@ -108,6 +108,21 @@
   </div>
 
   <div class="tab-panel active" data-tab="pregled">
+    <!-- Korisnikov zahtev (2026-10-12): push obaveštenje adminu kad je
+         neko online sam (nema s kim da igra) — isti obrazac kao Lorin
+         admin.html push-card. Web Push preko posebnog push-sw.js (scope
+         /push/), ne dira glavni sw.js (offline/PWA keš). -->
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div>
+        <h2 style="margin-bottom:4px">🔔 Obaveštenja</h2>
+        <p id="pushStatus" class="muted" style="margin:0;font-size:0.88rem">Stiže ti poruka kad je neko online sam — da uđeš i odigrate.</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button id="pushOn" type="button">Uključi obaveštenja</button>
+        <button id="pushTest" type="button" hidden>Pošalji probno</button>
+        <button id="pushOff" type="button" hidden>Isključi</button>
+      </div>
+    </div>
     <div class="stat-row">
       <div class="stat-tile"><div class="num" id="statTotalUsers">—</div><div class="label">Ukupno korisnika</div></div>
       <div class="stat-tile"><div class="num" id="statOnlineNow">—</div><div class="label">Online sada</div></div>
@@ -248,6 +263,7 @@
       document.getElementById('whoami').textContent = 'Prijavljen kao: ' + (me.user.name || me.user.email);
       setInterval(loadRooms, 5000);
       setInterval(loadDashboard, 5000);
+      pushRefresh();
     } catch (e) {
       document.getElementById('loginErr').textContent = 'Nemaš admin pristup ili nisi prijavljen (' + e.message + ').';
       document.getElementById('loginBox').style.display = 'block';
@@ -698,6 +714,54 @@
 
     document.getElementById('matchDetail').innerHTML = html.join('');
   }
+
+  // ---------------------------------------------------------------- push obaveštenja (korisnikov zahtev 2026-10-12)
+  // Isti obrazac kao Lora (D:\lora\admin.html) — zaseban push-sw.js (scope
+  // /push/), ne dira glavni sw.js (offline/PWA keš za igru).
+  const PUSH_OK = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  const b64ToBytes = (s) => Uint8Array.from(atob((s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+  const pushReg = () => navigator.serviceWorker.register('/push-sw.js', { scope: '/push/' });
+
+  async function pushRefresh() {
+    if (!PUSH_OK) {
+      document.getElementById('pushStatus').textContent = 'Ovaj pregledač ne podržava obaveštenja. Otvori admin panel u Chrome-u na telefonu.';
+      document.getElementById('pushOn').hidden = true;
+      return;
+    }
+    const sub = await (await pushReg()).pushManager.getSubscription().catch(() => null);
+    const on = !!sub && Notification.permission === 'granted';
+    document.getElementById('pushOn').hidden = on;
+    document.getElementById('pushTest').hidden = document.getElementById('pushOff').hidden = !on;
+    document.getElementById('pushStatus').textContent = on
+      ? 'Uključeno — javiće ti kad je neko online sam.'
+      : 'Stiže ti poruka kad je neko online sam — da uđeš i odigrate.';
+  }
+
+  document.getElementById('pushOn').addEventListener('click', async () => {
+    try {
+      if (await Notification.requestPermission() !== 'granted') return pushRefresh();
+      const { publicKey } = await api('/api/admin/push');
+      const reg = await pushReg();
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(publicKey) });
+      await api('/api/admin/push/subscribe', { method: 'POST', body: JSON.stringify({ subscription: sub.toJSON() }) });
+      await api('/api/admin/push/test', { method: 'POST' });
+    } catch (e) {
+      document.getElementById('pushStatus').textContent = 'Nije uspelo: ' + e.message;
+    }
+    pushRefresh();
+  });
+  document.getElementById('pushTest').addEventListener('click', async () => {
+    const { sent } = await api('/api/admin/push/test', { method: 'POST' });
+    document.getElementById('pushStatus').textContent = sent ? 'Poslato — za par sekundi stiže na telefon.' : 'Nijedan uređaj nije primio poruku. Isključi pa ponovo uključi obaveštenja.';
+  });
+  document.getElementById('pushOff').addEventListener('click', async () => {
+    const sub = await (await pushReg()).pushManager.getSubscription();
+    if (sub) {
+      await api('/api/admin/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) }).catch(() => {});
+      await sub.unsubscribe();
+    }
+    pushRefresh();
+  });
 </script>
 </body>
 </html>

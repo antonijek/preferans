@@ -87,6 +87,28 @@ export async function initDb(): Promise<void> {
     )`);
   }
 
+  // Push obaveštenja adminu kad neko udje online sam (korisnikov zahtev
+  // 2026-10-12, isti obrazac kao Lora D:\lora\server\src\db.ts/push.ts) —
+  // van if/else-a iznad iz istog razloga kao match_log/active_rooms gore
+  // (mora da vazi i za svezu i za postojecu bazu).
+  const pushSubsTable = db.exec(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='push_subs'"
+  );
+  if (pushSubsTable.length === 0) {
+    db.run(`CREATE TABLE push_subs (
+      endpoint TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      sub_json TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+  }
+  const settingsTable = db.exec(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='settings'"
+  );
+  if (settingsTable.length === 0) {
+    db.run("CREATE TABLE settings (k TEXT PRIMARY KEY, v TEXT NOT NULL)");
+  }
+
   persist();
 }
 

@@ -7,6 +7,7 @@ import { adminKickSeat, adminCloseRoom } from '../socket/roomAdmin.js';
 import { forceDisconnectUser } from '../socket/index.js';
 import { listOnlineUsers, listOnlineUsersDetailed } from '../presence.js';
 import { sendMail, isMailConfigured } from '../mail.js';
+import { pushPublicKey, pushCount, savePushSub, removePushSub, notifyOwner, dryRunLog } from '../push.js';
 
 interface UserRow {
   id: number;
@@ -321,6 +322,23 @@ adminRouter.get('/online-users', (_req, res) => {
   });
   res.json({ users });
 });
+
+// Push obaveštenja adminu na telefon (push.ts, korisnikov zahtev
+// 2026-10-12) — pretplata OVOG pregledača i probno slanje. Isti obrazac
+// kao D:\lora\server\src\admin.ts.
+adminRouter.get('/push', (req: AuthedRequest, res) => res.json({ publicKey: pushPublicKey(), devices: pushCount(req.userId!) }));
+adminRouter.post('/push/subscribe', (req: AuthedRequest, res) => {
+  if (!savePushSub(req.userId!, req.body?.subscription)) { res.status(400).json({ error: 'Neispravna pretplata.' }); return; }
+  res.json({ ok: true, devices: pushCount(req.userId!) });
+});
+adminRouter.post('/push/unsubscribe', (req: AuthedRequest, res) => {
+  removePushSub(req.userId!, req.body?.endpoint);
+  res.json({ ok: true, devices: pushCount(req.userId!) });
+});
+adminRouter.post('/push/test', async (_req, res) => {
+  res.json({ sent: await notifyOwner('Preferans: probno obaveštenje', 'Radi! Ovako će ti javljati kad neko dođe da igra sam.') });
+});
+if (process.env.PUSH_DRY_RUN) adminRouter.get('/push/sent', (_req, res) => res.json({ sent: dryRunLog }));
 
 // Dashboard "Pregled" tab — agregira iz vec postojecih izvora, bez nove tabele.
 adminRouter.get('/dashboard-stats', (_req, res) => {
