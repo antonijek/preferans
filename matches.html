@@ -286,7 +286,11 @@
     html.push('<table style="margin-bottom:16px"><thead><tr><th></th><th>Jug</th><th>Istok</th><th>Zapad</th></tr></thead><tbody>');
     html.push('<tr><td><b>Ime</b></td><td>' + seatNames[0] + (mySeat === 0 ? ' (ti)' : '') + '</td><td>' + seatNames[1] + (mySeat === 1 ? ' (ti)' : '') + '</td><td>' + seatNames[2] + (mySeat === 2 ? ' (ti)' : '') + '</td></tr>');
     html.push('<tr><td><b>Bule</b></td><td>' + bulas[0] + '</td><td>' + bulas[1] + '</td><td>' + bulas[2] + '</td></tr>');
-    html.push('<tr><td><b>Skor</b></td><td>' + scores[0] + '</td><td>' + scores[1] + '</td><td>' + scores[2] + '</td></tr>');
+    // Rezultat (2026-10-14): isto kao na kraju partije u igri — razlika od
+    // proseka skora, plus je dobro, zbir za sve troje je 0.
+    const mean = (scores[0] + scores[1] + scores[2]) / 3;
+    const res = scores.map((sc) => { const r = Math.round(mean - sc); return r > 0 ? '+' + r : r < 0 ? '−' + (-r) : '0'; });
+    html.push('<tr><td><b>Rezultat</b></td><td>' + res[0] + '</td><td>' + res[1] + '</td><td>' + res[2] + '</td></tr>');
     html.push('<tr><td><b>Δ rejting</b></td><td class="' + (deltas[0] > 0 ? 'win' : deltas[0] < 0 ? 'lose' : '') + '">' + (deltas[0] >= 0 ? '+' : '') + deltas[0] + '</td><td class="' + (deltas[1] > 0 ? 'win' : deltas[1] < 0 ? 'lose' : '') + '">' + (deltas[1] >= 0 ? '+' : '') + deltas[1] + '</td><td class="' + (deltas[2] > 0 ? 'win' : deltas[2] < 0 ? 'lose' : '') + '">' + (deltas[2] >= 0 ? '+' : '') + deltas[2] + '</td></tr>');
     html.push('<tr><td><b>Novi rejting</b></td><td>' + newRatings[0] + '</td><td>' + newRatings[1] + '</td><td>' + newRatings[2] + '</td></tr>');
     html.push('</tbody></table>');

@@ -1152,10 +1152,40 @@ function followerStatusBadge(passed) {
 
 // === SUPE / REFE po sedistu ===
 
+// Rezultat partije (korisnikov zahtev 2026-10-14, po uzoru na konkurenciju):
+// skor = bula×10 + supe koje igrac duguje − supe koje njemu duguju (nize je
+// bolje, isto kao engine calculateMatchScores), a REZULTAT je razlika od
+// proseka — koliko bi igrac dobio (+) ili izgubio (−) da se partija sad
+// zavrsi. Zbir za sve troje je 0; na kraju partije (posle otpisa) je to
+// tacno konacan rezultat sa ekrana kraja partije.
+function matchStanding(s) {
+  const owed = [0, 1, 2].map(p => {
+    let owedBy = 0, owedTo = 0;
+    for (const y of [0, 1, 2]) {
+      if (y === p) continue;
+      owedBy += s.debtMatrix?.[p]?.[y] ?? 0;
+      owedTo += s.debtMatrix?.[y]?.[p] ?? 0;
+    }
+    return { owedBy, owedTo };
+  });
+  const scores = [0, 1, 2].map(p => s.bulas[p] * 10 + owed[p].owedBy - owed[p].owedTo);
+  const mean = (scores[0] + scores[1] + scores[2]) / 3;
+  const results = scores.map(sc => Math.round(mean - sc));
+  return { owed, scores, results };
+}
+const signed = n => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
+
 function renderSeatExtras() {
   const s = game.state;
+  const { results } = matchStanding(s);
   for (let p = 0; p < 3; p++) {
     const seat = seatOf(p);
+    const resEl = $(`result-${seat}`);
+    if (resEl) {
+      resEl.textContent = `rez. ${signed(results[p])}`;
+      resEl.classList.toggle('positive', results[p] > 0);
+      resEl.classList.toggle('negative', results[p] < 0);
+    }
 
     const leftNet = netSupeBetween(p, leftNeighborOf(p));
     const leftEl = $(`supe-left-${seat}`);
@@ -2231,16 +2261,8 @@ function renderResult() {
     // svakom game.state broadcast-u, bez obzira na proksi) — ista formula,
     // bez ikakve zavisnosti od engine metode koja online ne postoji.
     try {
-      const owed = [0, 1, 2].map(p => {
-        let owedBy = 0, owedTo = 0;
-        for (const y of [0, 1, 2]) {
-          if (y === p) continue;
-          owedBy += s.debtMatrix?.[p]?.[y] ?? 0;
-          owedTo += s.debtMatrix?.[y]?.[p] ?? 0;
-        }
-        return { owedBy, owedTo };
-      });
-      const scores = [0, 1, 2].map(p => s.bulas[p] * 10 + owed[p].owedBy - owed[p].owedTo);
+      // isti proracun kao "rez." na plocicama tokom partije (matchStanding)
+      const { owed, scores, results } = matchStanding(s);
       const ranking = [0, 1, 2].slice().sort((a, b) => scores[a] - scores[b]);
       const winnerPos = ranking[0];
       const RANK_LABELS = ['🥇 1. mesto', '🥈 2. mesto', '🥉 3. mesto'];
@@ -2257,11 +2279,10 @@ function renderResult() {
                ${typeof newRating === 'number' ? `<span style="opacity:0.6">(rejting: ${newRating})</span>` : ''}
              </div>`
           : '';
+        // Rezultat (korisnikov zahtev 2026-10-14): plus je dobro, kao sto
+        // igraci preferansa i racunaju — bula se placa ×10, supe idu direktno.
         const { owedBy, owedTo } = owed[p];
-        const parts = [`${s.bulas[p]}×10`];
-        if (owedBy > 0) parts.push(`+${owedBy}`);
-        if (owedTo > 0) parts.push(`−${owedTo}`);
-        const breakdown = `${parts.join(' ')} = ${scores[p]}`;
+        const breakdown = `bula ${s.bulas[p]} (${signed(-s.bulas[p] * 10)}) · supe ${signed(owedTo - owedBy)}`;
         // Korisnikov zahtev (2026-09-18): kraj PARTIJE (za razliku od kraja
         // svake pojedinacne ruke, koje vec prikazuje stihove) nije imao
         // NIKAKAV podatak o stihovima — sabrano preko cele istorije partije
@@ -2285,8 +2306,8 @@ function renderResult() {
         html += `<div class="score-player-card ${p === winnerPos ? 'winner' : ''}">
           <div class="score-player-rank">${RANK_LABELS[idx]}</div>
           <div class="score-player-name">${POS_LABELS[p]}${p === winnerPos ? ' 🏆' : ''}</div>
-          <div class="score-player-row"><span class="score-player-bula">${scores[p]}</span></div>
-          <div class="score-breakdown">Bula: ${s.bulas[p]} · ${breakdown}</div>
+          <div class="score-player-row"><span class="score-player-bula">${signed(results[p])}</span></div>
+          <div class="score-breakdown">${breakdown}</div>
           <div class="result-mini-tricks">🎴 ukupno ${totalTricks} štihova</div>
           ${deltaTxt}
         </div>`;
