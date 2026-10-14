@@ -245,6 +245,7 @@ interface SerializedRoom {
   frozenBula: number | null;
   botSeats?: Position[];
   hadBots?: boolean;
+  turnSeconds?: number;
   dealNextReady: Position[];
   endMatchReady: Position[];
   seatRatings: [number, number, number];
@@ -268,6 +269,7 @@ function serializeRoom(room: RoomState): SerializedRoom {
     frozenBula: room.frozenBula,
     botSeats: Array.from(room.botSeats),
     hadBots: room.hadBots,
+    turnSeconds: room.turnSeconds,
     dealNextReady: Array.from(room.dealNextReady),
     endMatchReady: Array.from(room.endMatchReady),
     seatRatings: room.seatRatings,
@@ -325,6 +327,12 @@ export function loadPersistedRooms(): number {
       botSeats: new Set(parsed.botSeats ?? []),
       hadBots: parsed.hadBots ?? false,
       aiTurnTimeout: null,
+      // sobe sacuvane pre vremena za potez nastavljaju bez ogranicenja
+      turnSeconds: parsed.turnSeconds ?? 0,
+      turnKey: null,
+      turnTimeout: null,
+      turnDeadline: null,
+      turnTotalMs: 0,
       nextHandScheduled: false,
       nextHandTimeout: null,
       dealNextReady: new Set(parsed.dealNextReady),

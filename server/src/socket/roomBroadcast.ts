@@ -51,6 +51,11 @@ export function buildClientState(room: RoomState, viewer: Viewer) {
     // Mesta koja od pocetka drzi racunar — klijent dodaje "(AI)" uz ime.
     botSeats: Array.from(room.botSeats),
     unrated: room.hadBots,
+    // Vreme za potez: preostalo racunato SAD (ne apsolutni rok) — sat
+    // klijenta i servera ne moraju da se slazu.
+    turnSeat: room.turnDeadline !== null ? turnActor(room) : null,
+    turnRemainingMs: room.turnDeadline !== null ? Math.max(0, room.turnDeadline - Date.now()) : null,
+    turnTotalMs: room.turnTotalMs,
     // Uzivo prijavljen bag (2026-09-20): "kad udjem na tabelu nema istorije
     // ruku, sve prazno" — klijentski handHistory (app.js) je CISTO
     // akumuliran u browseru, nikad se nije obnavljao sa servera, pa je
@@ -63,6 +68,8 @@ export function buildClientState(room: RoomState, viewer: Viewer) {
 }
 
 export function broadcastRoomState(room: RoomState): void {
+  // pre slanja stanja, da klijenti dobiju vec postavljen sat za potez
+  maybeScheduleTurnTimer(room);
   // PRIVREMENO dijagnosticko logovanje (uzivo prijavljeno: "sva trojica udju
   // u sobu, karte se podele samo jednom, ostali ostaju u predsoblju") —
   // ukloniti posle potvrde uzroka. connected=false bi znacio da server MISLI
@@ -301,6 +308,68 @@ function maybeAutoAdvanceHand(room: RoomState): void {
 export function resumeRoomTimers(room: RoomState): void {
   maybeDriveAiTurn(room);
   maybeAutoAdvanceHand(room);
+}
+
+// === Vreme za potez ===
+// Ko je na potezu (bilo ko, i covek i racunar), null kad niko (kraj ruke).
+function turnActor(room: RoomState): Position | null {
+  const actions = room.game.getLegalActions();
+  return actions.length > 0 ? actions[0]!.player : null;
+}
+
+// Kljuc jedne odluke — dok se ne promeni, sat tece dalje (ponovno slanje
+// stanja, npr. reconnect ili chat, ne vraca sat na pocetak).
+function turnDecisionKey(room: RoomState, actor: Position): string {
+  const s = room.game.state;
+  return [
+    s.phase, s.round, actor, s.bids.length, s.trickCount, s.currentTrick.length,
+    s.followChoices.join(','), s.kontraLevel ?? '', s.players[actor]!.hand.length,
+  ].join('|');
+}
+
+function clearTurnTimer(room: RoomState): void {
+  if (room.turnTimeout) clearTimeout(room.turnTimeout);
+  room.turnTimeout = null;
+  room.turnKey = null;
+  room.turnDeadline = null;
+}
+
+function anyHumanConnected(room: RoomState): boolean {
+  return room.sockets.some((s) => s !== null);
+}
+
+function maybeScheduleTurnTimer(room: RoomState): void {
+  // svi ljudi ispali — sat stoji (inace bi racunar sam odigrao celu partiju
+  // za odsutne); krece ponovo cim se neko vrati (reconnect salje stanje svima)
+  const actor = room.turnSeconds > 0 && anyHumanConnected(room) ? turnActor(room) : null;
+  // racunar i napusteno mesto igraju sami (maybeDriveAiTurn), nemaju sat
+  if (actor === null || actor === room.abandonedSeat || room.botSeats.has(actor)) {
+    clearTurnTimer(room);
+    return;
+  }
+  const key = turnDecisionKey(room, actor);
+  if (key === room.turnKey && room.turnTimeout) return;
+  clearTurnTimer(room);
+  // odbacivanje i izbor igre traze vise razmisljanja
+  const slow = room.game.state.phase === 'DISCARDING' || room.game.state.phase === 'DECLARING';
+  const ms = room.turnSeconds * 1000 * (slow ? 2 : 1);
+  room.turnKey = key;
+  room.turnTotalMs = ms;
+  room.turnDeadline = Date.now() + ms;
+  room.turnTimeout = setTimeout(() => {
+    room.turnTimeout = null;
+    // u medjuvremenu odigrao sam, ili se stanje promenilo — nista
+    if (turnActor(room) !== actor || turnDecisionKey(room, actor) !== key) return;
+    if (!anyHumanConnected(room)) {
+      room.turnKey = null;
+      room.turnDeadline = null;
+      return;
+    }
+    const action = computeAiAction(room.game, actor);
+    if (action) applyAction(room.game, action);
+    postSystemMessage(room, `⏱ Isteklo vreme za potez — računar je odigrao za: ${room.seatNames[actor] ?? 'igrača'}.`);
+    broadcastRoomState(room);
+  }, ms);
 }
 
 // Ko je trenutno na potezu a vozi ga server AI: napusteno mesto ili

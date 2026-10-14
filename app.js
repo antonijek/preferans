@@ -1150,6 +1150,41 @@ function followerStatusBadge(passed) {
     : ` <span style="color:#ff8a80">✗</span>`;
 }
 
+// === VREME ZA POTEZ (samo online) ===
+// Server salje preostalo vreme u trenutku slanja stanja; ovde se pretvara
+// u lokalni rok (sat klijenta i servera ne moraju da se slazu), pa svaki
+// render() traku nastavlja odatle — bez skakanja nazad.
+let turnClock = null; // { seat, deadline, total }
+
+function updateTurnClockFromState(state) {
+  turnClock = state.turnSeat !== null && state.turnSeat !== undefined && typeof state.turnRemainingMs === 'number'
+    ? { seat: state.turnSeat, deadline: Date.now() + state.turnRemainingMs, total: state.turnTotalMs || state.turnRemainingMs }
+    : null;
+}
+
+function renderTurnTimer() {
+  for (let p = 0; p < 3; p++) {
+    const bar = $(`timer-${seatOf(p)}`);
+    if (!bar) continue;
+    const active = mode === 'online' && turnClock && turnClock.seat === p;
+    bar.classList.toggle('active', !!active);
+    const fill = bar.firstElementChild;
+    if (!active) { fill.style.transition = 'none'; continue; }
+    const rem = Math.max(0, turnClock.deadline - Date.now());
+    const frac = turnClock.total > 0 ? rem / turnClock.total : 0;
+    // od trenutne sirine do nule, linearno, tacno koliko je ostalo
+    fill.style.transition = 'none';
+    fill.style.width = `${frac * 100}%`;
+    void fill.offsetWidth;
+    fill.style.transition = `width ${rem}ms linear, background-color 0.3s`;
+    fill.style.width = '0%';
+    // poslednja cetvrtina vremena — crveno
+    clearTimeout(bar._urgentT);
+    bar.classList.toggle('urgent', frac <= 0.25);
+    if (frac > 0.25) bar._urgentT = setTimeout(() => bar.classList.add('urgent'), rem - turnClock.total * 0.25);
+  }
+}
+
 // === SUPE / REFE po sedistu ===
 
 // Rezultat partije (korisnikov zahtev 2026-10-14, po uzoru na konkurenciju):
@@ -1922,6 +1957,7 @@ function render() {
   renderState();
   renderStatusBar();
   renderSeatExtras();
+  renderTurnTimer();
   renderTrick();
   renderBiddingPanel();
   recordHandIfNew();
@@ -2940,6 +2976,7 @@ async function connectOnlineSocket() {
       }
     }
     game.state = state;
+    updateTurnClockFromState(state);
     syncHandHistoryFromServer(state.handsHistory);
     // Nova ruka je stvarno pocela (faza vise nije GAME_OVER) — status "ko je
     // sve kliknuo Deli" vazi SAMO za rundu koja je bas zavrsila, ocisti ga.
@@ -3405,7 +3442,8 @@ window.fillWithBotsOnline = fillWithBotsOnline;
 function createRoomOnline(withBots = false) {
   const initialBule = parseInt($('roomStartBula').value, 10);
   const refePerPlayer = parseInt($('roomRefeCount').value, 10);
-  onlineSocket.emit('room:create', { initialBule, refePerPlayer, withBots }, (res) => {
+  const turnSeconds = parseInt($('roomTurnSeconds')?.value ?? '30', 10);
+  onlineSocket.emit('room:create', { initialBule, refePerPlayer, withBots, turnSeconds }, (res) => {
     if (res.error) { $('roomError').textContent = res.error; return; }
     mySeat = res.seat;
     myRoomCode = res.code;

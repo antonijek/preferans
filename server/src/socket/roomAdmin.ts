@@ -76,6 +76,10 @@ export function adminCloseRoom(room: RoomState, reason?: string): void {
     clearTimeout(room.aiTurnTimeout);
     room.aiTurnTimeout = null;
   }
+  if (room.turnTimeout) {
+    clearTimeout(room.turnTimeout);
+    room.turnTimeout = null;
+  }
   const payload = { code: room.code, reason: reason ?? null };
   room.sockets.forEach((socket, seat) => {
     const uid = room.seatUserIds[seat];

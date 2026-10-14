@@ -165,6 +165,12 @@
   .player-result { font-size: 0.65em; font-weight: 700; opacity: 0.8; white-space: nowrap; margin-top: 1px; }
   .player-result.positive { color: #a5d6a7; opacity: 1; }
   .player-result.negative { color: #ff8a80; opacity: 1; }
+  /* vreme za potez (online) — traka na plocici igraca koji je na potezu */
+  .turn-timer { display: none; height: 4px; margin-top: 3px; border-radius: 2px; background: rgba(255,255,255,0.12); overflow: hidden; }
+  .turn-timer.active { display: block; }
+  .turn-timer span { display: block; height: 100%; width: 100%; background: var(--gold-bright); }
+  .turn-timer.urgent span { background: #ff8a80; }
+  #seat-south .turn-timer { flex-basis: 100%; }
 
   /* === TOAST === */
   .toast {
@@ -1397,6 +1403,13 @@
     text-align: center;
   }
   .setup-field input[type="number"]:focus { outline: none; border-color: #66bb6a; }
+  /* "Vreme za potez" — isti izgled kao polja za broj pored */
+  .setup-field select {
+    min-width: 80px; padding: 6px 8px; border-radius: 8px; font-weight: bold; font-size: 1em;
+    color: white; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2);
+  }
+  .setup-field select option { color: #111; }
+  .setup-field select:focus { outline: none; border-color: #66bb6a; }
 
   .text-field { margin: 10px 0; text-align: left; }
   .text-field label { display: block; font-size: 0.85em; opacity: 0.85; margin-bottom: 4px; }
@@ -1924,7 +1937,7 @@
     #seat-south .player-tricks { margin-top: 0; white-space: nowrap; }
     /* "rez." je cetvrti element u istom redu — sirina se prilagodi (min
        ostaje 230px), inace bi ispao van fiksne kartice */
-    #seat-south { width: auto; min-width: 230px; }
+    #seat-south { width: auto; min-width: 230px; flex-wrap: wrap; }
     #seat-south .player-result { margin-top: 0; }
   }
 

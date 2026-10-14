@@ -136,6 +136,7 @@
       </div>
       <div class="player-tricks">🎴 <span id="tricks-west">0</span> <span id="refe-west"></span></div>
       <div class="player-result" id="result-west" title="Rezultat da se partija sad završi (zbir za sve troje je 0)"></div>
+      <div class="turn-timer" id="timer-west"><span></span></div>
     </div>
 
     <!-- Istok (desno) -->
@@ -152,6 +153,7 @@
       </div>
       <div class="player-tricks">🎴 <span id="tricks-east">0</span> <span id="refe-east"></span></div>
       <div class="player-result" id="result-east" title="Rezultat da se partija sad završi (zbir za sve troje je 0)"></div>
+      <div class="turn-timer" id="timer-east"><span></span></div>
     </div>
 
     <!-- Jug (dole) -->
@@ -168,6 +170,7 @@
       </div>
       <div class="player-tricks">🎴 <span id="tricks-south">0</span> <span id="refe-south"></span></div>
       <div class="player-result" id="result-south" title="Rezultat da se partija sad završi (zbir za sve troje je 0)"></div>
+      <div class="turn-timer" id="timer-south"><span></span></div>
     </div>
 
     <!-- Štih slotovi -->
@@ -391,6 +394,15 @@
       <div class="setup-field">
         <label for="roomRefeCount">Refe po igraču</label>
         <input type="number" id="roomRefeCount" value="2" min="0" max="5" step="1">
+      </div>
+      <div class="setup-field">
+        <label for="roomTurnSeconds">Vreme za potez</label>
+        <select id="roomTurnSeconds" title="Kad istekne, računar odigra umesto igrača — sto nikad ne stoji">
+          <option value="15">15 s</option>
+          <option value="30" selected>30 s</option>
+          <option value="60">60 s</option>
+          <option value="0">bez ograničenja</option>
+        </select>
       </div>
       <div class="room-panel-bottom-row room-create-actions">
         <button class="mode-btn primary" onclick="createRoomOnline()">Napravi novu sobu</button>

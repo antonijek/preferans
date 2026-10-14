@@ -48,6 +48,14 @@ export interface RoomState {
   // Zakazan potez AI-ja (racunar/napusteno mesto) — jedan po sobi, inace
   // bi svaki broadcastRoomState() zakazao jos jedan i AI bi igrao duplo.
   aiTurnTimeout: ReturnType<typeof setTimeout> | null;
+  // Vreme za potez (korisnikov zahtev 2026-10-14, po uzoru na konkurenciju):
+  // sekundi po potezu, 0 = bez ogranicenja. Kad istekne, racunar odigra za
+  // tog igraca, da jedan spor ili ispao igrac ne zaustavi ceo sto.
+  turnSeconds: number;
+  turnKey: string | null; // koja odluka se trenutno ceka (isti kljuc = isti sat)
+  turnTimeout: ReturnType<typeof setTimeout> | null;
+  turnDeadline: number | null;
+  turnTotalMs: number;
   // Sprecava dupliranje setTimeout-a za automatski nastavak na sledecu ruku
   // — broadcastRoomState() se poziva mnogo puta dok je faza GAME_OVER
   // (svaki put kad neko npr. otvori chat), bez ovoga bi se zakazalo N
@@ -133,6 +141,11 @@ export function createRoomState(code: string, options: RoomOptions = {}): RoomSt
     botSeats: new Set(),
     hadBots: false,
     aiTurnTimeout: null,
+    turnSeconds: 0,
+    turnKey: null,
+    turnTimeout: null,
+    turnDeadline: null,
+    turnTotalMs: 0,
     nextHandScheduled: false,
     nextHandTimeout: null,
     dealNextReady: new Set(),

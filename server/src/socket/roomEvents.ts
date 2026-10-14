@@ -121,7 +121,9 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
         const seat = joinAsPlayer(room, userId, socket, name);
         if (seat !== null) {
           socket.emit('room:info', { code: room.code, seat, locked: room.locked });
-          socket.emit('game:state', buildClientState(room, { type: 'player', seat }));
+          // svima (ne samo ovom soketu): povratak moze ponovo da pokrene sat
+          // za potez koji je stajao dok niko nije bio za stolom
+          broadcastRoomState(room);
           sendChatBacklog(socket, room);
           resumed = true;
           // Korisnikov zahtev: ostali nisu imali NIKAKAV signal da je neko
@@ -201,7 +203,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     ack?.({ ok: true });
   });
 
-  socket.on('room:create', (payload: { initialBule?: number; refePerPlayer?: number; withBots?: boolean }, ack?: Ack) => {
+  socket.on('room:create', (payload: { initialBule?: number; refePerPlayer?: number; withBots?: boolean; turnSeconds?: number }, ack?: Ack) => {
     // Client-supplied config is just a preference — always clamp server-side
     // rather than trust it, same principle as withAuthenticatedActor() for
     // game actions.
@@ -213,6 +215,9 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     const refeMax = Math.max(1, Math.min(5, Math.round(initialBule / 50)));
     const refePerPlayer = clamp(Number(payload?.refePerPlayer), 0, refeMax, Math.min(2, refeMax));
     const room = createRoom({ initialBule, refePerPlayer });
+    // vreme za potez: samo ponudjene vrednosti, sve ostalo = 30 s
+    const turnSeconds = Number(payload?.turnSeconds);
+    room.turnSeconds = [0, 15, 30, 60].includes(turnSeconds) ? turnSeconds : 30;
     const seat = joinAsPlayer(room, userId, socket, name)!;
     // "Igraj odmah sa racunarom": oba druga mesta odmah dobija racunar i
     // partija krece; svako ko naidje kasnije moze da sedne umesto njega.
