@@ -77,6 +77,21 @@ function joinAsPlayer(room: RoomState, userId: number, socket: Socket, name: str
   return seat;
 }
 
+// Svi aktivni igraci (ljudi; ne racunar ni napusteno mesto) su za kraj —
+// primeni otpis i zavrsi partiju. Vraca da li je partija zavrsena.
+function finishEndMatchIfAgreed(room: RoomState): boolean {
+  const active = activeSeatsForRoom(room);
+  if (!active.every((s) => room.endMatchReady.has(s))) return false;
+  room.endMatchReady = new Set();
+  if (room.abandonedSeat === null) {
+    room.game.applyAgreedEnd();
+  } else {
+    room.game.applyLeaveEnd(room.abandonedSeat, room.frozenBula!);
+  }
+  broadcastRoomState(room);
+  return true;
+}
+
 export function registerRoomHandlers(io: Server, socket: Socket): void {
   const userId: number = socket.data.userId;
   const name: string = socket.data.name;
@@ -226,6 +241,59 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
       room.game.newHand();
     }
     ack?.({ code: room.code, seat });
+    broadcastRoomState(room);
+    sendChatBacklog(socket, room);
+  });
+
+  // Revans jednim klikom (korisnikov zahtev 2026-10-14): prvi koji klikne
+  // otvara novu sobu sa istim podesavanjima (bula, refe, vreme za potez),
+  // ostali ljudi sa tog stola dobijaju poziv i istim dogadjajem ulaze u nju.
+  // Ako za stolom nije bilo drugih ljudi (samo racunar), nova partija krece
+  // odmah sa racunarom.
+  socket.on('room:rematch', (_payload: unknown, ack?: Ack) => {
+    const old = currentRoom();
+    const loc = getUserLocation(userId);
+    if (!old || loc?.role !== 'player' || old.game.state.phase !== 'MATCH_OVER') {
+      ack?.({ error: 'Nema završene partije za revanš' });
+      return;
+    }
+    const mySeat = loc.seat;
+    let room = old.rematchCode ? getRoomByCode(old.rematchCode) : undefined;
+    // revans soba je u medjuvremenu popunjena/zavrsena — otvori novu
+    if (room && room.game.state.phase === 'MATCH_OVER') room = undefined;
+    // izadji iz zavrsene sobe (isto kao game:leaveFinishedMatch)
+    old.sockets[mySeat] = null;
+    socket.leave(old.code);
+    clearUserLocation(userId);
+    let created = false;
+    if (!room) {
+      const cfg = old.game.getConfig();
+      room = createRoom({ initialBule: cfg.initialBule, refePerPlayer: cfg.refePerPlayer });
+      room.turnSeconds = old.turnSeconds;
+      old.rematchCode = room.code;
+      created = true;
+    }
+    let seat = joinAsPlayer(room, userId, socket, name);
+    if (seat === null) {
+      // revans sto je vec pun — napravi novi samo za ovog igraca
+      const cfg = old.game.getConfig();
+      room = createRoom({ initialBule: cfg.initialBule, refePerPlayer: cfg.refePerPlayer });
+      room.turnSeconds = old.turnSeconds;
+      seat = joinAsPlayer(room, userId, socket, name)!;
+    }
+    if (created) {
+      const otherHumans = ([0, 1, 2] as Position[]).filter(
+        (p) => p !== mySeat && p !== old.abandonedSeat && !old.botSeats.has(p) && old.seatUserIds[p] !== null
+      );
+      if (otherHumans.length === 0) {
+        fillSeatsWithBots(room);
+        room.game.newHand();
+      } else {
+        const offer = { code: room.code, byName: name };
+        old.sockets.forEach((s) => s?.emit('room:rematchOffered', offer));
+      }
+    }
+    ack?.({ code: room.code, seat, waiting: room.game.state.phase === 'WAITING' });
     broadcastRoomState(room);
     sendChatBacklog(socket, room);
   });
@@ -473,6 +541,12 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
       return;
     }
     room.endMatchReady = new Set([loc.seat]);
+    // za stolom sa racunarom predlagac moze biti jedini covek — tad nema
+    // koga da se pita, partija se zavrsava odmah
+    if (finishEndMatchIfAgreed(room)) {
+      ack?.({ ok: true });
+      return;
+    }
     io.to(room.code).emit('game:endMatchProposed', { byPosition: loc.seat, ready: Array.from(room.endMatchReady) });
     ack?.({ ok: true });
   });
@@ -495,16 +569,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
       return;
     }
     room.endMatchReady.add(loc.seat);
-    const active = activeSeatsForRoom(room);
-    if (active.every((s) => room.endMatchReady.has(s))) {
-      room.endMatchReady = new Set();
-      if (room.abandonedSeat === null) {
-        room.game.applyAgreedEnd();
-      } else {
-        room.game.applyLeaveEnd(room.abandonedSeat, room.frozenBula!);
-      }
-      broadcastRoomState(room);
-    } else {
+    if (!finishEndMatchIfAgreed(room)) {
       io.to(room.code).emit('game:endMatchStatus', { ready: Array.from(room.endMatchReady) });
     }
     ack?.({ ok: true });

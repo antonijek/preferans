@@ -2246,6 +2246,15 @@ function renderResult() {
   $('nextRoundBtn').textContent = s.phase === 'MATCH_OVER'
     ? (mode === 'online' ? 'Nazad na početnu' : 'Nova partija')
     : (mode === 'online' ? 'Deli' : 'Igraj');
+  // Revans — samo online, samo za igrace (ne kibicere) na kraju partije
+  const rematchBtn = $('rematchBtn');
+  if (rematchBtn) {
+    const showRematch = mode === 'online' && s.phase === 'MATCH_OVER' && mySeat !== null;
+    rematchBtn.style.display = showRematch ? '' : 'none';
+    // jedno istaknuto dugme: revans; "Nazad na pocetnu" postaje sporedno
+    $('nextRoundBtn').classList.toggle('primary', !showRematch);
+    rematchBtn.textContent = rematchOffer ? `🔁 Prihvati revanš (${rematchOffer.byName})` : '🔁 Revanš';
+  }
   // Status "ko je vec spreman" (samo online, samo GAME_OVER — ne MATCH_OVER,
   // gde dugme vodi na pocetni ekran umesto da deli sledecu rundu).
   const dealStatusEl = $('dealNextStatus');
@@ -2641,28 +2650,7 @@ function resultAction() {
       // nazad u istu MATCH_OVER sobu. Obavesti server da je ovaj korisnik
       // gotov sa ovom (zavrsenom) sobom, ne cekaj da se to samo desi.
       onlineSocket.emit('game:leaveFinishedMatch', {});
-      document.body.classList.remove('online-in-game');
-      myRoomCode = null;
-      $('chatToggleBtn').style.display = 'none';
-      $('chatScreen').classList.remove('open');
-      $('matchMenuBtn').style.display = 'none';
-      closeMatchMenu();
-      $('peekHomeBtn').style.display = 'none';
-      $('backToTableBtn').style.display = 'none';
-      mySeat = null;
-      awayFromTable = false;
-      disconnectedSeats.clear();
-      $('resultScreen').classList.remove('active');
-      // BAG (uzivo prijavljen: "ne mogu da pocnem novu partiju, stalno me
-      // vraca na tabelu") — game.state.phase je OVDE ostajao zaglavljen na
-      // 'MATCH_OVER' (ovaj proksi objekat se ne dira dok ne stigne SVEZ
-      // game:state za NOVU sobu). Svaki naredni render() poziv (bilo sta ga
-      // pokrenulo — polling liste soba, socket event...) je gledao TAJ stari
-      // phase i ponovo prikazivao $('resultScreen') PREKO svega, izgledalo je
-      // kao da se korisnik ne moze pomeriti sa "kraj partije" ekrana. Postavi
-      // na WAITING (bezbedno, TERMINAL_PHASES ga ne prepoznaje) dok stvarno
-      // svez state ne stigne za sledecu sobu/partiju.
-      game.state.phase = 'WAITING';
+      leaveTableUi();
       goToHomeScreen();
     } else {
       onlineSocket.emit('game:dealNext', {}, (res) => {
@@ -2671,6 +2659,71 @@ function resultAction() {
     }
     return;
   }
+  resultActionLocal();
+}
+
+// Ciscenje prikaza stola posle zavrsene online partije (Nazad na pocetnu i
+// revans koji ceka igrace) — sve sto je vezano za staru sobu.
+function leaveTableUi() {
+  rematchOffer = null;
+  document.body.classList.remove('online-in-game');
+  myRoomCode = null;
+  $('chatToggleBtn').style.display = 'none';
+  $('chatScreen').classList.remove('open');
+  $('matchMenuBtn').style.display = 'none';
+  closeMatchMenu();
+  $('peekHomeBtn').style.display = 'none';
+  $('backToTableBtn').style.display = 'none';
+  mySeat = null;
+  awayFromTable = false;
+  disconnectedSeats.clear();
+  $('resultScreen').classList.remove('active');
+  // BAG (uzivo prijavljen: "ne mogu da pocnem novu partiju, stalno me
+  // vraca na tabelu") — game.state.phase je OVDE ostajao zaglavljen na
+  // 'MATCH_OVER' (ovaj proksi objekat se ne dira dok ne stigne SVEZ
+  // game:state za NOVU sobu). Svaki naredni render() poziv (bilo sta ga
+  // pokrenulo — polling liste soba, socket event...) je gledao TAJ stari
+  // phase i ponovo prikazivao $('resultScreen') PREKO svega, izgledalo je
+  // kao da se korisnik ne moze pomeriti sa "kraj partije" ekrana. Postavi
+  // na WAITING (bezbedno, TERMINAL_PHASES ga ne prepoznaje) dok stvarno
+  // svez state ne stigne za sledecu sobu/partiju.
+  game.state.phase = 'WAITING';
+}
+
+// Revans (korisnikov zahtev 2026-10-14): nova soba sa istim podesavanjima.
+// Ako je neko drugi vec otvorio revans, isti klik ulazi u njegovu sobu.
+let rematchOffer = null; // { code, byName } — neko sa ovog stola je vec otvorio revans
+
+function requestRematch() {
+  if (mode !== 'online' || !onlineSocket) return;
+  rematchOffer = null;
+  onlineSocket.emit('room:rematch', {}, (res) => {
+    if (res?.error) { showAppToast(`⚠️ ${res.error}`); return; }
+    resetHandHistoryForNewRoom();
+    lastMatchRankingResult = null;
+    if (res.waiting) {
+      // ceka ostale — nazad na Sobu sa kodom i "Popuni racunarom"
+      leaveTableUi();
+      mySeat = res.seat;
+      myRoomCode = res.code;
+      $('roomCodeInput').value = res.code;
+      $('homeScreen').classList.remove('active');
+      $('roomScreen').classList.add('active');
+      $('roomStatus').innerHTML = renderWaitingStatus(res.code, 'Revanš — kod sobe:');
+      startRoomListPolling();
+      updateRoomJoinButtonState();
+    } else {
+      // partija vec krece (racunar za stolom ili svi su tu) — ostajemo za stolom
+      mySeat = res.seat;
+      myRoomCode = res.code;
+      $('roomCodeInput').value = res.code;
+      $('resultScreen').classList.remove('active');
+    }
+  });
+}
+window.requestRematch = requestRematch;
+
+function resultActionLocal() {
   if (game.state.phase === 'MATCH_OVER') {
     $('setupScreen').classList.add('active');
     $('resultScreen').classList.remove('active');
@@ -3088,6 +3141,12 @@ async function connectOnlineSocket() {
   onlineSocket.on('game:endMatchCancelled', () => {
     $('endMatchBanners').innerHTML = '';
     showAppToast('Predlog za kraj partije je odbijen.');
+  });
+  onlineSocket.on('room:rematchOffered', (p) => {
+    rematchOffer = p;
+    showAppToast(`🔁 ${p.byName} predlaže revanš`);
+    const btn = $('rematchBtn');
+    if (btn && btn.style.display !== 'none') btn.textContent = `🔁 Prihvati revanš (${p.byName})`;
   });
   onlineSocket.on('game:matchRankingResult', (p) => {
     lastMatchRankingResult = p;

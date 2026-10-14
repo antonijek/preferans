@@ -333,6 +333,7 @@ export function loadPersistedRooms(): number {
       turnTimeout: null,
       turnDeadline: null,
       turnTotalMs: 0,
+      rematchCode: null,
       nextHandScheduled: false,
       nextHandTimeout: null,
       dealNextReady: new Set(parsed.dealNextReady),
