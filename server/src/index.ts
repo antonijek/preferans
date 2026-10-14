@@ -8,7 +8,8 @@ import { initDb, flushPersist } from './db.js';
 import { authRouter } from './auth/routes.js';
 import { adminRouter } from './admin/routes.js';
 import { registerSocketHandlers } from './socket/index.js';
-import { removeAbandonedWaitingRooms, removeStuckRooms, loadPersistedRooms } from './rooms/RoomManager.js';
+import { removeAbandonedWaitingRooms, removeStuckRooms, loadPersistedRooms, forEachRoom } from './rooms/RoomManager.js';
+import { resumeRoomTimers } from './socket/roomBroadcast.js';
 import { seoRouter } from './seo.js';
 import { initPush } from './push.js';
 
@@ -31,6 +32,7 @@ async function main(): Promise<void> {
   // transparentno kao da server nikad nije ni restartovan.
   const loadedRooms = loadPersistedRooms();
   if (loadedRooms > 0) console.log(`[STARTUP] Restored ${loadedRooms} active room(s) from disk`);
+  forEachRoom(resumeRoomTimers);
 
   const app = express();
   // Nginx (proizvodnja) prosledjuje pravu IP adresu klijenta preko

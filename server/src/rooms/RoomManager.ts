@@ -33,6 +33,10 @@ export function createRoom(options?: RoomOptions): RoomState {
   return room;
 }
 
+export function forEachRoom(fn: (room: RoomState) => void): void {
+  for (const room of roomsByCode.values()) fn(room);
+}
+
 export function getRoomByCode(code: string): RoomState | undefined {
   return roomsByCode.get(code.toUpperCase());
 }
@@ -48,23 +52,80 @@ export function removeRoom(code: string): void {
   deleteActiveRoom(upper);
 }
 
-export interface RoomSummary {
-  code: string;
-  playerCount: number;
-  locked: boolean;
+// Korisnikov zahtev (2026-10-14, po uzoru na konkurenciju): pocetna treba
+// da prikaze SVE stolove — i one koji cekaju i one gde se vec igra — sa
+// imenima, bulom i brojem kibicera, da sajt deluje zivo i da se kibicuje
+// jednim klikom (ranije: samo sobe koje cekaju, i to samo kao kod).
+export interface LobbySeat {
+  name: string | null; // null = prazno mesto
+  bot: boolean;
 }
 
-// Only rooms still recruiting players (WAITING phase, an open seat) show up
-// — once a hand is dealt there's no seat left to join as a player anyway.
-export function listOpenRooms(): RoomSummary[] {
-  const rooms: RoomSummary[] = [];
+export interface LobbyRoom {
+  code: string;
+  status: 'waiting' | 'playing';
+  seats: [LobbySeat, LobbySeat, LobbySeat];
+  initialBule: number;
+  bulaLeft: number;
+  round: number;
+  spectators: number;
+  locked: boolean;
+  canSit: boolean; // slobodno mesto, ili mesto koje drzi racunar
+  canWatch: boolean;
+}
+
+export function listLobbyRooms(): LobbyRoom[] {
+  const rooms: LobbyRoom[] = [];
   for (const room of roomsByCode.values()) {
-    const playerCount = room.seatUserIds.filter((u) => u !== null).length;
-    if (room.game.state.phase === 'WAITING' && playerCount < 3) {
-      rooms.push({ code: room.code, playerCount, locked: room.locked });
-    }
+    const phase = room.game.state.phase;
+    if (phase === 'MATCH_OVER') continue;
+    // soba u kojoj niko od ljudi nije povezan izgleda mrtvo (svi ispali) —
+    // ne nudi je; vraca se sama na listu cim se neko od njih vrati
+    if (!room.sockets.some((s) => s !== null)) continue;
+    const waiting = phase === 'WAITING';
+    const seats = ([0, 1, 2] as Position[]).map((p) => ({
+      name: room.seatNames[p],
+      bot: room.botSeats.has(p),
+    })) as LobbyRoom['seats'];
+    const hasEmpty = room.seatUserIds.some((u, p) => u === null && !room.botSeats.has(p as Position));
+    const hasBot = room.botSeats.size > 0;
+    const b = room.game.state.bulas;
+    rooms.push({
+      code: room.code,
+      status: waiting ? 'waiting' : 'playing',
+      seats,
+      initialBule: room.game.getConfig().initialBule,
+      bulaLeft: Math.max(0, b[0] + b[1] + b[2]),
+      round: room.game.state.round,
+      spectators: room.spectators.size,
+      locked: room.locked,
+      canSit: waiting ? hasEmpty : hasBot && !room.locked,
+      canWatch: !waiting && !room.locked,
+    });
   }
-  return rooms;
+  // prvo stolovi gde moze da se sedne, pa oni gde se igra
+  return rooms.sort((a, b) => Number(b.canSit) - Number(a.canSit) || b.round - a.round);
+}
+
+// Imena racunara za stolom — obicna srpska imena (kao u Lori), "(AI)"
+// dodaje klijent iz botSeats, da ime u tabeli ostane kratko.
+const BOT_NAMES = ['Milan', 'Bora', 'Jelena', 'Vesna', 'Žika', 'Mira'];
+
+/** Popunjava sva prazna mesta racunarom. Vraca koliko je mesta popunjeno. */
+export function fillSeatsWithBots(room: RoomState): number {
+  const used = new Set(room.seatNames);
+  let filled = 0;
+  for (const p of [0, 1, 2] as Position[]) {
+    if (room.seatUserIds[p] !== null || room.botSeats.has(p)) continue;
+    const name = BOT_NAMES.find((n) => !used.has(n)) ?? 'Računar';
+    used.add(name);
+    room.seatNames[p] = name;
+    room.seatRatings[p] = 1000;
+    room.botSeats.add(p);
+    filled++;
+  }
+  if (filled > 0) room.hadBots = true;
+  return filled;
 }
 
 export interface RoomDetail {
@@ -77,8 +138,7 @@ export interface RoomDetail {
 }
 
 // Admin view — EVERY room regardless of phase/openness, unlike
-// listOpenRooms() (the public lobby, which only shows WAITING rooms with
-// a free seat).
+// listLobbyRooms() (the public lobby, which hides finished/dead rooms).
 export function listAllRoomsDetailed(): RoomDetail[] {
   return Array.from(roomsByCode.values()).map((room) => ({
     code: room.code,
@@ -183,6 +243,8 @@ interface SerializedRoom {
   chatLog: RoomState['chatLog'];
   abandonedSeat: Position | null;
   frozenBula: number | null;
+  botSeats?: Position[];
+  hadBots?: boolean;
   dealNextReady: Position[];
   endMatchReady: Position[];
   seatRatings: [number, number, number];
@@ -204,6 +266,8 @@ function serializeRoom(room: RoomState): SerializedRoom {
     chatLog: room.chatLog,
     abandonedSeat: room.abandonedSeat,
     frozenBula: room.frozenBula,
+    botSeats: Array.from(room.botSeats),
+    hadBots: room.hadBots,
     dealNextReady: Array.from(room.dealNextReady),
     endMatchReady: Array.from(room.endMatchReady),
     seatRatings: room.seatRatings,
@@ -257,6 +321,10 @@ export function loadPersistedRooms(): number {
       chatLog: parsed.chatLog,
       abandonedSeat: parsed.abandonedSeat,
       frozenBula: parsed.frozenBula,
+      // stariji zapisi (pre racunara za stolom) nemaju ova polja
+      botSeats: new Set(parsed.botSeats ?? []),
+      hadBots: parsed.hadBots ?? false,
+      aiTurnTimeout: null,
       nextHandScheduled: false,
       nextHandTimeout: null,
       dealNextReady: new Set(parsed.dealNextReady),

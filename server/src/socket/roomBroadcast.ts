@@ -6,7 +6,8 @@ import { applyAction } from './gameEvents.js';
 import { computeAiAction } from '../ai/aiSeat.js';
 import { getUserRating, updateUserRating, saveMatchLog } from '../db.js';
 import { calculateRatingDeltas } from '../../../engine/dist/scoring.js';
-import type { HandSnapshot } from '../rooms/RoomState.js';
+import type { HandSnapshot, ChatMessage } from '../rooms/RoomState.js';
+import { CHAT_LOG_LIMIT } from '../rooms/RoomState.js';
 import { persistRoom } from '../rooms/RoomManager.js';
 
 // A couple of small values (whose turn it is to kontra, which of MY OWN
@@ -34,7 +35,8 @@ export function buildClientState(room: RoomState, viewer: Viewer) {
     // Ranking sistem (korisnikov zahtev 2026-09-10) — rejting keshiran u
     // room.seatRatings (osvezen na ulazak u sobu i posle svakog kraja
     // partije), ubacen ovde da klijent moze da prikaze "Ime (rejting)".
-    rating: room.seatRatings[i]!,
+    // racunar nema rejting (partija sa njim se i ne racuna za rejting)
+    rating: room.botSeats.has(i as Position) ? null : room.seatRatings[i]!,
   }));
   return {
     ...redacted,
@@ -46,6 +48,9 @@ export function buildClientState(room: RoomState, viewer: Viewer) {
     // stvarno licitira/igra ("izgleda da je on licitirao Mogu 4"). Klijent
     // ovo koristi da doda "(AI)" pored imena i da jednom prikaze banner.
     abandonedSeat: room.abandonedSeat,
+    // Mesta koja od pocetka drzi racunar — klijent dodaje "(AI)" uz ime.
+    botSeats: Array.from(room.botSeats),
+    unrated: room.hadBots,
     // Uzivo prijavljen bag (2026-09-20): "kad udjem na tabelu nema istorije
     // ruku, sve prazno" — klijentski handHistory (app.js) je CISTO
     // akumuliran u browseru, nikad se nije obnavljao sa servera, pa je
@@ -174,7 +179,19 @@ export function dealNextHand(room: RoomState): void {
 // isteka auto-tajmera) predje na sledecu rundu — napusteno sediste (AI
 // preuzeo) ne moze kliknuti nista, pa se ne racuna.
 export function activeSeatsForRoom(room: RoomState): Position[] {
-  return ([0, 1, 2] as Position[]).filter((s) => s !== room.abandonedSeat);
+  return ([0, 1, 2] as Position[]).filter((s) => s !== room.abandonedSeat && !room.botSeats.has(s));
+}
+
+// Poruka "Sistem" u chatu sobe — bez io parametra (isto kao adminKickSeat),
+// salje se direktno preko room.sockets/room.spectators.
+export function postSystemMessage(room: RoomState, text: string): void {
+  const message: ChatMessage = { name: 'Sistem', role: 'system', seat: null, text, ts: Date.now() };
+  room.chatLog.push(message);
+  if (room.chatLog.length > CHAT_LOG_LIMIT) {
+    room.chatLog.splice(0, room.chatLog.length - CHAT_LOG_LIMIT);
+  }
+  room.sockets.forEach((sk) => sk?.emit('chat:message', message));
+  room.spectators.forEach((sp) => sp.socket?.emit('chat:message', message));
 }
 
 // Korisnikov zahtev (2026-09-10) — kraj partije (bilo prirodan, "predlog za
@@ -183,6 +200,32 @@ export function activeSeatsForRoom(room: RoomState): Position[] {
 // napustenog — i on dobija/gubi bodove), i obavesti sobu.
 function resolveMatchRanking(room: RoomState): void {
   const scores = room.game.getMatchScores();
+  // Partija u kojoj je igrao racunar ne menja rejting — upisuje se u
+  // istoriju partija, ali sa nultim promenama.
+  if (room.hadBots) {
+    const zero: [number, number, number] = [0, 0, 0];
+    const current = [0, 1, 2].map((p) => room.seatRatings[p]!) as [number, number, number];
+    const payload = { scores, unrated: true };
+    room.sockets.forEach((socket) => socket?.emit('game:matchRankingResult', payload));
+    room.spectators.forEach((spectator) => spectator.socket?.emit('game:matchRankingResult', payload));
+    saveMatchLog({
+      room_code: room.code,
+      match_end_reason: room.game.state.matchEndReason ?? 'natural',
+      rounds_played: room.game.state.round,
+      player0_user_id: room.seatUserIds[0],
+      player1_user_id: room.seatUserIds[1],
+      player2_user_id: room.seatUserIds[2],
+      player0_name: room.seatNames[0],
+      player1_name: room.seatNames[1],
+      player2_name: room.seatNames[2],
+      final_bulas: [...room.game.state.bulas] as [number, number, number],
+      final_scores: scores,
+      rating_deltas: zero,
+      new_ratings: current,
+      hands_json: JSON.stringify(room.handsHistory),
+    });
+    return;
+  }
   const ratings: [number, number, number] = [0, 0, 0];
   for (const seat of [0, 1, 2] as Position[]) {
     const uid = room.seatUserIds[seat];
@@ -252,15 +295,31 @@ function maybeAutoAdvanceHand(room: RoomState): void {
 // every tick rather than captured in the closure: single-threaded Node means
 // nothing else mutates room.game between ticks, so a plain re-check is
 // enough to notice the hand ended without a separate staleness guard.
-function maybeDriveAiTurn(room: RoomState): void {
-  if (room.abandonedSeat === null) return;
+// Posle restarta servera (svaki deploy) sobe se vracaju iz baze, ali
+// tajmeri (potez racunara, automatsko deljenje sledece ruke) ne zive u
+// bazi — bez ovoga bi sto na kome je racunar na potezu stajao zauvek.
+export function resumeRoomTimers(room: RoomState): void {
+  maybeDriveAiTurn(room);
+  maybeAutoAdvanceHand(room);
+}
+
+// Ko je trenutno na potezu a vozi ga server AI: napusteno mesto ili
+// racunar koji od pocetka sedi za stolom.
+function aiDrivenActor(room: RoomState): Position | null {
   const actions = room.game.getLegalActions();
-  if (actions.length === 0 || actions[0]!.player !== room.abandonedSeat) return;
-  setTimeout(() => {
-    if (room.abandonedSeat === null) return;
-    const freshActions = room.game.getLegalActions();
-    if (freshActions.length === 0 || freshActions[0]!.player !== room.abandonedSeat) return;
-    const action = computeAiAction(room.game, room.abandonedSeat);
+  if (actions.length === 0) return null;
+  const actor = actions[0]!.player;
+  return actor === room.abandonedSeat || room.botSeats.has(actor) ? actor : null;
+}
+
+function maybeDriveAiTurn(room: RoomState): void {
+  if (room.aiTurnTimeout !== null || aiDrivenActor(room) === null) return;
+  room.aiTurnTimeout = setTimeout(() => {
+    room.aiTurnTimeout = null;
+    // stanje je moglo da se promeni (covek seo umesto racunara, ruka gotova)
+    const actor = aiDrivenActor(room);
+    if (actor === null) return;
+    const action = computeAiAction(room.game, actor);
     if (action) applyAction(room.game, action);
     broadcastRoomState(room);
   }, 600);

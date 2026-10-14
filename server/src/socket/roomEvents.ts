@@ -5,9 +5,11 @@ import {
   getUserLocation,
   setUserLocation,
   clearUserLocation,
-  listOpenRooms,
+  listLobbyRooms,
+  fillSeatsWithBots,
   removeRoom,
 } from '../rooms/RoomManager.js';
+import { adminCloseRoom } from './roomAdmin.js';
 import type { RoomState, ChatMessage } from '../rooms/RoomState.js';
 import { CHAT_LOG_LIMIT } from '../rooms/RoomState.js';
 import type { Position } from '../../../engine/dist/types.js';
@@ -15,7 +17,7 @@ import { applyAction, withAuthenticatedActor } from './gameEvents.js';
 import type { GameAction } from './gameEvents.js';
 import { listOnlineUsers, getSocketIdsForUser } from '../presence.js';
 import { getUserRating } from '../db.js';
-import { broadcastRoomState, buildClientState, dealNextHand, activeSeatsForRoom } from './roomBroadcast.js';
+import { broadcastRoomState, buildClientState, dealNextHand, activeSeatsForRoom, postSystemMessage } from './roomBroadcast.js';
 
 type Ack = (response: Record<string, unknown>) => void;
 
@@ -40,6 +42,11 @@ function joinAsPlayer(room: RoomState, userId: number, socket: Socket, name: str
     seat = openSeat as Position;
     room.seatUserIds[seat] = userId;
   }
+  // Covek seda na mesto koje je do sad drzao racunar (seatUserIds je tamo
+  // null) — preuzima ga odmah, i usred ruke; AI tajmer (maybeDriveAiTurn)
+  // proverava botSeats pre poteza, pa racunar vise ne igra za to mesto.
+  const replacedBot = room.botSeats.has(seat) ? room.seatNames[seat] : null;
+  room.botSeats.delete(seat);
   room.seatNames[seat] = name;
   room.seatRatings[seat] = getUserRating(userId);
   room.sockets[seat] = socket;
@@ -57,6 +64,10 @@ function joinAsPlayer(room: RoomState, userId: number, socket: Socket, name: str
   if (room.abandonedSeat === seat) {
     room.abandonedSeat = null;
     room.frozenBula = null;
+  }
+
+  if (replacedBot !== null) {
+    postSystemMessage(room, `${name} sada igra umesto računara (${replacedBot}).`);
   }
 
   const filled = room.seatUserIds.every((u) => u !== null);
@@ -139,7 +150,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
   if (!resumed) socket.emit('room:none');
 
   socket.on('room:list', (_payload: unknown, ack?: Ack) => {
-    ack?.({ rooms: listOpenRooms() });
+    ack?.({ rooms: listLobbyRooms() });
   });
 
   // Korisnikov zahtev: "ustani od stola" (peekHomeScreen, klijent) treba da
@@ -190,7 +201,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     ack?.({ ok: true });
   });
 
-  socket.on('room:create', (payload: { initialBule?: number; refePerPlayer?: number }, ack?: Ack) => {
+  socket.on('room:create', (payload: { initialBule?: number; refePerPlayer?: number; withBots?: boolean }, ack?: Ack) => {
     // Client-supplied config is just a preference — always clamp server-side
     // rather than trust it, same principle as withAuthenticatedActor() for
     // game actions.
@@ -203,15 +214,51 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     const refePerPlayer = clamp(Number(payload?.refePerPlayer), 0, refeMax, Math.min(2, refeMax));
     const room = createRoom({ initialBule, refePerPlayer });
     const seat = joinAsPlayer(room, userId, socket, name)!;
+    // "Igraj odmah sa racunarom": oba druga mesta odmah dobija racunar i
+    // partija krece; svako ko naidje kasnije moze da sedne umesto njega.
+    if (payload?.withBots === true) {
+      fillSeatsWithBots(room);
+      room.game.newHand();
+    }
     ack?.({ code: room.code, seat });
     broadcastRoomState(room);
     sendChatBacklog(socket, room);
+  });
+
+  // Korisnikov zahtev (2026-10-14): niko ne sme da ceka sam za stolom —
+  // igrac u sobi koja ceka popunjava prazna mesta racunarom i odmah krece.
+  socket.on('room:fillWithBots', (_payload: unknown, ack?: Ack) => {
+    const room = currentRoom();
+    const loc = getUserLocation(userId);
+    if (!room || loc?.role !== 'player') {
+      ack?.({ error: 'Nisi za stolom' });
+      return;
+    }
+    if (room.game.state.phase !== 'WAITING') {
+      ack?.({ error: 'Partija je već počela' });
+      return;
+    }
+    if (fillSeatsWithBots(room) === 0) {
+      ack?.({ error: 'Nema praznih mesta' });
+      return;
+    }
+    room.game.newHand();
+    postSystemMessage(room, `Računar je popunio prazna mesta. Ko dođe kasnije, može da sedne umesto njega.`);
+    ack?.({ ok: true });
+    broadcastRoomState(room);
   });
 
   socket.on('room:join', (payload: { code?: string }, ack?: Ack) => {
     const room = getRoomByCode(payload?.code ?? '');
     if (!room) {
       ack?.({ error: 'Room not found' });
+      return;
+    }
+    // Zakljucan sto: niko novi ne seda umesto racunara (svoje mesto se uvek
+    // moze preuzeti nazad — joinAsPlayer prvo trazi vec postojece sediste).
+    const alreadySeated = room.seatUserIds.includes(userId);
+    if (room.game.state.phase !== 'WAITING' && room.locked && !alreadySeated) {
+      ack?.({ error: 'Soba je zaključana' });
       return;
     }
     const seat = joinAsPlayer(room, userId, socket, name);
@@ -500,6 +547,20 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
       return;
     }
     const seat = loc.seat;
+    // Poslednji covek napusta sto za kojim su ostali samo racunari — nema
+    // kome da se nastavi, sto se zatvara (partija sa racunarom ionako ne
+    // ide u rejting).
+    const humansLeft = ([0, 1, 2] as Position[]).filter(
+      (p) => p !== seat && p !== room.abandonedSeat && !room.botSeats.has(p) && room.seatUserIds[p] !== null
+    );
+    if (humansLeft.length === 0 && room.botSeats.size > 0) {
+      room.sockets[seat] = null;
+      socket.leave(room.code);
+      clearUserLocation(userId);
+      ack?.({ frozenBula: room.game.state.bulas[seat] });
+      adminCloseRoom(room, 'Svi igrači su napustili sto.');
+      return;
+    }
     const frozenBula = room.game.state.bulas[seat];
     room.frozenBula = frozenBula;
     room.abandonedSeat = seat;
@@ -511,7 +572,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
 
     const message: ChatMessage = {
       name: 'Sistem',
-      role: 'spectator',
+      role: 'system',
       seat: null,
       text: `${name} je napustio partiju na buli ${frozenBula}. AI preuzima do kraja ove ruke.`,
       ts: Date.now(),

@@ -366,6 +366,18 @@
     <div class="pwa-install-banner" style="display:none"></div>
   </section>
 
+  <!-- Korisnikov zahtev (2026-10-14, po uzoru na konkurenciju): SVI stolovi
+       — i oni koji cekaju i oni gde se igra — sa imenima, bulom i kibicerima,
+       "Sedi" (slobodno mesto ili umesto racunara) i "Gledaj" jednim klikom.
+       Sadrzaj pravi renderRoomList() u app.js. -->
+  <section class="lobby-tables">
+    <div class="room-list-header">
+      <span>Stolovi</span>
+      <button class="icon-btn" onclick="refreshRoomList()" title="Osveži">🔄</button>
+    </div>
+    <div id="openRoomsList" class="lobby-table-list"><div class="room-list-empty">Učitavanje...</div></div>
+  </section>
+
   <section class="room-panels">
     <div class="room-panel">
       <h2 class="section-title">Napravi sobu</h2>
@@ -377,19 +389,16 @@
         <label for="roomRefeCount">Refe po igraču</label>
         <input type="number" id="roomRefeCount" value="2" min="0" max="5" step="1">
       </div>
-      <button class="mode-btn primary" onclick="createRoomOnline()">Napravi novu sobu</button>
+      <div class="room-panel-bottom-row room-create-actions">
+        <button class="mode-btn primary" onclick="createRoomOnline()">Napravi novu sobu</button>
+        <button class="mode-btn" onclick="createRoomOnline(true)" title="Oba druga mesta odmah dobija računar; ko dođe kasnije, seda umesto njega">🤖 Igraj odmah sa računarom</button>
+      </div>
     </div>
 
     <div class="room-panel">
-      <h2 class="section-title">Pridruži se</h2>
-      <div class="room-list-header">
-        <span>Otvorene sobe</span>
-        <button class="icon-btn" onclick="refreshRoomList()" title="Osveži">🔄</button>
-      </div>
-      <div id="openRoomsList" class="room-list"><div class="room-list-empty">Učitavanje...</div></div>
-
+      <h2 class="section-title">Pridruži se kodom</h2>
       <div class="text-field">
-        <label for="roomCodeInput">Ili unesi kod sobe ručno</label>
+        <label for="roomCodeInput">Kod sobe (dobiješ ga od prijatelja)</label>
         <input type="text" id="roomCodeInput" placeholder="npr. 9A7AU" style="text-transform:uppercase" oninput="updateRoomJoinButtonState()">
       </div>
       <!-- Korisnikov zahtev (2026-10-05): "napravi novu sobu i pridruzi se

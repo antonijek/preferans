@@ -1563,6 +1563,41 @@
      jer flex-basis/grow i dalje diktiraju stvarnu sirinu. */
   .room-list-row button { width: auto; margin: 0; padding: 6px 14px; min-height: unset; flex: none; }
 
+  /* Svi stolovi na Sobi (korisnikov zahtev 2026-10-14) — kartica po stolu:
+     tri mesta kao "cipovi", status/bula/kibiceri, pa Sedi/Gledaj. Samo
+     postojece nijanse (bela prozirna podloga, zlato za "cekaju"/moj sto). */
+  .lobby-tables { text-align: left; margin: 0 0 18px; }
+  .lobby-tables .room-list-header { margin-top: 0; }
+  .lobby-table-list { display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; }
+  .lobby-table {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px; padding: 10px 12px;
+  }
+  .lobby-table.mine { border-color: rgba(var(--gold-rgb), 0.7); }
+  .lobby-table-seats { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 260px; min-width: 0; }
+  .lobby-seat {
+    padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,0.1);
+    font-size: 0.88em; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .lobby-seat.bot { opacity: 0.7; }
+  .lobby-seat.empty { background: none; border: 1px dashed rgba(255,255,255,0.35); opacity: 0.75; }
+  .lobby-table-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 0.82em; opacity: 0.85; }
+  .lobby-status.waiting { color: var(--gold-bright); font-weight: 600; }
+  .lobby-status.playing { font-weight: 600; }
+  .lobby-table-actions { display: flex; gap: 6px; margin-left: auto; }
+  .lobby-table-actions .mode-btn { width: auto; margin: 0; padding: 6px 14px; min-height: unset; flex: none; }
+  .lobby-mine-tag { opacity: 0.7; font-weight: 600; font-size: 0.9em; padding: 6px 4px; }
+  /* "Ne cekaj — popuni racunarom" ispod koda sobe koja ceka */
+  #roomStatus .fill-bots-btn { display: block; width: auto; margin: 10px auto 0; padding: 8px 18px; min-height: unset; flex: none; }
+  #roomStatus .waiting-code b { font-size: 1.3em; letter-spacing: 1px; }
+  #roomStatus .waiting-share { margin-top: 8px; }
+  #roomStatus .waiting-share .room-share-row { display: flex; justify-content: center; margin-left: 0; }
+  #roomStatus .waiting-share .share-btn { width: auto; flex: none; margin: 0; }
+  #roomStatus .waiting-note { margin-top: 10px; opacity: 0.8; font-size: 0.92em; }
+  .room-create-actions { display: flex; flex-direction: column; gap: 8px; }
+  .room-create-actions .mode-btn { margin: 0; flex: none; }
+
   /* Korisnikov zahtev: "univerzalni modal koji ce sva obavestenja isto
      prikazivati" — svi baneri (kibic zahtev, poziv u sobu, napusti-partiju
      potvrda, kibic-odobrenje panel) sad dele ISTU brass/zlato pozadinu

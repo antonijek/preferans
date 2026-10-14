@@ -195,13 +195,25 @@ const POS_LABELS_LOCAL = ['Jug', 'Istok', 'Zapad'];
 // samo "Ime", ne "Ime (1000)"). Rejting i dalje prikazan, ali SAMO u
 // tabeli (vidi renderScoreContent, koji cita game.state.players[].rating
 // direktno, ne preko ovog Proxy-ja).
+// Online sediste koje vozi server AI — napusteno mesto ili racunar koji
+// od pocetka sedi za stolom (korisnikov zahtev 2026-10-14: racunar
+// popunjava prazna mesta, vidi server botSeats).
+function isBotSeat(idx) {
+  return mode === 'online' && (game.state?.botSeats ?? []).includes(idx);
+}
+function isAiSeat(idx) {
+  if (mode !== 'online' || !game.state) return false;
+  return game.state.abandonedSeat === idx || isBotSeat(idx);
+}
 const POS_LABELS = new Proxy(POS_LABELS_LOCAL, {
   get(target, prop) {
     const idx = typeof prop === 'string' ? Number(prop) : NaN;
     if (Number.isInteger(idx) && idx >= 0 && idx <= 2) {
       const raw = mode === 'online' ? (game.state?.players?.[idx]?.name || target[idx]) : target[idx];
-      const isAbandoned = mode === 'online' && game.state?.abandonedSeat === idx;
-      return escapeHtml(raw) + (isAbandoned ? ' (AI)' : '');
+      // racunar: "🤖 Bora" (kratko, staje u usku plocicu igraca);
+      // napusteno mesto: "Pera (napustio) (AI)" kao i do sad
+      if (isBotSeat(idx)) return '🤖 ' + escapeHtml(raw);
+      return escapeHtml(raw) + (isAiSeat(idx) ? ' (AI)' : '');
     }
     return target[prop];
   },
@@ -825,14 +837,19 @@ function renderSeats() {
   for (const pos of [0, 1, 2]) {
     // Kratko — .player-name kutija je uska (104px) i uppercase+bold, duzi
     // tekst ("nema veze") se sece "...".
-    const displayName = disconnectedSeats.has(pos) ? 'nije tu' : seatDisplayName(pos);
+    // racunaru 🤖 vec stoji u krugu (avatar ispod) — na uskoj plocici samo ime
+    const displayName = disconnectedSeats.has(pos) ? 'nije tu'
+      : isBotSeat(pos) ? (game.state.players[pos]?.name ?? '')
+      : seatDisplayName(pos);
     $(`name-${seatOf(pos)}`).textContent = displayName;
     // Avatar krugic sa inicijalom (korisnikov zahtev 2026-09-28, uzor iz
     // Lora igre) — isti obrazac kao vec postojeci .avatar-circle za
     // online-users listu (charAt(0), ne prvo slovo "nije tu" placeholdera).
     const avatarEl = $(`avatar-${seatOf(pos)}`);
     if (avatarEl) {
-      avatarEl.textContent = disconnectedSeats.has(pos) ? '?' : (displayName || '?').trim().charAt(0).toUpperCase();
+      avatarEl.textContent = disconnectedSeats.has(pos) ? '?'
+        : isBotSeat(pos) ? '🤖'
+        : (displayName || '?').trim().charAt(0).toUpperCase();
     }
     $(`seat-${seatOf(pos)}`).classList.toggle('disconnected', disconnectedSeats.has(pos));
   }
@@ -2173,7 +2190,7 @@ function renderResult() {
       // Napusteno (AI-preuzeto) sediste nije vidljivo klijentu kao takvo —
       // server ga vec izuzima iz stvarnog cekanja (activeSeatsForRoom), ovo
       // je samo prikaz pa moze retko da "ceka" nekog ko se ustvari ne racuna.
-      const waitingFor = [0, 1, 2].filter((p) => !ready.includes(p));
+      const waitingFor = [0, 1, 2].filter((p) => !ready.includes(p) && !isAiSeat(p));
       dealStatusEl.textContent = waitingFor.length > 0
         ? `Čeka se: ${waitingFor.map((p) => seatDisplayName(p)).join(', ')}...`
         : '';
@@ -2282,6 +2299,9 @@ function renderResult() {
         : s.matchEndReason === 'leave' ? 'Partija je završena dogovorom preostalih igrača posle napuštanja stola.'
         : '';
       if (reasonTxt) html += `<p class="muted-line" style="text-align:center">${reasonTxt}</p>`;
+      if (mode === 'online' && s.unrated) {
+        html += `<p class="muted-line" style="text-align:center">🤖 Za stolom je igrao računar — ova partija se ne računa za rejting.</p>`;
+      }
       $('resultMsg').innerHTML = html;
     } catch (err) {
       console.error('[MATCH_OVER render greška, koristim jednostavan fallback]', err);
@@ -2847,7 +2867,7 @@ async function connectOnlineSocket() {
     if (info.seat !== null) mySeat = info.seat;
     if (info.code) { $('roomCodeInput').value = info.code; myRoomCode = info.code; updateRoomJoinButtonState(); }
     if (game.state?.phase === 'WAITING' || !game.state) {
-      $('roomStatus').innerHTML = `Kod sobe: <b style="font-size:1.3em">${info.code}</b>${renderRoomShareRow(info.code)} — čeka se još igrača...`;
+      $('roomStatus').innerHTML = renderWaitingStatus(info.code, 'Kod sobe:');
       $('homeScreen').classList.remove('active');
       $('roomScreen').classList.add('active');
     }
@@ -3270,60 +3290,107 @@ function updateRoomJoinButtonState() {
 }
 window.updateRoomJoinButtonState = updateRoomJoinButtonState;
 
+// Korisnikov zahtev (2026-10-14, po uzoru na konkurenciju): SVI stolovi —
+// i oni koji cekaju i oni gde se igra — sa imenima, bulom i kibicerima.
+// "Sedi" = slobodno mesto ili mesto koje drzi racunar (server ga preda
+// coveku odmah), "Gledaj" = kibicovanje jednim klikom. Imena su korisnicki
+// unos — sve ide kroz textContent/escapeHtml.
 function renderRoomList(rooms) {
   updateRoomJoinButtonState();
   const countEl = $('homeRoomCount');
-  if (countEl) countEl.textContent = `🃏 ${rooms.length} ${rooms.length === 1 ? 'otvorena soba' : 'otvorenih soba'}`;
+  if (countEl) {
+    const playing = rooms.filter((r) => r.status === 'playing').length;
+    const waiting = rooms.length - playing;
+    countEl.textContent = rooms.length === 0
+      ? '🃏 Trenutno nema stolova — napravi svoj'
+      : `🃏 ${playing} ${playing === 1 ? 'sto' : 'stolova'} u igri${waiting ? ` · ${waiting} čeka` : ''}`;
+  }
 
   const container = $('openRoomsList');
   if (!container) return;
   if (rooms.length === 0) {
-    container.innerHTML = '<div class="room-list-empty">Trenutno nema otvorenih soba. Napravi novu!</div>';
+    container.innerHTML = '<div class="room-list-empty">Trenutno nema stolova. Napravi svoj ili igraj odmah sa računarom!</div>';
     return;
   }
   container.innerHTML = '';
   for (const r of rooms) {
-    // r.code je server-generisan iz fiksnog alfanumerickog skupa (nikad
-    // korisnicki unos) — innerHTML ovde bezbedan, za razliku od chat/kibic
-    // teksta gore koji koristi textContent.
-    const row = el('div', 'room-list-row',
-      `<span><span class="code">${r.code}</span> <span class="players">(${r.playerCount}/3${r.locked ? ' 🔒' : ''})</span></span>`
-    );
     const isMine = r.code === myRoomCode;
-    if (isMine) {
-      // Korisnikov zahtev: "ne treba dugme Pridruzi se ako je igrac vec
-      // pridruzen" — sopstvena soba u listi je samo informativna, ne akcija.
-      const tag = el('span', '', 'Ti si ovde');
-      tag.style.cssText = 'opacity:0.7;font-weight:600;padding:6px 14px';
-      row.appendChild(tag);
-    } else {
-      const doJoin = () => { $('roomCodeInput').value = r.code; joinRoomOnline(); };
-      // Korisnikov zahtev: "klik na to ne radi, treba da te povede u tu sobu"
-      // — ceo red je sad klikabilan (ne samo malo dugme), lakse za pogoditi
-      // dodirom na telefonu. stopPropagation na dugmetu spreca DUPLI poziv
-      // (klik na dugme bi inace probubblovao i na row.onclick ispod).
-      row.style.cursor = 'pointer';
-      row.onclick = doJoin;
-      const btn = el('button', 'mode-btn', 'Pridruži se');
-      btn.onclick = (e) => { e.stopPropagation(); doJoin(); };
-      row.appendChild(btn);
+    const row = el('div', 'lobby-table' + (isMine ? ' mine' : ''));
+    const seats = el('div', 'lobby-table-seats');
+    for (const seat of r.seats) {
+      const chip = el('span', 'lobby-seat' + (seat.name === null ? ' empty' : seat.bot ? ' bot' : ''));
+      chip.textContent = seat.name === null ? 'slobodno' : seat.bot ? `🤖 ${seat.name}` : seat.name;
+      seats.appendChild(chip);
     }
+    row.appendChild(seats);
+
+    const meta = el('div', 'lobby-table-meta');
+    const status = el('span', `lobby-status ${r.status}`);
+    status.textContent = r.status === 'waiting' ? 'čeka igrače' : `igra se · ruka ${r.round}`;
+    meta.appendChild(status);
+    const bula = el('span', '');
+    bula.textContent = r.status === 'waiting' ? `bula ${r.initialBule}` : `bula do kraja ${r.bulaLeft}`;
+    meta.appendChild(bula);
+    if (r.spectators > 0) {
+      const sp = el('span', '');
+      sp.textContent = `👁 ${r.spectators}`;
+      sp.title = 'Broj kibicera';
+      meta.appendChild(sp);
+    }
+    if (r.locked) meta.appendChild(el('span', '', '🔒'));
+    row.appendChild(meta);
+
+    const actions = el('div', 'lobby-table-actions');
+    if (isMine) {
+      actions.appendChild(el('span', 'lobby-mine-tag', 'Ti si ovde'));
+    } else {
+      const sit = () => { $('roomCodeInput').value = r.code; joinRoomOnline(); };
+      const watch = () => { $('roomCodeInput').value = r.code; joinAsSpectatorOnline(); };
+      if (r.canSit) {
+        const btn = el('button', 'mode-btn primary', r.status === 'waiting' ? 'Sedi' : 'Sedi umesto računara');
+        btn.onclick = sit;
+        actions.appendChild(btn);
+      }
+      if (r.canWatch) {
+        const btn = el('button', 'mode-btn', '👁 Gledaj');
+        btn.onclick = watch;
+        actions.appendChild(btn);
+      }
+    }
+    row.appendChild(actions);
     container.appendChild(row);
   }
 }
 
+// Status sobe koja ceka igrace: kod, dugmad za poziv i "ne cekaj" — racunar
+// odmah popunjava prazna mesta (korisnikov zahtev 2026-10-14: niko ne sme
+// da ceka sam). Ista poruka na sva tri mesta (napravi/pridruzi se/reconnect).
+function renderWaitingStatus(code, lead) {
+  return `<div class="waiting-code">${lead} <b>${code}</b></div>` +
+    `<div class="waiting-share">${renderRoomShareRow(code)}</div>` +
+    `<div class="waiting-note">Čeka se još igrača… Pozovi prijatelje ili ne čekaj:</div>` +
+    `<button class="mode-btn fill-bots-btn" onclick="fillWithBotsOnline()">🤖 Popuni računarom i počni</button>`;
+}
+
+function fillWithBotsOnline() {
+  onlineSocket?.emit('room:fillWithBots', {}, (res) => {
+    if (res?.error) $('roomError').textContent = res.error;
+  });
+}
+window.fillWithBotsOnline = fillWithBotsOnline;
+
 // === ONLINE: sobe ===
 
-function createRoomOnline() {
+function createRoomOnline(withBots = false) {
   const initialBule = parseInt($('roomStartBula').value, 10);
   const refePerPlayer = parseInt($('roomRefeCount').value, 10);
-  onlineSocket.emit('room:create', { initialBule, refePerPlayer }, (res) => {
+  onlineSocket.emit('room:create', { initialBule, refePerPlayer, withBots }, (res) => {
     if (res.error) { $('roomError').textContent = res.error; return; }
     mySeat = res.seat;
     myRoomCode = res.code;
     resetHandHistoryForNewRoom();
     $('roomCodeInput').value = res.code;
-    $('roomStatus').innerHTML = `Kod sobe: <b style="font-size:1.3em">${res.code}</b>${renderRoomShareRow(res.code)} — čeka se još igrača...`;
+    $('roomStatus').innerHTML = renderWaitingStatus(res.code, 'Kod sobe:');
     updateRoomJoinButtonState();
   });
 }
@@ -3336,7 +3403,7 @@ function joinRoomOnline() {
     mySeat = res.seat;
     myRoomCode = res.code;
     resetHandHistoryForNewRoom();
-    $('roomStatus').innerHTML = `Pridružen sobi <b style="font-size:1.3em">${res.code}</b>${renderRoomShareRow(res.code)}, čeka se početak...`;
+    $('roomStatus').innerHTML = renderWaitingStatus(res.code, 'Pridružen sobi');
     updateRoomJoinButtonState();
   });
 }
@@ -3679,7 +3746,7 @@ function appendChatMessageOnline(m, isLive = true) {
   // korisnikov zahtev: "razdvojiti poruke od razlicitih igraca bojama".
   const log = $('chatLog');
   const isPlayer = m.role === 'player';
-  const who = isPlayer ? POS_LABELS[m.seat] : `${m.name} (kibicer)`;
+  const who = isPlayer ? POS_LABELS[m.seat] : m.role === 'system' ? 'Sistem' : `${m.name} (kibicer)`;
   const div = document.createElement('div');
   div.className = 'chat-msg' + (isPlayer ? ` p${m.seat}` : ' spectator');
   const nameSpan = document.createElement('span');

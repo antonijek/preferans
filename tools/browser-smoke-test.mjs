@@ -46,8 +46,10 @@ async function main() {
     page.on('console', (msg) => { if (msg.type() === 'error') errors.push(`CONSOLE: ${msg.text()}`); });
 
     await page.goto(URL, { waitUntil: 'load' });
-    await page.click('#mode3ai');
-    await page.click('text=🎮 Kreni!');
+    // "3 AI" dugme i "Kreni!" su uklonjeni sa pocetnog ekrana (2026-10-05,
+    // Lorin obrazac sa dva izbora) — mod i dalje postoji, pokrece se isto
+    // kao iz konzole (vidi komentar u preferans.html, #setupScreen).
+    await page.evaluate(() => { setGameMode('3ai'); startGame(); });
 
     let handsCompleted = 0;
     let lastSignature = null;

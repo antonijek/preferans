@@ -11,7 +11,7 @@ export interface SpectatorInfo {
 
 export interface ChatMessage {
   name: string;
-  role: 'player' | 'spectator';
+  role: 'player' | 'spectator' | 'system';
   seat: Position | null;
   text: string;
   ts: number;
@@ -36,6 +36,18 @@ export interface RoomState {
   chatLog: ChatMessage[];
   abandonedSeat: Position | null;
   frozenBula: number | null;
+  // Korisnikov zahtev (2026-10-14): racunar popunjava prazna mesta da niko
+  // ne ceka sam. Sedista koja od pocetka vozi server AI (aiSeat.ts) —
+  // seatUserIds[seat] im je null, pa joinAsPlayer() covekom koji naidje
+  // prirodno zauzme bas to mesto (i skine ga odavde). Odvojeno od
+  // abandonedSeat: napusteno mesto zaustavlja deljenje novih ruku, racunar ne.
+  botSeats: Set<Position>;
+  // Bar jednom je za stolom sedeo racunar — takva partija se ne racuna za
+  // rejting (inace bi se bodovi "farmali" protiv AI-ja).
+  hadBots: boolean;
+  // Zakazan potez AI-ja (racunar/napusteno mesto) — jedan po sobi, inace
+  // bi svaki broadcastRoomState() zakazao jos jedan i AI bi igrao duplo.
+  aiTurnTimeout: ReturnType<typeof setTimeout> | null;
   // Sprecava dupliranje setTimeout-a za automatski nastavak na sledecu ruku
   // — broadcastRoomState() se poziva mnogo puta dok je faza GAME_OVER
   // (svaki put kad neko npr. otvori chat), bez ovoga bi se zakazalo N
@@ -118,6 +130,9 @@ export function createRoomState(code: string, options: RoomOptions = {}): RoomSt
     chatLog: [],
     abandonedSeat: null,
     frozenBula: null,
+    botSeats: new Set(),
+    hadBots: false,
+    aiTurnTimeout: null,
     nextHandScheduled: false,
     nextHandTimeout: null,
     dealNextReady: new Set(),

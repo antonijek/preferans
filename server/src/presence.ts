@@ -2,7 +2,7 @@ import { getUserRating } from './db.js';
 
 // Tracks every currently-connected authenticated socket, independent of
 // room membership — the "who's online right now" list on the lobby
-// screen, separate from listOpenRooms()/listAllRoomsDetailed() which only
+// screen, separate from listLobbyRooms()/listAllRoomsDetailed() which only
 // know about people already inside a room.
 const online = new Map<string, { userId: number; name: string; connectedAt: number }>();
 

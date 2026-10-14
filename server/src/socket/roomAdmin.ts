@@ -48,7 +48,7 @@ export function adminKickSeat(
 
   const message: ChatMessage = {
     name: 'Sistem',
-    role: 'spectator',
+    role: 'system',
     seat: null,
     text: `${priorName} je izbačen iz partije od strane administratora na buli ${frozenBula}. AI preuzima do kraja ove ruke.`,
     ts: Date.now(),
@@ -71,6 +71,10 @@ export function adminCloseRoom(room: RoomState, reason?: string): void {
   if (room.nextHandTimeout) {
     clearTimeout(room.nextHandTimeout);
     room.nextHandTimeout = null;
+  }
+  if (room.aiTurnTimeout) {
+    clearTimeout(room.aiTurnTimeout);
+    room.aiTurnTimeout = null;
   }
   const payload = { code: room.code, reason: reason ?? null };
   room.sockets.forEach((socket, seat) => {
