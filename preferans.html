@@ -272,6 +272,9 @@
     <h1 class="home-greeting" id="homeGreeting">Zdravo!</h1>
     <p class="home-tagline">Preferans online — igraj preferans uživo (poznat i kao balkanski preferans ili preferanc) sa pravim igračima, besplatno u browseru.</p>
     <button class="mode-btn primary home-cta" onclick="goToRoomScreen()">🎮 Sobe — napravi ili se pridruži</button>
+    <!-- Obavestenja na telefon (korisnikov zahtev 2026-10-14) — vidno samo
+         dok nisu ukljucena i pregledac ih podrzava, vidi refreshPushUi() -->
+    <button class="mode-btn home-cta" id="notifyBtn" style="display:none;margin-top:10px" onclick="enablePlayerPush()">🔔 Obavesti me na telefon kad sam na potezu</button>
     <!-- Korisnikov zahtev: "nema mogucnost da neko izadje na home page pa
          da se vrati" — vidljivo SAMO dok je igrac usred aktivne partije i
          privremeno "izasao" da pogleda pocetnu (peekHomeScreen ispod), ne

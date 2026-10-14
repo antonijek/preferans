@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { get, run, getMatchesForUser, getMatchById } from '../db.js';
 import { hashPassword, verifyPassword } from './password.js';
 import { signToken, requireAuth } from './middleware.js';
+import { pushPublicKey, pushCount, savePushSub, removePushSub } from '../push.js';
 import type { AuthedRequest } from './middleware.js';
 import { rateLimit } from '../rateLimit.js';
 
@@ -127,4 +128,22 @@ authRouter.get('/matches/:id', requireAuth, (req: AuthedRequest, res) => {
     return;
   }
   res.json({ match });
+});
+
+// Obavestenja igracima na telefon (korisnikov zahtev 2026-10-14): "tvoj
+// potez", "neko je seo za tvoj sto", "revans" — kad igrac nije na stranici.
+// Isti kljucevi i ista tabela kao admin obavestenja (push.ts).
+authRouter.get('/push', requireAuth, (req: AuthedRequest, res) => {
+  res.json({ publicKey: pushPublicKey(), devices: pushCount(req.userId!) });
+});
+authRouter.post('/push/subscribe', requireAuth, (req: AuthedRequest, res) => {
+  if (!savePushSub(req.userId!, req.body?.subscription)) {
+    res.status(400).json({ error: 'Neispravna pretplata' });
+    return;
+  }
+  res.json({ ok: true, devices: pushCount(req.userId!) });
+});
+authRouter.post('/push/unsubscribe', requireAuth, (req: AuthedRequest, res) => {
+  removePushSub(req.userId!, req.body?.endpoint);
+  res.json({ ok: true, devices: pushCount(req.userId!) });
 });

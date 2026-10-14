@@ -17,7 +17,11 @@ import { applyAction, withAuthenticatedActor } from './gameEvents.js';
 import type { GameAction } from './gameEvents.js';
 import { listOnlineUsers, getSocketIdsForUser } from '../presence.js';
 import { getUserRating } from '../db.js';
-import { broadcastRoomState, buildClientState, dealNextHand, activeSeatsForRoom, postSystemMessage } from './roomBroadcast.js';
+import {
+  broadcastRoomState, buildClientState, dealNextHand, activeSeatsForRoom, postSystemMessage,
+  isAway, maybeNotifyTurn, turnActor, turnDecisionKey,
+} from './roomBroadcast.js';
+import { notifyUser } from '../push.js';
 
 type Ack = (response: Record<string, unknown>) => void;
 
@@ -71,6 +75,16 @@ function joinAsPlayer(room: RoomState, userId: number, socket: Socket, name: str
   }
 
   const filled = room.seatUserIds.every((u) => u !== null);
+  // Neko je seo za sto koji ceka — javi ostalima koji nisu na stranici
+  // (napravili sobu pa otisli u drugu aplikaciju dok cekaju).
+  if (existingSeat === -1 && room.game.state.phase === 'WAITING') {
+    for (const p of [0, 1, 2] as Position[]) {
+      const uid = room.seatUserIds[p];
+      if (p === seat || uid === null || !isAway(room, p)) continue;
+      notifyUser(uid, 'joined', `${name} je seo za tvoj sto`,
+        filled ? 'Sto je pun — partija počinje!' : 'Čeka se još jedan igrač.');
+    }
+  }
   if (filled && room.game.state.phase === 'WAITING') {
     room.game.newHand();
   }
@@ -188,6 +202,23 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     io.to(room.code).emit('room:playerReconnected', { seat: loc.seat, name });
   });
 
+  // Pregledac javlja da je stranica u pozadini (ugasen ekran, druga
+  // aplikacija) — tad se salju obavestenja na telefon (isAway).
+  socket.on('presence:visibility', (payload: { hidden?: boolean }) => {
+    socket.data.hidden = payload?.hidden === true;
+    if (!socket.data.hidden) return;
+    const room = currentRoom();
+    const loc = getUserLocation(userId);
+    if (!room || loc?.role !== 'player' || turnActor(room) !== loc.seat) return;
+    // bio na potezu kad je otisao — ako se za 10 s ne vrati i potez jos ceka, javi
+    const key = turnDecisionKey(room, loc.seat);
+    setTimeout(() => {
+      if (socket.data.hidden && turnActor(room) === loc.seat && turnDecisionKey(room, loc.seat) === key) {
+        maybeNotifyTurn(room, true);
+      }
+    }, 10000);
+  });
+
   socket.on('presence:list', (_payload: unknown, ack?: Ack) => {
     // Korisnikov zahtev: "dugme Pozovi pored svog imena je preglupo" — "ko
     // je online" znaci ko je DRUGI online, sopstveni unos se filtrira ovde
@@ -291,6 +322,9 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
       } else {
         const offer = { code: room.code, byName: name };
         old.sockets.forEach((s) => s?.emit('room:rematchOffered', offer));
+        for (const p of otherHumans) {
+          if (isAway(old, p)) notifyUser(old.seatUserIds[p]!, 'rematch', `${name} predlaže revanš`, 'Uđi i prihvati jednim klikom.');
+        }
       }
     }
     ack?.({ code: room.code, seat, waiting: room.game.state.phase === 'WAITING' });

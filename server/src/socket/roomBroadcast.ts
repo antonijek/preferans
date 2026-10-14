@@ -9,6 +9,7 @@ import { calculateRatingDeltas } from '../../../engine/dist/scoring.js';
 import type { HandSnapshot, ChatMessage } from '../rooms/RoomState.js';
 import { CHAT_LOG_LIMIT } from '../rooms/RoomState.js';
 import { persistRoom } from '../rooms/RoomManager.js';
+import { notifyUser } from '../push.js';
 
 // A couple of small values (whose turn it is to kontra, which of MY OWN
 // cards are currently legal to play) require private engine logic
@@ -53,6 +54,9 @@ export function buildClientState(room: RoomState, viewer: Viewer) {
     unrated: room.hadBots,
     // Vreme za potez: preostalo racunato SAD (ne apsolutni rok) — sat
     // klijenta i servera ne moraju da se slazu.
+    // ko je na potezu (i bez vremena za potez) — klijent menja naslov
+    // kartice u "Tvoj potez" dok je stranica u pozadini
+    actorSeat: turnActor(room),
     turnSeat: room.turnDeadline !== null ? turnActor(room) : null,
     turnRemainingMs: room.turnDeadline !== null ? Math.max(0, room.turnDeadline - Date.now()) : null,
     turnTotalMs: room.turnTotalMs,
@@ -70,6 +74,7 @@ export function buildClientState(room: RoomState, viewer: Viewer) {
 export function broadcastRoomState(room: RoomState): void {
   // pre slanja stanja, da klijenti dobiju vec postavljen sat za potez
   maybeScheduleTurnTimer(room);
+  maybeNotifyTurn(room);
   // PRIVREMENO dijagnosticko logovanje (uzivo prijavljeno: "sva trojica udju
   // u sobu, karte se podele samo jednom, ostali ostaju u predsoblju") —
   // ukloniti posle potvrde uzroka. connected=false bi znacio da server MISLI
@@ -310,16 +315,38 @@ export function resumeRoomTimers(room: RoomState): void {
   maybeAutoAdvanceHand(room);
 }
 
+// === Obavestenja igracima (korisnikov zahtev 2026-10-14) ===
+// Igrac "nije tu" = nema zive veze, ili je njegov pregledac javio da je
+// stranica u pozadini (presence:visibility, ugasen ekran / druga aplikacija).
+export function isAway(room: RoomState, seat: Position): boolean {
+  const sk = room.sockets[seat];
+  return !sk || sk.data.hidden === true;
+}
+
+// "Tvoj potez" coveku koji nije na stranici. force: igrac je upravo (pre
+// ~10 s) otisao u pozadinu dok je bio na potezu — javi i za vec zapocetu
+// odluku.
+export function maybeNotifyTurn(room: RoomState, force = false): void {
+  const actor = turnActor(room);
+  if (actor === null || actor === room.abandonedSeat || room.botSeats.has(actor)) return;
+  const uid = room.seatUserIds[actor];
+  if (uid === null || !isAway(room, actor)) return;
+  const key = turnDecisionKey(room, actor);
+  if (!force && room.notifiedTurnKey === key) return;
+  room.notifiedTurnKey = key;
+  notifyUser(uid, 'turn', 'Tvoj potez — Preferans', `Za stolom ${room.code} se čeka tvoj potez.`);
+}
+
 // === Vreme za potez ===
 // Ko je na potezu (bilo ko, i covek i racunar), null kad niko (kraj ruke).
-function turnActor(room: RoomState): Position | null {
+export function turnActor(room: RoomState): Position | null {
   const actions = room.game.getLegalActions();
   return actions.length > 0 ? actions[0]!.player : null;
 }
 
 // Kljuc jedne odluke — dok se ne promeni, sat tece dalje (ponovno slanje
 // stanja, npr. reconnect ili chat, ne vraca sat na pocetak).
-function turnDecisionKey(room: RoomState, actor: Position): string {
+export function turnDecisionKey(room: RoomState, actor: Position): string {
   const s = room.game.state;
   return [
     s.phase, s.round, actor, s.bids.length, s.trickCount, s.currentTrick.length,

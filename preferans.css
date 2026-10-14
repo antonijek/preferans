@@ -1612,6 +1612,12 @@
   #roomStatus .waiting-share .room-share-row { display: flex; justify-content: center; margin-left: 0; }
   #roomStatus .waiting-share .share-btn { width: auto; flex: none; margin: 0; }
   #roomStatus .waiting-note { margin-top: 10px; opacity: 0.8; font-size: 0.92em; }
+  /* "Javi mi na telefon kad sto bude pun" — sporedna akcija, kao link */
+  #roomStatus .notify-wait-btn {
+    display: block; width: auto; margin: 10px auto 0; padding: 4px 8px; min-height: unset;
+    background: none; border: none; box-shadow: none; color: var(--gold-bright);
+    text-decoration: underline; font-size: 0.9em; cursor: pointer;
+  }
   .room-create-actions { display: flex; flex-direction: column; gap: 8px; }
   .room-create-actions .mode-btn { margin: 0; flex: none; }
 

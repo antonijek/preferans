@@ -51,16 +51,14 @@ export function removePushSub(userId: number, endpoint: unknown): void {
   if (typeof endpoint === 'string') run('DELETE FROM push_subs WHERE endpoint = ? AND user_id = ?', [endpoint, userId]);
 }
 
-/** Pošalji svim pretplaćenim uređajima. Vraća koliko je poslato; ugašene pretplate (404/410) briše. */
-export async function notifyOwner(title: string, body: string, url = '/'): Promise<number> {
-  if (DRY_RUN) { dryRunLog.push({ title, body }); return 1; }
-  const subs = all<{ endpoint: string; sub_json: string }>('SELECT endpoint, sub_json FROM push_subs');
-  const payload = JSON.stringify({ title, body, url });
+type SubRow = { endpoint: string; sub_json: string };
+
+/** Pošalji datim pretplatama. Vraća koliko je poslato; ugašene pretplate (404/410) briše. */
+async function sendToSubs(subs: SubRow[], payload: string, ttl: number): Promise<number> {
   let sent = 0;
   await Promise.all(subs.map(async s => {
     try {
-      // 10 min: "neko čeka partiju" posle toga više ne važi
-      await webpush.sendNotification(JSON.parse(s.sub_json), payload, { TTL: 600, urgency: 'high' });
+      await webpush.sendNotification(JSON.parse(s.sub_json), payload, { TTL: ttl, urgency: 'high' });
       sent++;
     } catch (err) {
       const code = (err as { statusCode?: number }).statusCode;
@@ -69,6 +67,37 @@ export async function notifyOwner(title: string, body: string, url = '/'): Promi
     }
   }));
   return sent;
+}
+
+/** Pošalji adminu (svim uređajima admin naloga). */
+export async function notifyOwner(title: string, body: string, url = '/'): Promise<number> {
+  if (DRY_RUN) { dryRunLog.push({ title, body }); return 1; }
+  // od 2026-10-14 se pretplacuju i igraci — adminu idu samo admin uredjaji
+  const subs = all<SubRow>(
+    'SELECT p.endpoint, p.sub_json FROM push_subs p JOIN users u ON u.id = p.user_id WHERE u.is_admin = 1'
+  );
+  // 10 min: "neko čeka partiju" posle toga više ne važi
+  return sendToSubs(subs, JSON.stringify({ title, body, url }), 600);
+}
+
+// === Obavestenja igracima (korisnikov zahtev 2026-10-14) ===
+// "Tvoj potez", "neko je seo za tvoj sto", "revans" — salje se SAMO kad
+// igrac nije na stranici (ugasen ekran, druga aplikacija); pozivalac to
+// proverava. Ista vrsta obavestenja najvise jednom u USER_COOLDOWN_MS.
+const USER_COOLDOWN_MS = 60 * 1000;
+const lastUserNotice = new Map<string, number>();
+
+export function notifyUser(userId: number, kind: string, title: string, body: string, url = '/'): void {
+  const key = `${userId}:${kind}`;
+  const now = Date.now();
+  if (now - (lastUserNotice.get(key) ?? 0) < USER_COOLDOWN_MS) return;
+  lastUserNotice.set(key, now);
+  if (DRY_RUN) { dryRunLog.push({ title, body }); return; }
+  const subs = all<SubRow>('SELECT endpoint, sub_json FROM push_subs WHERE user_id = ?', [userId]);
+  if (subs.length === 0) return;
+  // 2 min: posle toga je potez ionako odigran (vreme za potez)
+  sendToSubs(subs, JSON.stringify({ title, body, url, tag: `preferans-${kind}` }), 120)
+    .catch(err => console.error('[PUSH]', err));
 }
 
 /**

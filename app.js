@@ -2895,6 +2895,8 @@ async function connectOnlineSocket() {
   onlineSocket.on('connect', () => {
     debugLog('socket:connect', { wasConnectedBefore: hasConnectedOnce });
     hasConnectedOnce = true;
+    onlineSocket.emit('presence:visibility', { hidden: document.hidden });
+    refreshPushUi();
     // Uzivo prijavljen bag (mobilni korisnik, "svako malo ispadanje iz
     // sobe"): telefon ima nestabilnu vezu i/ili mobilni OS zna da potpuno
     // izbaci tab iz memorije u pozadini (ne samo prekine socket) — povratak
@@ -3030,6 +3032,7 @@ async function connectOnlineSocket() {
     }
     game.state = state;
     updateTurnClockFromState(state);
+    markTurnInTitle(state);
     syncHandHistoryFromServer(state.handsHistory);
     // Nova ruka je stvarno pocela (faza vise nije GAME_OVER) — status "ko je
     // sve kliknuo Deli" vazi SAMO za rundu koja je bas zavrsila, ocisti ga.
@@ -3486,7 +3489,70 @@ function renderWaitingStatus(code, lead) {
   return `<div class="waiting-code">${lead} <b>${code}</b></div>` +
     `<div class="waiting-share">${renderRoomShareRow(code)}</div>` +
     `<div class="waiting-note">Čeka se još igrača… Pozovi prijatelje ili ne čekaj:</div>` +
-    `<button class="mode-btn fill-bots-btn" onclick="fillWithBotsOnline()">🤖 Popuni računarom i počni</button>`;
+    `<button class="mode-btn fill-bots-btn" onclick="fillWithBotsOnline()">🤖 Popuni računarom i počni</button>` +
+    `<button class="link-btn notify-wait-btn" style="display:${pushState === 'off' ? '' : 'none'}" onclick="enablePlayerPush()">🔔 Javi mi na telefon kad sto bude pun</button>`;
+}
+
+// === ONLINE: obavestenja na telefon (korisnikov zahtev 2026-10-14) ===
+// "Tvoj potez", "neko je seo za tvoj sto", revans — server ih salje SAMO
+// kad igrac nije na stranici (javljamo mu kad stranica ode u pozadinu).
+// Isti zaseban service worker (/push-sw.js, scope /push/) kao admin panel,
+// da obavestenja nikad ne diraju sw.js (offline kes igre).
+const PUSH_SUPPORTED = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+let pushState = 'unknown'; // 'unsupported' | 'denied' | 'off' | 'on'
+const b64ToBytes = (s) => Uint8Array.from(atob((s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+const pushRegistration = () => navigator.serviceWorker.register('/push-sw.js', { scope: '/push/' });
+
+async function refreshPushUi() {
+  if (!PUSH_SUPPORTED) pushState = 'unsupported';
+  else if (Notification.permission === 'denied') pushState = 'denied';
+  else {
+    const reg = await navigator.serviceWorker.getRegistration('/push/').catch(() => null);
+    const sub = reg ? await reg.pushManager.getSubscription().catch(() => null) : null;
+    pushState = sub && Notification.permission === 'granted' ? 'on' : 'off';
+  }
+  const btn = $('notifyBtn');
+  if (btn) btn.style.display = pushState === 'off' ? '' : 'none';
+  document.querySelectorAll('.notify-wait-btn').forEach((b) => { b.style.display = pushState === 'off' ? '' : 'none'; });
+}
+
+async function enablePlayerPush() {
+  try {
+    if (await Notification.requestPermission() !== 'granted') {
+      showAppToast('Obaveštenja nisu dozvoljena u pregledaču.');
+      return refreshPushUi();
+    }
+    const auth = { Authorization: `Bearer ${onlineToken}` };
+    const { publicKey } = await fetch('/api/push', { headers: auth }).then((r) => r.json());
+    const reg = await pushRegistration();
+    // pretplata trazi aktivan worker — prvi put tek sto je instaliran
+    const sw = reg.installing || reg.waiting;
+    if (!reg.active && sw) await new Promise((res) => sw.addEventListener('statechange', () => { if (sw.state === 'activated') res(); }));
+    const sub = (await reg.pushManager.getSubscription())
+      || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(publicKey) });
+    const r = await fetch('/api/push/subscribe', {
+      method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub.toJSON() }),
+    });
+    if (!r.ok) throw new Error('server nije prihvatio pretplatu');
+    showAppToast('🔔 Obaveštenja uključena — javićemo ti kad si na potezu.');
+  } catch (e) {
+    showAppToast(`Obaveštenja nisu uspela: ${e.message}`);
+  }
+  refreshPushUi();
+}
+window.enablePlayerPush = enablePlayerPush;
+
+// Server mora da zna da li je igrac na stranici (obavestenja samo kad nije);
+// naslov kartice "🔔 Tvoj potez" dok je u pozadini.
+const BASE_TITLE = document.title;
+document.addEventListener('visibilitychange', () => {
+  onlineSocket?.emit('presence:visibility', { hidden: document.hidden });
+  if (!document.hidden) document.title = BASE_TITLE;
+});
+function markTurnInTitle(state) {
+  if (!document.hidden || mode !== 'online') return;
+  document.title = state.actorSeat !== null && state.actorSeat === mySeat ? '🔔 Tvoj potez — Preferans' : BASE_TITLE;
 }
 
 function fillWithBotsOnline() {

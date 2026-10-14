@@ -59,6 +59,9 @@ export interface RoomState {
   // Revans (korisnikov zahtev 2026-10-14): kod nove sobe koju je neko od
   // igraca ove (zavrsene) partije otvorio — ostali ulaze u nju jednim klikom.
   rematchCode: string | null;
+  // Za koju odluku (turnDecisionKey) je igracu vec poslato "tvoj potez" —
+  // isto stanje poslato ponovo ne salje ponovo obavestenje.
+  notifiedTurnKey: string | null;
   // Sprecava dupliranje setTimeout-a za automatski nastavak na sledecu ruku
   // — broadcastRoomState() se poziva mnogo puta dok je faza GAME_OVER
   // (svaki put kad neko npr. otvori chat), bez ovoga bi se zakazalo N
@@ -150,6 +153,7 @@ export function createRoomState(code: string, options: RoomOptions = {}): RoomSt
     turnDeadline: null,
     turnTotalMs: 0,
     rematchCode: null,
+    notifiedTurnKey: null,
     nextHandScheduled: false,
     nextHandTimeout: null,
     dealNextReady: new Set(),
