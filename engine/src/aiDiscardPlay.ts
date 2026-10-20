@@ -5,6 +5,7 @@ import { RANK_VALUE, RANKS } from './constants.js';
 import { isCardLegal } from './trick.js';
 import type { Card, Game, Suit, Position, ContraLevel } from './types.js';
 import { CARD_POINTS, sequentialRunFromAce } from './aiHandEval.js';
+import { sansDefenderLead, declarerLead } from './aiLeads.js';
 
 // === DISCARD STRATEGIJA ===
 //
@@ -109,19 +110,16 @@ export function choosePlayCard(args: {
   // Vodim prvi — igraj najslabiju kartu (dobro i za osvajanje kasnije i za
   // izbegavanje štiha sad)
   if (currentTrick.length === 0) {
-    // Konvencija izlaska pratioca protiv Sansa/Igra-Sansa (potvrđeno uzivo od
-    // korisnika i nezavisno preferansklub.com/strategija.htm): na PRVOM štihu
-    // cele ruke, pratilac (ne nosilac) izlazi iz Pika ako je data kontra,
-    // inace iz Trefa. Igra-Sans namerno ukljucen (ista no-trump porodica kao
-    // Sans) — ne suziti slucajno kasnije na samo 'Sans'.
+    const leadCtx = myPosition != null && declarer != null
+      ? { legal, hand, trump, myPosition, declarer, tricks }
+      : null;
+    // Pratilac protiv Sansa/Igra-Sansa: najduza boja, vrh niza, i nastavlja je
+    // (aiLeads.ts; zamenilo raniju konvenciju "prvi stih iz trefa, uz kontru iz
+    // pika" — korisnik je u partiji #10 otvarao svoju najduzu boju).
     const isSans = args.declaredGame === 'Sans' || args.declaredGame === 'Igra-Sans';
-    if (!isDeclarer && isSans && trickCount === 0) {
-      const conventionSuit: Suit = kontraLevel ? '♠' : '♣';
-      const suitCards = legal.filter(c => c.suit === conventionSuit);
-      if (suitCards.length > 0) {
-        return suitCards.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
-      }
-      // Nema tu boju — propadni na standardnu logiku ispod.
+    if (!isDeclarer && isSans && leadCtx) {
+      const lead = sansDefenderLead(leadCtx);
+      if (lead) return lead;
     }
     // Pratilac protiv adutske igre prvo NAPLACUJE sigurne visoke karte (as,
     // pa kralj kad je as vec pao...) u boji u kojoj nosilac jos nije pokazao
@@ -362,6 +360,12 @@ export function choosePlayCard(args: {
           return strongest;
         }
       }
+    }
+    // Nosilac (adutska igra) koji ne vuce adute: naplati najjace preostale
+    // karte umesto da najnizom daruje stih (aiLeads.ts, korisnik u partiji #10).
+    if (isDeclarer && trump && leadCtx) {
+      const lead = declarerLead(leadCtx);
+      if (lead) return lead;
     }
     const sorted = legal.slice().sort((a, b) => {
       // Van aduta prioritet (čuvaj adute)
