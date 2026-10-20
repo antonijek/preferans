@@ -414,7 +414,6 @@
   .trick-slot {
     position: absolute;
     background: transparent;
-    border: 2px solid transparent;
     border-radius: 8px;
     display: flex;
     align-items: center;
@@ -422,8 +421,10 @@
     width: 68px;
     height: 92px;
   }
-  .trick-slot.has-card { border-color: rgba(255,255,255,0.5); box-shadow: 0 2px 6px rgba(0,0,0,0.35); }
-  .trick-slot.led { background: rgba(76,175,80,0.3); }
+  /* Bez belog okvira i zelene podloge oko odigrane karte (korisnikov
+     zahtev 2026-10-20: 'bijeli okvir gde bi karta trebalo da padne,
+     nepotreban skroz') — karta je ionako pomerena/rotirana, pa je okvir
+     virio pored nje, a dok karta pada video se prazan. */
   /* Blaga nasumicna (ali stabilna, vidi cardRotationDeg/cardScatterX/Y u
      app.js) rotacija I POMERAJ odigrane karte — korisnikov zahtev,
      prirodniji izgled "bacanja" (ne uvek isto mesto/ugao). Kombinovano u
