@@ -4,29 +4,49 @@
 import { RANK_VALUE, RANKS } from './constants.js';
 import { isCardLegal } from './trick.js';
 import type { Card, Game, Suit, Position, ContraLevel } from './types.js';
-import { CARD_POINTS } from './aiHandEval.js';
+import { CARD_POINTS, sequentialRunFromAce } from './aiHandEval.js';
 
 // === DISCARD STRATEGIJA ===
 //
-// "Odbaci najslabije karte van aduta"
-// "Ako su dve iste boje van aduta, odbaci obe"
-// "Zadrži adute i visoke karte"
+// Analiza korisnikove partije #9 (2026-10-20): korisnik skoro uvek pravi
+// PRAZNU sporednu boju (baci singl ili dubl bez asa), pa kasnije sece;
+// staro pravilo je bacalo dve karte sa najmanje poena (sedmice) bez obzira
+// na boju, pa su ostajali singlovi-gubitnici. Sad se ocenjuje svaki par:
+// manje gubitnika u sporednim bojama (gledaju se prva 3 kruga), bonus za
+// praznu boju kad ostaju 4+ aduta, kec se ne baca.
+
+const DISCARD_SUITS: Suit[] = ['♠', '♥', '♦', '♣'];
+
+function discardScore(rest: Card[], out: [Card, Card], trump: Suit | null): number {
+  const trumpsLeft = trump ? rest.filter((c) => c.suit === trump).length : 0;
+  let score = 0;
+  for (const suit of DISCARD_SUITS) {
+    if (suit === trump) continue;
+    const len = rest.filter((c) => c.suit === suit).length;
+    const winners = sequentialRunFromAce(rest, suit);
+    score -= Math.max(0, Math.min(len, 3) - winners);
+    const hadSuit = out.some((c) => c.suit === suit);
+    if (len === 0 && hadSuit && trumpsLeft >= 4) score += 1;
+  }
+  for (const c of out) if (c.rank === 'A') score -= 5;
+  // izjednaceno: baci nize karte
+  return score - (RANK_VALUE[out[0].rank] + RANK_VALUE[out[1].rank]) * 0.01;
+}
 
 export function chooseDiscard(hand: Card[], trump: Suit | null): [Card, Card] {
-  const sorted = hand.slice().sort((a, b) => {
-    // Aduti uvek na kraju (lošije za discard)
-    if (trump) {
-      if (a.suit === trump && b.suit !== trump) return 1;
-      if (b.suit === trump && a.suit !== trump) return -1;
+  const side = hand.filter((c) => c.suit !== trump);
+  const pool = side.length >= 2 ? side : hand;
+  let best: [Card, Card] = [pool[0]!, pool[1]!];
+  let bestScore = -Infinity;
+  for (let i = 0; i < pool.length; i++) {
+    for (let j = i + 1; j < pool.length; j++) {
+      const out: [Card, Card] = [pool[i]!, pool[j]!];
+      const rest = hand.filter((c) => c !== out[0] && c !== out[1]);
+      const score = discardScore(rest, out, trump);
+      if (score > bestScore) { bestScore = score; best = out; }
     }
-    // Najpre najslabije (manje bodova = slabije)
-    const pa = CARD_POINTS[a.rank] ?? 0;
-    const pb = CARD_POINTS[b.rank] ?? 0;
-    if (pa !== pb) return pa - pb;
-    // Pa po broju karata u boji — kraće boje odbacuj pre
-    return RANK_VALUE[a.rank] - RANK_VALUE[b.rank];
-  });
-  return [sorted[0]!, sorted[1]!];
+  }
+  return best;
 }
 
 // === PLAY CARD STRATEGIJA ===
@@ -102,6 +122,39 @@ export function choosePlayCard(args: {
         return suitCards.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
       }
       // Nema tu boju — propadni na standardnu logiku ispod.
+    }
+    // Pratilac protiv adutske igre prvo NAPLACUJE sigurne visoke karte (as,
+    // pa kralj kad je as vec pao...) u boji u kojoj nosilac jos nije pokazao
+    // da je prazan. Analiza korisnikove partije #9 (2026-10-20): korisnik je
+    // kao pratilac redovno prvo igrao A pik (A,K,10,9 / A,J / A,J,8,7 /
+    // A,K,D,7), a pravila su vodila najnizu kartu; simulacija (pretraga) se
+    // slagala sa korisnikom — kad nosilac izvuce adute, gubitnike u toj boji
+    // ionako odbaci ili isece.
+    if (!isDeclarer && trump && declarer != null) {
+      const seen = new Set<string>(hand.map(c => c.id));
+      const declarerVoid = new Set<Suit>();
+      for (const trick of tricks) {
+        for (const tc of trick) seen.add(tc.card.id);
+        const ledSuit = trick[0]?.card.suit;
+        const declarerPlay = trick.find(tc => tc.player === declarer);
+        if (ledSuit && declarerPlay && declarerPlay.card.suit !== ledSuit) declarerVoid.add(ledSuit);
+      }
+      let cash: Card[] | null = null;
+      let cashRun = 0;
+      for (const suit of ['♠', '♥', '♦', '♣'] as Suit[]) {
+        if (suit === trump || declarerVoid.has(suit)) continue;
+        const mine = legal.filter(c => c.suit === suit).sort((a, b) => RANK_VALUE[b.rank] - RANK_VALUE[a.rank]);
+        const unseen = RANKS.filter(r => !seen.has(`${r}${suit}`));
+        // niko drugi vise nema tu boju — nosilac bi je presekao
+        if (mine.length === 0 || unseen.length === 0) continue;
+        const topUnseen = Math.max(...unseen.map(r => RANK_VALUE[r]));
+        const run = mine.filter(c => RANK_VALUE[c.rank] > topUnseen).length;
+        if (run > cashRun || (run === cashRun && run > 0 && mine.length < cash!.length)) {
+          cash = mine;
+          cashRun = run;
+        }
+      }
+      if (cash && cashRun > 0) return cash[0]!;
     }
     // Napad na adute nosioca (korisnikova ispravka uzivo, 2026-09-20, iz
     // analize stvarne partije — runda 13, Edge vodi Pik dva puta zaredom
@@ -187,8 +240,15 @@ export function choosePlayCard(args: {
       const hasAllFourHonors = (['A', 'K', 'Q', 'J'] as const).every(r =>
         originalTrumps.some(c => c.rank === r)
       );
+      // Prosireno 2026-10-20 (analiza korisnikove partije #9 — korisnik je
+      // vukao adute i sa A,K,D,9 / A,K,D,10 / K,D,10,8): i 4 aduta sa bar dva
+      // honora, i 5+ bez asa sa bar dva honora ("pet sitnih" i dalje ne).
+      // Prvi krug ide uvek; dalje vazi isto zaustavljanje kao gore. Proba
+      // protiv starog AI-ja (40.000 deljenja): oko 4,5 poena po ruci bolje.
+      const honorCount = (['A', 'K', 'Q', 'J'] as const).filter(r => originalTrumps.some(c => c.rank === r)).length;
+      const extendedDraw = honorCount >= 2 && (originalTrumps.length === 4 || (originalTrumps.length >= 5 && !hasAce));
       const qualifies =
-        (originalTrumps.length >= 5 && hasAce) || (originalTrumps.length === 4 && hasAllFourHonors);
+        (originalTrumps.length >= 5 && hasAce) || (originalTrumps.length === 4 && hasAllFourHonors) || extendedDraw;
       if (qualifies) {
         // Zaustavljanje (korisnikova ispravka uzivo, 2026-09-19): NE stajem
         // kad pratilac pokaze void (to je bezopasno, taj pratilac vise
@@ -204,7 +264,8 @@ export function choosePlayCard(args: {
           return count + theirs.length;
         }, 0);
         const undiscoveredDefenderTrumps = RANKS.length - originalTrumps.length - trumpsPlayedByDefenders;
-        if (undiscoveredDefenderTrumps < myTrumpsNow.length && myTrumpsNow.length > 0) {
+        const firstRoundOfExtended = extendedDraw && trumpsIPlayedBefore.length === 0;
+        if ((undiscoveredDefenderTrumps < myTrumpsNow.length || firstRoundOfExtended) && myTrumpsNow.length > 0) {
           return myTrumpsNow.slice().sort((a, b) => RANK_VALUE[b.rank] - RANK_VALUE[a.rank])[0]!;
         }
         // Adut je iscrpljen u mojoj ruci, ili bi neki pratilac mogao da
@@ -240,7 +301,11 @@ export function choosePlayCard(args: {
     // u no-trump igri dugacka boja na kraju nosi dodatne stihove kad se
     // protivnicke karte u njoj istrose, usamljena casna karta u kratkoj
     // boji samo gubi od prve vise karte koju drzi neko od pratilaca.
-    if (isDeclarer && !trump) {
+    // Betl je takodje bez aduta, ali cilj je OBRNUT (ne uzeti stih) — ova
+    // grana bi vodila NAJVISOM kartom najduze boje (npr. As herc u Betlu;
+    // nadjeno 2026-10-20 u analizi korisnikove partije #9). Betl ide na
+    // "najslabija karta" fallback ispod.
+    if (isDeclarer && !trump && !avoidTricks) {
       const bySuit = new Map<Suit, Card[]>();
       for (const c of legal) {
         if (!bySuit.has(c.suit)) bySuit.set(c.suit, []);

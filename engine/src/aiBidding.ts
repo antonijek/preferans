@@ -75,7 +75,10 @@ export function chooseDeclareGame(hand: Card[], contractValue: number, games: re
     } else {
       score = countDeclarerTricks(hand, SUIT_FOR_GAME[g] ?? null);
     }
-    if (score > bestScore) {
+    // Izjednaceno: vrednija igra (korisnik u partiji #9, 2026-10-20: Herc pre
+    // Kara, Tref pre Kara kod iste procene) — isti rizik, vise bula. Ranije
+    // je pobedjivala prva u nizu, tj. NAJNIZA. Proba: ~0,3 poena po ruci bolje.
+    if (score > bestScore || (score === bestScore && best !== null && GAME_VALUES[g] > GAME_VALUES[best])) {
       bestScore = score;
       best = g;
     }

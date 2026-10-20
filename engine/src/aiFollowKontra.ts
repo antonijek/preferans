@@ -3,7 +3,9 @@
 
 import { RANK_VALUE, SUITS } from './constants.js';
 import type { Card, Game, Suit, Position, ContraLevel } from './types.js';
-import { trumpOnlySafeTricks, countSafeTricks, getTrumpSuitFromGame, sequentialRunFromAce } from './aiHandEval.js';
+import {
+  trumpOnlySafeTricks, countSafeTricks, getTrumpSuitFromGame, sequentialRunFromAce, countDeclarerTricks, countSansTricks,
+} from './aiHandEval.js';
 
 // === FOLLOW STRATEGIJA (Dodjem / Ne dodjem) ===
 //
@@ -68,6 +70,8 @@ export interface KontraContext {
   // kontre — praćenje je vec zavrseno). Podrazumevano true (stari pozivi
   // bez ovog polja zadrzavaju staro ponasanje) — vidi ispravku ispod.
   partnerCame?: boolean;
+  // Odlucuje NOSILAC (rekontra/mortkontra), ne pratilac. Vidi ispravku ispod.
+  isDeclarer?: boolean;
 }
 
 // ISPRAVKA (2026-10-03, uzivo prijavljeno + potvrdjeno rezultatom — nosilac
@@ -80,6 +84,16 @@ export interface KontraContext {
 // (bez casnih karata) vise nije dovoljna — podigni prag: ili 5+ aduta, ili
 // 4+ aduta ALI sa bar 2 casne (isti kvalitetni prag kao grana za 3 aduta).
 export function chooseKontra(ctx: KontraContext): KontraAction {
+  // Uzivo prijavljen bag (2026-10-20, analiza korisnikove partije #9, ruka
+  // 5): nosilac je o rekontri/mortkontri odlucivao po pravilu za PRATIOCA
+  // ("4+ aduta = kontra") — nosilac skoro uvek ima 4+ aduta, pa je podizao
+  // SVAKU kontru (Milan: A,K,10,8 karo, rekontra pa mortkontra, pao). Kontras
+  // je upravo objavio da drzi adute; nosilac podize samo sa viskom: rekontra
+  // sa 7+ sigurnih stihova (potrebno 6), mortkontra posle subkontre sa 8+.
+  if (ctx.isDeclarer) {
+    const sure = ctx.trump === null ? countSansTricks(ctx.hand) : countDeclarerTricks(ctx.hand, ctx.trump);
+    return sure >= (ctx.currentLevel >= 3 ? 8 : 7) ? 'KONTRA' : 'MOZE';
+  }
   if (ctx.trump === null) return 'MOZE';
   const trumps = ctx.hand.filter(c => c.suit === ctx.trump);
   const highTrumps = trumps.filter(c => RANK_VALUE[c.rank] >= 4).length;

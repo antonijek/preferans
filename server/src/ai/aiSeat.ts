@@ -150,9 +150,18 @@ export function computeAiAction(game: Game, seat: Position): GameAction | null {
         ({ KONTRA: 1, REKONTRA: 2, SUBKONTRA: 3, MORTKONTRA: 4 } as Record<string, number>)[
           s.kontraLevel ?? ''
         ] ?? 0;
+      // partnerCame: ispravka za pratioca od 2026-10-03 ovde nikad nije stigla;
+      // isDeclarer: nosilac odlucuje o rekontri/mortkontri po svom pravilu
+      const partner = ([0, 1, 2] as Position[]).find((p) => p !== seat && p !== s.winner)!;
       const willKontra =
         s.kontraLevel !== 'MORTKONTRA' &&
-        chooseKontra({ hand: hand as never, trump: s.trump as never, currentLevel: levelNum }) === 'KONTRA';
+        chooseKontra({
+          hand: hand as never,
+          trump: s.trump as never,
+          currentLevel: levelNum,
+          partnerCame: s.followChoices[partner] === 'DODJEM',
+          isDeclarer: seat === s.winner,
+        }) === 'KONTRA';
       if (willKontra) {
         const nextLevel = KONTRA_NEXT[s.kontraLevel ?? 'NONE']!;
         return { type: 'kontra', player: seat, level: nextLevel };

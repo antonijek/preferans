@@ -483,7 +483,7 @@ export function searchChooseAction(
     const kontraPartner = ([0, 1, 2] as Position[]).find((p) => p !== seat && p !== state.winner)!;
     const partnerCame = state.followChoices[kontraPartner] === 'DODJEM';
     const heuristicSaysKontra =
-      chooseKontra({ hand, trump: state.trump, currentLevel: levelNum, partnerCame }) === 'KONTRA';
+      chooseKontra({ hand, trump: state.trump, currentLevel: levelNum, partnerCame, isDeclarer: seat === state.winner }) === 'KONTRA';
     if (!heuristicSaysKontra) {
       const filtered = candidates.filter((a) => a.type !== 'kontra');
       if (filtered.length > 0) candidates = filtered;

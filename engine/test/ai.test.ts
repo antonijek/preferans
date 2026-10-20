@@ -153,7 +153,7 @@ test('ai: chooseBidAction — ne biduje niže od currentBid', () => {
   }
 });
 
-test('ai: chooseDiscard — odbacuje najslabije van aduta', () => {
+test('ai: chooseDiscard — pravi praznu boju (oba slaba karoa) kad ostaju 4 aduta', () => {
   const hand = makeHand([
     ['A', '♠'], ['K', '♠'], ['Q', '♠'], ['J', '♠'], // 4 pika (adut)
     ['A', '♥'], ['K', '♥'],
@@ -161,10 +161,37 @@ test('ai: chooseDiscard — odbacuje najslabije van aduta', () => {
     ['9', '♣'], ['7', '♣'], // Slabe tref
   ]);
   const [c1, c2] = chooseDiscard(hand, '♠');
-  // Trebalo bi da odbaci 7 karo i 7 tref (najslabije van aduta)
+  // Od 2026-10-20 (korisnikova partija #9): prazna sporedna boja pre nego dve
+  // najnize karte iz razlicitih boja — kasnije se karo sece adutom.
   const ids = new Set([c1.id, c2.id]);
-  assert.ok(ids.has('7♦'), `Mora da sadrži 7♦ (odbacuje: ${c1.id}, ${c2.id})`);
-  assert.ok(ids.has('7♣'), `Mora da sadrži 7♣ (odbacuje: ${c1.id}, ${c2.id})`);
+  assert.ok(ids.has('7♦') && ids.has('8♦'), `Mora da baci 7♦ i 8♦ (odbacuje: ${c1.id}, ${c2.id})`);
+});
+
+test('ai: chooseDiscard — ne baca keca ni kad bi time napravio praznu boju', () => {
+  const hand = makeHand([
+    ['A', '♠'], ['K', '♠'], ['Q', '♠'], ['9', '♠'], ['8', '♠'],
+    ['A', '♥'], ['10', '♥'], ['9', '♥'], ['8', '♥'],
+    ['A', '♦'], ['K', '♣'], ['7', '♣'],
+  ]);
+  const [c1, c2] = chooseDiscard(hand, '♠');
+  assert.ok(c1.rank !== 'A' && c2.rank !== 'A', `Ne baca keca: ${c1.id}, ${c2.id}`);
+});
+
+test('ai: chooseDiscard — skart kao korisnik u partiji #9 (ruke 18 i 45)', () => {
+  // ruka 18, Karo: A,J,7 tref, A,8,7 herc, J pik, A,K,9,8,7 karo → J pik + jedna mala (prazan pik)
+  const r18 = makeHand([
+    ['A', '♣'], ['J', '♣'], ['7', '♣'], ['A', '♥'], ['8', '♥'], ['7', '♥'], ['J', '♠'],
+    ['A', '♦'], ['K', '♦'], ['9', '♦'], ['8', '♦'], ['7', '♦'],
+  ]);
+  const d18 = chooseDiscard(r18, '♦').map((c) => c.id);
+  assert.ok(d18.includes('J♠'), `ruka 18 baca J♠: ${d18}`);
+  // ruka 45, Herc: A,D,10 tref, K,D,10,8 herc, 10 pik, A,D,10,8 karo → 10 pik i 10 tref (korisnik)
+  const r45 = makeHand([
+    ['A', '♣'], ['Q', '♣'], ['10', '♣'], ['K', '♥'], ['Q', '♥'], ['10', '♥'], ['8', '♥'], ['10', '♠'],
+    ['A', '♦'], ['Q', '♦'], ['10', '♦'], ['8', '♦'],
+  ]);
+  const d45 = chooseDiscard(r45, '♥').map((c) => c.id).sort();
+  assert.deepEqual(d45, ['10♠', '10♣'].sort());
 });
 
 test('ai: chooseDiscard — čuva adute', () => {

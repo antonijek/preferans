@@ -1833,7 +1833,11 @@ function renderKontra() {
     const aiNeDodjemCount = aiFollowers.filter((p) => s.followChoices[p] === 'NE_DODJEM').length;
     const aiSoloNoCall = s.kontraLevel === null && s.caller === null && aiNeDodjemCount === 1 && s.followChoices[expected] === 'DODJEM';
     const willKontra = !aiSoloNoCall && s.kontraLevel !== 'MORTKONTRA' &&
-      aiChooseKontra({ hand, trump: s.trump, currentLevel: levelNum }) === 'KONTRA';
+      aiChooseKontra({
+        hand, trump: s.trump, currentLevel: levelNum,
+        partnerCame: s.followChoices[[0, 1, 2].find((p) => p !== expected && p !== s.winner)] === 'DODJEM',
+        isDeclarer: expected === s.winner,
+      }) === 'KONTRA';
     const gen = handGeneration;
     setTimeout(() => {
       if (gen !== handGeneration || game.state.phase !== 'KONTRA_DECLARING' || game.expectedKontraPlayerPublic() !== expected) return;
