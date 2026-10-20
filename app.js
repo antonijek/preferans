@@ -1532,7 +1532,13 @@ function renderDeclaring() {
     const log = $('bidLog');
     // Korisnikov zahtev: objasnjenje pravila u zagradi je nepotrebno ("ljudi
     // koji igraju preferans to znaju") — ukloniti SVA slicna objasnjenja.
-    log.innerHTML = `<span class="bid-entry p${player}"><strong>${POS_LABELS[player]}</strong> proglašava igru</span>`;
+    // Korisnik 2026-10-20: "ne vidi se koja je igra prvog ako dvojica kazu
+    // igra" — prikazi vec proglasene igre pre nego sto sledeci bira svoju.
+    const declared = (s.igraCompetitors ?? [])
+      .filter((p) => s.igraDeclarations?.[p])
+      .map((p) => `<span class="bid-entry p${p}"><strong>${POS_LABELS[p]}</strong>: ${s.igraDeclarations[p].replace('-', ' ')}</span>`)
+      .join('');
+    log.innerHTML = `${declared}<span class="bid-entry p${player}"><strong>${POS_LABELS[player]}</strong> proglašava igru</span>`;
 
     if (!isHuman(player) && mode === 'online') {
       ctrl.appendChild(el('div', 'section-label', `Čeka se ${seatDisplayName(player)} (proglašava Igru)...`));

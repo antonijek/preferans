@@ -214,6 +214,11 @@ export function countDeclarerTricks(hand: Card[], trump: Suit | null): number {
 // ne za odigravanje... ovdje imas samo 2, dakle obavezno dalje").
 const MIN_TRICKS_TO_BID = 5;
 
+// Korisnik 2026-10-20: "Sans ne moze da se igra ni bez jedne boje".
+export function hasVoidSuit(hand: Card[]): boolean {
+  return SUITS.some((s) => !hand.some((c) => c.suit === s));
+}
+
 export function estimatedMaxLevel(hand: Card[]): number {
   const evalRes = evaluateHand(hand);
   let maxLevel = 0;
@@ -226,7 +231,7 @@ export function estimatedMaxLevel(hand: Card[]): number {
       maxLevel = Math.max(maxLevel, GAME_VALUES[SUIT_GAME[s.suit]]);
     }
   }
-  if (countSansTricks(hand) >= MIN_TRICKS_TO_BID) {
+  if (!hasVoidSuit(hand) && countSansTricks(hand) >= MIN_TRICKS_TO_BID) {
     maxLevel = Math.max(maxLevel, GAME_VALUES['Sans']);
   }
   if (isBetlSafe(hand)) {
@@ -243,7 +248,7 @@ export function isIgraWorthy(hand: Card[]): boolean {
   for (const s of SUITS) {
     if (countDeclarerTricks(hand, s) >= 6) return true;
   }
-  return countSansTricks(hand) >= 6;
+  return !hasVoidSuit(hand) && countSansTricks(hand) >= 6;
 }
 
 // Betl (RULES 8 — cilj je NE uzeti nijedan stih, suprotno od svega ostalog

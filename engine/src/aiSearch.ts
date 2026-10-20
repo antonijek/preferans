@@ -552,6 +552,37 @@ export function searchChooseAction(
   }
   const DECLARE_HEURISTIC_BONUS = 3;
 
+  // Partija #10 (2026-10-20, korisnik: "sans katastrofa igraju"): SVIH 19
+  // Sans/Igra-Sans racunara je izabrala pretraga, pravila ni jedan — u
+  // simulaciji se pratioci (pravila) u Sansu lose brane, pa Sans izgleda
+  // isplativo; protiv coveka su pali 9 puta. Sans samo kad ga i pravila
+  // biraju (a pravila ga ne biraju sa praznom bojom, vidi chooseDeclareGame).
+  if (state.phase === 'DECLARING' && declareHeuristicPick !== 'Sans' && declareHeuristicPick !== 'Igra-Sans') {
+    const noSans = candidates.filter((a) => a.type !== 'declare' || (a.game !== 'Sans' && a.game !== 'Igra-Sans'));
+    if (noSans.length > 0) candidates = noSans;
+  }
+  // Ista partija, igranje pratioca: pretraga je 19 puta odbacila asa/kralja
+  // kad nije imala trazenu boju i 8 puta vodila adut kroz partnera — pravila
+  // nijednom (pravila nikad ne bacaju A/K dok ima nize karte i ne vode adut).
+  if (state.phase === 'PLAYING' && seat !== state.winner) {
+    const hand = state.players[seat]!.hand;
+    const cardOf = (a: LegalAction) => (a.type === 'playCard' ? hand.find((c) => c.id === a.cardId) : undefined);
+    const plays = candidates.filter((a) => a.type === 'playCard');
+    if (state.currentTrick.length === 0 && state.trump) {
+      const nonTrump = plays.filter((a) => cardOf(a)?.suit !== state.trump);
+      if (nonTrump.length > 0) candidates = nonTrump;
+    } else if (state.currentTrick.length > 0) {
+      const led = state.currentTrick[0]!.card.suit;
+      if (!plays.some((a) => cardOf(a)?.suit === led)) {
+        const keepHonours = plays.filter((a) => {
+          const c = cardOf(a);
+          return !!c && (c.suit === state.trump || (c.rank !== 'A' && c.rank !== 'K'));
+        });
+        if (keepHonours.length > 0) candidates = keepHonours;
+      }
+    }
+  }
+
   if (candidates.length === 1) return candidates[0]!;
 
   let best = candidates[0]!;

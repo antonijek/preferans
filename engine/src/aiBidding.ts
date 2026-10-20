@@ -10,6 +10,7 @@ import {
   isBetlSafe,
   countSansTricks,
   countDeclarerTricks,
+  hasVoidSuit,
 } from './aiHandEval.js';
 
 // === BIDDING STRATEGIJA ===
@@ -71,6 +72,9 @@ export function chooseDeclareGame(hand: Card[], contractValue: number, games: re
     if (g === 'Betl' || g === 'Igra-Betl') {
       score = isBetlSafe(hand) ? 100 : -100; // sve-ili-nista, ne "broj stihova"
     } else if (g === 'Sans' || g === 'Igra-Sans') {
+      // Korisnik 2026-10-20: "ne moze da se igra ni bez jedne [boje]" — Sans
+      // nikad sa praznom bojom (racunari su ga igrali i bez dve, i padali).
+      if (hasVoidSuit(hand)) continue;
       score = countSansTricks(hand);
     } else {
       score = countDeclarerTricks(hand, SUIT_FOR_GAME[g] ?? null);
