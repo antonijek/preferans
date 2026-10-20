@@ -23,9 +23,13 @@ function dialogEl() {
   return dlg;
 }
 
-/** Pitanje sa U redu/Otkaži. Vraca true samo za U redu (Esc i Otkaži = false). cancel: null = bez Otkaži. */
-export function askConfirm({ title, text = '', ok = 'U redu', cancel = 'Otkaži', danger = false, extra = null }) {
+/**
+ * Pitanje sa U redu/Otkaži. Vraca true samo za U redu (Esc i Otkaži = false). cancel: null = bez Otkaži.
+ * escapable: false = Esc ne zatvara (odluka je obavezna).
+ */
+export function askConfirm({ title, text = '', ok = 'U redu', cancel = 'Otkaži', danger = false, extra = null, escapable = true }) {
   const d = dialogEl();
+  d.oncancel = (e) => { if (!escapable) e.preventDefault(); };
   d.querySelector('#appDialogTitle').textContent = title;
   d.querySelector('#appDialogText').textContent = text;
   d.querySelector('#appDialogExtra').replaceChildren(...(extra ? [extra] : []));

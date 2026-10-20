@@ -85,6 +85,17 @@ export function registerSocketHandlers(io: Server): void {
     socket.data.name = user?.name || user?.email || `player-${userId}`;
     console.log(`Socket ${socket.id} authenticated as user ${userId} (${socket.data.name})`);
     wrapSocketErrors(socket);
+    // Jedan uredjaj u isto vreme (po uzoru na Loru, 2026-10-20): stariji tab
+    // ili telefon bi ostao sa zastarelim stolom (stanje ide samo poslednjoj
+    // vezi), a potezi sa njega bi i dalje vazili za isto mesto. Stariji dobija
+    // poruku i prekida se; tamo moze da klikne "Igraj ovde" (session-replaced.js).
+    for (const sid of getSocketIdsForUser(userId)) {
+      const old = io.sockets.sockets.get(sid);
+      if (old && old.id !== socket.id) {
+        old.emit('session:replaced');
+        old.disconnect(true);
+      }
+    }
     markOnline(socket.id, userId, socket.data.name);
     // Push obaveštenje adminu kad je igrač sam online (korisnikov zahtev
     // 2026-10-12, vidi push.ts) — adminova SOPSTVENA konekcija ne okida

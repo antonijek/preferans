@@ -26,6 +26,7 @@ const SHELL_FILES = [
   '/league.css',
   '/dialog.js',
   '/dialog.css',
+  '/session-replaced.js',
   '/manifest.json',
   '/icon.svg',
   '/icons/icon-192.png',

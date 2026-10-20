@@ -18,6 +18,7 @@ import { sfx } from './sfx.js';
 import { $, el, escapeHtml, IS_PHONE_UA } from './dom.js';
 import { initLeagueUi, goToLeagues, consumeLeagueLink, wantedLeagueCode } from './league-ui.js';
 import { copyLink } from './dialog.js';
+import { watchSessionReplaced } from './session-replaced.js';
 
 // Feature-flag za search-bazirani AI (Monte Carlo determinizacija, vidi
 // plan "toasty-rolling-sparkle") — localStorage prekidac radi trenutnog
@@ -2875,6 +2876,7 @@ async function connectOnlineSocket() {
   mySeat = null;
   game = createOnlineGameProxy(onlineSocket = io('/', { auth: { token: onlineToken } }));
   window.game = game; // F12 debug (createGame() radi ovo za lokalni mod, ovde je isti obicaj)
+  watchSessionReplaced(onlineSocket, connectOnlineSocket);
 
   // Uzivo prijavljen bag (mobilni korisnik, "stalno greska veze"):
   // socket.io SAM pokusava reconnect posle svakog ispada, ali 'connect_error'
