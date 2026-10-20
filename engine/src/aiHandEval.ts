@@ -389,10 +389,14 @@ export function countSafeTricks(hand: Card[], trump: Suit | null): number {
   // potvrdjeno 2026-09-06: "K i jos jedna je stih ako si pratilac", "kad ima
   // pratilac drugog K [tj. jos jednu kartu uz K], tu se racuna stih").
   // Potpuno go Kralj (duzina 1, bez ijedne prateце karte) i dalje NE racuna.
+  // Korisnik 2026-10-20 (partija #10, ruke 17 i 83 — Bora dosao sa K,7 i
+  // K,9,7 i uzeo 1 odnosno 0): "ne bih dosao — ako [nosilac] nema jednu od te
+  // 2 boje onda [kralj] sigurno pada". Kralj sa malim kartama vise NIJE
+  // siguran stih; racuna se samo uz asa iste boje (A,K).
   const offKings = hand.filter((c) => {
     if (c.rank !== 'K' || c.suit === trump) return false;
     const len = offSuitLengths.get(c.suit) ?? 0;
-    return len >= 2 && len <= 3;
+    return len >= 2 && len <= 3 && hand.some((x) => x.suit === c.suit && (x.rank === 'A' || x.rank === 'Q'));
   }).length;
 
   safe += offAces; // svaki as van aduta je siguran

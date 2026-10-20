@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { Game } from '../src/game.ts';
 import { searchChooseAction } from '../src/aiSearch.ts';
 import { chooseDeclareGame } from '../src/aiBidding.ts';
+import { chooseFollow } from '../src/aiFollowKontra.ts';
 import type { Card, Position } from '../src/types.ts';
 
 const hand = (s: string): Card[] => s.split(' ').map((x) => ({ id: x, rank: x.slice(0, -1), suit: x.slice(-1) } as Card));
@@ -67,4 +68,16 @@ test('pretraga: pratilac na potezu ne vodi adut kad ima drugu boju', () => {
     const id = a.type === 'playCard' ? a.cardId : '';
     assert.ok(!id.endsWith('♥'), `vodi ${id}`);
   }
+});
+
+
+test('pratnja: kralj sa malim kartama nije stih (korisnik: ruke 17 i 83 — ne bih dosao)', () => {
+  assert.equal(chooseFollow({ hand: hand('K♣ 7♣ 10♥ 9♥ 8♥ Q♠ J♠ 9♠ K♦ 7♦'), declaredGame: 'Herc' }), 'NE_DODJEM');
+  assert.equal(chooseFollow({ hand: hand('K♣ 9♣ 7♣ 7♥ Q♠ 10♠ 8♠ 7♠ K♦ 7♦'), declaredGame: 'Herc' }), 'NE_DODJEM');
+  // A,K iste boje i dalje vredi
+  assert.equal(chooseFollow({ hand: hand('A♠ K♠ 9♠ 7♣ 8♣ 9♦ 8♦ 7♦ J♣ 10♣'), declaredGame: 'Herc' }), 'DODJEM');
+});
+
+test('pratnja protiv Sansa: K,D i K,D,10,9 u dve boje = dolazim (korisnik, ruka 21)', () => {
+  assert.equal(chooseFollow({ hand: hand('J♣ K♥ Q♥ K♠ Q♠ 10♠ 9♠ K♦ J♦ 8♦'), declaredGame: 'Sans' }), 'DODJEM');
 });

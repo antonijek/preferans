@@ -44,7 +44,7 @@ export function chooseFollow(ctx: FollowContext): FollowAction {
     // prosto izbegava tu boju dok se ne isprazni kod pratioca, ostatak
     // ruke prolazi neometano. Treba sirina — sigurni stihovi rasprostranjeni
     // kroz BAR 2 razlicite boje, ne samo ukupan broj.
-    const suitTricks = SUITS.map(s => sequentialRunFromAce(ctx.hand, s));
+    const suitTricks = SUITS.map(s => sansDefenderTricks(ctx.hand, s));
     const total = suitTricks.reduce((sum, n) => sum + n, 0);
     const suitsWithTricks = suitTricks.filter(n => n > 0).length;
     return total >= 2 && suitsWithTricks >= 2 ? 'DODJEM' : 'NE_DODJEM';
@@ -52,6 +52,18 @@ export function chooseFollow(ctx: FollowContext): FollowAction {
   const safe = countSafeTricks(ctx.hand, trump);
   // Dodji ako ima najmanje 2 sigurna stiha
   return safe >= 2 ? 'DODJEM' : 'NE_DODJEM';
+}
+
+// Pratilac protiv Sansa: niz od asa (A, A,K...) kao ranije, a bez asa i
+// K,D (=1, sa J =2) ili D,J,10 (=1) — kad as izadje, ostatak niza nosi.
+// Korisnik u partiji #10 dolazio sa K,D,10 / K,D,J,10,7 / K,D i rusio Sans.
+function sansDefenderTricks(hand: Card[], suit: Suit): number {
+  const fromAce = sequentialRunFromAce(hand, suit);
+  if (fromAce > 0) return fromAce;
+  const has = (r: string) => hand.some(c => c.suit === suit && c.rank === r);
+  if (has('K') && has('Q')) return has('J') ? 2 : 1;
+  if (has('Q') && has('J') && has('10')) return 1;
+  return 0;
 }
 
 // === KONTRA STRATEGIJA ===
