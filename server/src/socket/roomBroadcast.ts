@@ -11,6 +11,7 @@ import { CHAT_LOG_LIMIT } from '../rooms/RoomState.js';
 import { persistRoom } from '../rooms/RoomManager.js';
 import { notifyUser } from '../push.js';
 import { countsForLeague, MIN_HANDS_FOR_EARLY_END } from '../leagueStandings.js';
+import { initialHands } from '../handRecord.js';
 
 // A couple of small values (whose turn it is to kontra, which of MY OWN
 // cards are currently legal to play) require private engine logic
@@ -69,7 +70,9 @@ export function buildClientState(room: RoomState, viewer: Viewer) {
     // iako je server (room.handsHistory, koristi se i za match_log) sve
     // vreme imao kompletne podatke. Klijent ovo koristi da obnovi
     // handHistory kad primeti da mu fali.
-    handsHistory: room.handsHistory,
+    // bez pocetnih ruku/licitacije/skarta — klijentu ne trebaju, a ovo ide
+    // uz SVAKO stanje (te podatke cita samo pregled partije, iz match_log)
+    handsHistory: room.handsHistory.map(({ hands, bids, discard, ...h }) => h),
   };
 }
 
@@ -99,7 +102,11 @@ export function broadcastRoomState(room: RoomState): void {
   // na kraju SVAKE ruke (pre nego sto newHand() resetuje). Guard na
   // handSnapshotTaken da spreci dupli push ako se broadcastRoomState
   // pozove vise puta dok je GAME_OVER (game:viewCards, chat, itd).
-  if (room.game.state.phase === 'GAME_OVER' && !room.handSnapshotTaken) {
+  // Ruka kojom partija prirodno zavrsava ide pravo u MATCH_OVER (bez
+  // GAME_OVER) — i nju treba snimiti, inace poslednja ruka fali u istoriji.
+  const s = room.game.state;
+  const handJustEnded = s.phase === 'GAME_OVER' || (s.phase === 'MATCH_OVER' && s.matchEndReason === 'natural');
+  if (handJustEnded && !room.handSnapshotTaken) {
     room.handSnapshotTaken = true;
     room.handsHistory.push(captureHandSnapshot(room));
   }
@@ -157,6 +164,10 @@ function captureHandSnapshot(room: RoomState): HandSnapshot {
       suit: c.suit,
       rank: c.rank,
     })),
+    dealer: s.dealer,
+    bids: s.bids.map((b) => ({ ...b })),
+    hands: initialHands(s),
+    discard: s.discard.map((c) => ({ suit: c.suit, rank: c.rank })),
   };
 }
 

@@ -127,6 +127,12 @@ export interface HandSnapshot {
   tricksWon: [number, number, number];
   // Seed i talon — za rekonstrukciju deljenja
   talon: Array<{ suit: string; rank: string }>;
+  // Pregled partije (2026-10-20, handRecord.ts) — stariji zapisi ovo nemaju:
+  // delilac, cela licitacija, pocetne ruke sve trojice i skart nosioca.
+  dealer?: Position;
+  bids?: Array<{ player: Position; type: string; value?: number }>;
+  hands?: Array<Array<{ suit: string; rank: string }>>;
+  discard?: Array<{ suit: string; rank: string }>;
 }
 
 export interface RoomOptions {
