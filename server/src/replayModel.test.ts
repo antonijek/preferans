@@ -63,3 +63,12 @@ test('kad jedan branilac ne dodje, stih od 2 karte ima dobitnika', () => {
   assert.equal(r.tricks[0]!.winner, 1);
   assert.equal(r.tricks[1]!.winner, null);
 });
+
+test('tok kontre: kontru i subkontru daje kontras, rekontru i mortkontru nosilac', () => {
+  const r = handReplay({ ...base, declarer: 1, kontraLevel: 'MORTKONTRA', kontraPlayer: 0 });
+  assert.deepEqual(r.kontra, [
+    { player: 0, level: 'KONTRA' }, { player: 1, level: 'REKONTRA' },
+    { player: 0, level: 'SUBKONTRA' }, { player: 1, level: 'MORTKONTRA' },
+  ]);
+  assert.equal(handReplay({ ...base, kontraLevel: 'KONTRA' }).kontra, null); // stari zapis bez kontrasa
+});

@@ -72,7 +72,7 @@ export function buildClientState(room: RoomState, viewer: Viewer) {
     // handHistory kad primeti da mu fali.
     // bez pocetnih ruku/licitacije/skarta — klijentu ne trebaju, a ovo ide
     // uz SVAKO stanje (te podatke cita samo pregled partije, iz match_log)
-    handsHistory: room.handsHistory.map(({ hands, bids, discard, ...h }) => h),
+    handsHistory: room.handsHistory.map(({ hands, bids, discard, kontraPlayer, ...h }) => h),
   };
 }
 
@@ -168,6 +168,7 @@ function captureHandSnapshot(room: RoomState): HandSnapshot {
     bids: s.bids.map((b) => ({ ...b })),
     hands: initialHands(s),
     discard: s.discard.map((c) => ({ suit: c.suit, rank: c.rank })),
+    kontraPlayer: s.kontraPlayer,
   };
 }
 

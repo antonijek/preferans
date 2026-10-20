@@ -4,7 +4,7 @@
 // ni licitaciju — tad se ispisuje samo ono sto postoji.
 
 import type { Position } from '../../engine/dist/types.js';
-import { bidLabel, trickWinners } from './replayModel.js';
+import { bidLabel, kontraSteps, trickWinners } from './replayModel.js';
 import type { HandSnapshot } from './rooms/RoomState.js';
 
 export interface MatchRow {
@@ -49,6 +49,8 @@ export function matchToText(m: MatchRow): string {
     if (h.bids) out.push(`  Licitacija: ${h.bids.map((b) => `${who(b.player)} ${bidLabel(b)}`).join(', ') || '—'}`);
     const follow = h.followChoices.map((f, p) => (f ? `${who(p)} ${f}` : null)).filter(Boolean);
     if (follow.length) out.push(`  Pratnja: ${follow.join(', ')}`);
+    const steps = kontraSteps(h);
+    if (steps) out.push(`  Kontra: ${steps.map((k) => `${who(k.player)} ${k.level.toLowerCase()}`).join(', ')}`);
     if (h.caller !== null) out.push(`  Poziv: ${who(h.caller)} → ${h.callee !== null ? who(h.callee) : 'niko'}`);
     const winners = trickWinners(h);
     h.tricks.forEach((t, k) => {

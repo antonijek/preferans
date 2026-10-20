@@ -133,6 +133,8 @@ export interface HandSnapshot {
   bids?: Array<{ player: Position; type: string; value?: number }>;
   hands?: Array<Array<{ suit: string; rank: string }>>;
   discard?: Array<{ suit: string; rank: string }>;
+  // ko je dao kontru (2026-10-20) — rekontru/mortkontru daje nosilac, subkontru opet kontras
+  kontraPlayer?: Position | null;
 }
 
 export interface RoomOptions {

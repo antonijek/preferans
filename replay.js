@@ -102,6 +102,7 @@ function renderInfo(h) {
   if (h.bids) box.appendChild(infoLine('Licitacija', h.bids.map((b) => `${nameOf(b.player)} ${b.label}`).join(' · ') || '—'));
   const follow = h.follow.map((f, p) => (f ? `${nameOf(p)} ${f === 'DODJEM' ? 'dođem' : f === 'NE_DODJEM' ? 'ne dođem' : f}` : null)).filter(Boolean);
   if (follow.length) box.appendChild(infoLine('Pratnja', follow.join(' · ')));
+  if (h.kontra) box.appendChild(infoLine('Kontra', h.kontra.map((k) => `${nameOf(k.player)} ${k.level.toLowerCase()}`).join(' · ')));
   if (h.caller !== null) box.appendChild(infoLine('Poziv', `${nameOf(h.caller)} → ${h.callee !== null ? nameOf(h.callee) : 'niko'}`));
   if (h.talon.length) box.appendChild(infoLine('Talon', cardsRow(h.talon)));
   if (h.discard?.length) box.appendChild(infoLine('Škart', cardsRow(h.discard)));

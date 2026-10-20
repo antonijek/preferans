@@ -35,12 +35,22 @@ export function trickWinners(h: HandSnapshot): Array<Position | null> {
   });
 }
 
+const KONTRA_ORDER = ['KONTRA', 'REKONTRA', 'SUBKONTRA', 'MORTKONTRA'];
+
+/** Tok kontre iz kontrasa i konacnog nivoa: kontru i subkontru daje kontras, rekontru i mortkontru nosilac. */
+export function kontraSteps(h: HandSnapshot): Array<{ player: Position; level: string }> | null {
+  if (!h.kontraLevel || h.kontraPlayer == null) return null;
+  const upTo = KONTRA_ORDER.indexOf(h.kontraLevel);
+  return KONTRA_ORDER.slice(0, upTo + 1).map((level, i) => ({ player: i % 2 === 0 ? h.kontraPlayer! : h.declarer, level }));
+}
+
 export interface ReplayHand {
   round: number;
   dealer: Position | null;
   declarer: Position;
   game: string;
   kontraLevel: string | null;
+  kontra: Array<{ player: Position; level: string }> | null; // ko je sta rekao (od 2026-10-20)
   passed: boolean;
   bids: Array<{ player: Position; label: string }> | null; // null = stari zapis bez licitacije
   follow: Array<string | null>;
@@ -78,6 +88,7 @@ export function handReplay(h: HandSnapshot): ReplayHand {
     declarer: h.declarer,
     game: h.declaredGame,
     kontraLevel: h.kontraLevel,
+    kontra: kontraSteps(h),
     passed: h.passed,
     bids: h.bids ? h.bids.map((b) => ({ player: b.player, label: bidLabel(b) })) : null,
     follow: [...h.followChoices],
