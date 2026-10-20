@@ -57,6 +57,7 @@ export function matchToText(m: MatchRow): string {
       const w = winners[k] ?? null;
       out.push(`  ${String(k + 1).padStart(2)}. ${t.map((c) => `${who(c.position)} ${card(c)}`).join(', ')}${w !== null ? `  → ${who(w as Position)}` : ''}`);
     });
+    if (h.claimedBy != null) out.push(`  Nosim sve: ${who(h.claimedBy)} — ostali su se složili, ruka skraćena`);
     out.push(`  Štihova: ${[0, 1, 2].map((p) => `${who(p)} ${h.tricksWon[p]}`).join(', ')}   bule posle: ${h.bulasAfter.join(' / ')}   supe Δ: ${h.supeDelta.join(' / ')}`);
   });
   return out.join('\n');

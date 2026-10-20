@@ -101,6 +101,9 @@ export interface RoomState {
   // Flag za sprečavanje duplog push-a handHistory-a ako se
   // broadcastRoomState pozove vise puta dok je phase GAME_OVER.
   handSnapshotTaken: boolean;
+  // "Nosim sve stihove do kraja" (claimEvents.ts): ko tvrdi i ko se vec
+  // slozio. Prolazno — ne cuva se u bazi (posle restarta predlog otpada).
+  claim: { by: Position; accepted: Set<Position>; timeout: ReturnType<typeof setTimeout> } | null;
 }
 
 export interface HandSnapshot {
@@ -135,6 +138,8 @@ export interface HandSnapshot {
   discard?: Array<{ suit: string; rank: string }>;
   // ko je dao kontru (2026-10-20) — rekontru/mortkontru daje nosilac, subkontru opet kontras
   kontraPlayer?: Position | null;
+  // ruka zavrsena sa "nosim sve" — ko je tvrdio (2026-10-20)
+  claimedBy?: Position | null;
 }
 
 export interface RoomOptions {
@@ -176,5 +181,6 @@ export function createRoomState(code: string, options: RoomOptions = {}): RoomSt
     matchRankingResolved: false,
     handsHistory: [],
     handSnapshotTaken: false,
+    claim: null,
   };
 }

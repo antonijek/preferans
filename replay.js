@@ -106,6 +106,7 @@ function renderInfo(h) {
   if (h.caller !== null) box.appendChild(infoLine('Poziv', `${nameOf(h.caller)} → ${h.callee !== null ? nameOf(h.callee) : 'niko'}`));
   if (h.talon.length) box.appendChild(infoLine('Talon', cardsRow(h.talon)));
   if (h.discard?.length) box.appendChild(infoLine('Škart', cardsRow(h.discard)));
+  if (h.claimedBy != null) box.appendChild(infoLine('Nosim sve', `${nameOf(h.claimedBy)} — ostali su se složili`));
   box.appendChild(infoLine('Posle ruke', `bule ${h.bulasAfter.join(' / ')} · supe ${h.supeDelta.join(' / ')}`));
 }
 
@@ -156,7 +157,8 @@ function stepText(h, s) {
   if (s === 0) return `Deljenje — ${h.complete ? 'početne ruke' : 'stari zapis: vide se samo odigrane karte'}`;
   if (hasDiscard && s === 1) return `${nameOf(h.declarer)} uzima talon i škartira ${h.discard.map(cardText).join(' ')}`;
   const p = plays[s - 1 - (hasDiscard ? 1 : 0)];
-  const end = s === total - 1 && h.game ? ` — kraj ruke, ${h.passed ? 'prošao' : 'pao'}` : '';
+  const claim = h.claimedBy != null ? `, ${nameOf(h.claimedBy)} nosi ostalo` : '';
+  const end = s === total - 1 && h.game ? ` — kraj ruke${claim}, ${h.passed ? 'prošao' : 'pao'}` : '';
   return `Štih ${p.trick + 1}, karta ${p.idx + 1}: ${nameOf(p.player)} ${cardText(p.card)}${end}`;
 }
 

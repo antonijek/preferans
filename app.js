@@ -21,6 +21,8 @@ import { copyLink } from './dialog.js';
 import { watchSessionReplaced } from './session-replaced.js';
 import { shareResult } from './share.js';
 import { isRed, sortHand, cardImageSrc } from './card-order.js';
+import { renderClaim } from './claim-ui.js';
+import { claimIsCertain } from './engine/dist/claim.js';
 
 // Feature-flag za search-bazirani AI (Monte Carlo determinizacija, vidi
 // plan "toasty-rolling-sparkle") — localStorage prekidac radi trenutnog
@@ -1964,6 +1966,7 @@ function render() {
   }
 
   renderHand();
+  renderClaimControls();
 
   if (game.state.phase === 'PLAYING') {
     const isHumanTurn = isHuman(game.state.currentPlayer);
@@ -1989,6 +1992,34 @@ function render() {
   if (game.state.phase === 'GAME_OVER' || game.state.phase === 'REFE' || game.state.phase === 'MATCH_OVER') {
     setTimeout(renderResult, 800);
   }
+}
+
+// === "Nosim sve štihove" (claim-ui.js): online odlučuje server, lokalno računar ===
+
+const claimSeat = () => (mode === 'online' ? mySeat : mode === '1v2' ? 0 : null);
+// pravo ime (textContent u claim-ui.js), ne POS_LABELS koji je vec escape-ovan za innerHTML
+const claimName = (p) => (mode === 'online' ? game.state.players[p]?.name ?? '' : SEAT_PLAYER_NAME[p]);
+const showClaimError = (res) => { if (res?.error) showAppToast(res.error); };
+
+function claimLocal() {
+  const me = claimSeat();
+  if (!claimIsCertain(game.state, me)) {
+    showAppToast('Računar se ne slaže — igra se dalje.');
+    return;
+  }
+  game.claimRemainingTricks(me);
+  showAppToast('🏁 Računar se slaže — nosiš sve preostale štihove.');
+  render();
+}
+
+function renderClaimControls() {
+  renderClaim($('claimControls'), {
+    state: game.state,
+    seat: claimSeat(),
+    nameOf: claimName,
+    onClaim: mode === 'online' ? () => onlineSocket.emit('game:claim', {}, showClaimError) : claimLocal,
+    onVote: (accept) => onlineSocket.emit('game:claimVote', { accept }, showClaimError),
+  });
 }
 
 // === AI ===

@@ -2,6 +2,7 @@ import type { Server, Socket } from 'socket.io';
 import { verifyToken } from '../auth/middleware.js';
 import { get } from '../db.js';
 import { registerRoomHandlers } from './roomEvents.js';
+import { registerClaimHandlers } from './claimEvents.js';
 import { markOnline, markOffline, getSocketIdsForUser, listOnlineUsers } from '../presence.js';
 import { playerArrived } from '../push.js';
 
@@ -105,5 +106,6 @@ export function registerSocketHandlers(io: Server): void {
     }
     socket.on('disconnect', () => markOffline(socket.id));
     registerRoomHandlers(io, socket);
+    registerClaimHandlers(socket, userId);
   });
 }

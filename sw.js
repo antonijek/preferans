@@ -30,6 +30,7 @@ const SHELL_FILES = [
   '/session-replaced.js',
   '/share.js',
   '/card-order.js',
+  '/claim-ui.js',
   '/manifest.json',
   '/icon.svg',
   '/icons/icon-192.png',
@@ -51,6 +52,8 @@ const SHELL_FILES = [
   '/engine/dist/aiDiscardPlay.js',
   '/engine/dist/aiSearch.js',
   '/engine/dist/aiAutoplay.js',
+  '/engine/dist/aiLeads.js',
+  '/engine/dist/claim.js',
 ];
 
 self.addEventListener('install', (event) => {

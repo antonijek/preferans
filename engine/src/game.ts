@@ -106,6 +106,7 @@ export class Game {
       lastHandResult: null,
       debtMatrix: [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
       matchEndReason: null,
+      claimedBy: null,
     };
   }
 
@@ -133,6 +134,7 @@ export class Game {
     this.state.caller = null;
     this.state.callee = null;
     this.state.kontraPlayer = null;
+    this.state.claimedBy = null;
     this.state.kontraLevel = null;
     this.state.mozeCount = 0;
     // refeOccurred ostaje true ako je bilo REFE — to je istorijski flag.
@@ -985,6 +987,22 @@ private checkBiddingEnd(): void {
     } else {
       this.state.currentPlayer = this.nextActivePlayer(this.state.currentPlayer);
     }
+    return true;
+  }
+
+  // "Nosim sve stihove do kraja" (korisnikov zahtev 2026-10-20): igrac koji
+  // tvrdi da nosi sve preostale stihove — kad se ostali sloze (server/klijent,
+  // vidi claim.ts) — dobija ih sve i ruka se odmah zavrsava. Samo izmedju dva
+  // stiha i ne u Betlu (tamo bi "nosim sve" znacilo pad nosioca).
+  claimRemainingTricks(player: Position): boolean {
+    if (this.state.phase !== 'PLAYING' || this.state.currentTrick.length > 0) return false;
+    if (!this.isPlayerActive(player) || isBetl(this.state.declaredGame!)) return false;
+    const remaining = TRICKS_PER_HAND - this.state.trickCount;
+    if (remaining <= 0) return false;
+    this.state.players[player]!.tricksWon += remaining;
+    this.state.trickCount = TRICKS_PER_HAND;
+    this.state.claimedBy = player;
+    this.endHand();
     return true;
   }
 

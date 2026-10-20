@@ -62,6 +62,15 @@ export function buildClientState(room: RoomState, viewer: Viewer) {
     turnSeat: room.turnDeadline !== null ? turnActor(room) : null,
     turnRemainingMs: room.turnDeadline !== null ? Math.max(0, room.turnDeadline - Date.now()) : null,
     turnTotalMs: room.turnTotalMs,
+    // "nosim sve" ceka odgovor (claimEvents.ts)
+    // ko tvrdi "nosim sve" otvara karte (kao za pravim stolom), da ostali odluce
+    claim: room.claim
+      ? {
+          by: room.claim.by,
+          accepted: Array.from(room.claim.accepted),
+          hand: room.game.state.players[room.claim.by]!.hand,
+        }
+      : null,
     // Uzivo prijavljen bag (2026-09-20): "kad udjem na tabelu nema istorije
     // ruku, sve prazno" — klijentski handHistory (app.js) je CISTO
     // akumuliran u browseru, nikad se nije obnavljao sa servera, pa je
@@ -76,6 +85,12 @@ export function buildClientState(room: RoomState, viewer: Viewer) {
 }
 
 export function broadcastRoomState(room: RoomState): void {
+  // "nosim sve" vazi samo izmedju dva stiha — odigrana karta ga ponistava
+  const cs = room.game.state;
+  if (room.claim && (cs.phase !== 'PLAYING' || cs.currentTrick.length > 0)) {
+    clearTimeout(room.claim.timeout);
+    room.claim = null;
+  }
   // pre slanja stanja, da klijenti dobiju vec postavljen sat za potez
   maybeScheduleTurnTimer(room);
   maybeNotifyTurn(room);
@@ -168,6 +183,7 @@ function captureHandSnapshot(room: RoomState): HandSnapshot {
     hands: initialHands(s),
     discard: s.discard.map((c) => ({ suit: c.suit, rank: c.rank })),
     kontraPlayer: s.kontraPlayer,
+    claimedBy: s.claimedBy ?? null,
   };
 }
 
@@ -387,7 +403,8 @@ function anyHumanConnected(room: RoomState): boolean {
 function maybeScheduleTurnTimer(room: RoomState): void {
   // svi ljudi ispali — sat stoji (inace bi racunar sam odigrao celu partiju
   // za odsutne); krece ponovo cim se neko vrati (reconnect salje stanje svima)
-  const actor = room.turnSeconds > 0 && anyHumanConnected(room) ? turnActor(room) : null;
+  // i dok se ceka odgovor na "nosim sve"
+  const actor = room.turnSeconds > 0 && anyHumanConnected(room) && !room.claim ? turnActor(room) : null;
   // racunar i napusteno mesto igraju sami (maybeDriveAiTurn), nemaju sat
   if (actor === null || actor === room.abandonedSeat || room.botSeats.has(actor)) {
     clearTurnTimer(room);
@@ -405,7 +422,7 @@ function maybeScheduleTurnTimer(room: RoomState): void {
   room.turnTimeout = setTimeout(() => {
     room.turnTimeout = null;
     // u medjuvremenu odigrao sam, ili se stanje promenilo — nista
-    if (turnActor(room) !== actor || turnDecisionKey(room, actor) !== key) return;
+    if (room.claim || turnActor(room) !== actor || turnDecisionKey(room, actor) !== key) return;
     if (!anyHumanConnected(room)) {
       room.turnKey = null;
       room.turnDeadline = null;
@@ -427,12 +444,13 @@ function aiDrivenActor(room: RoomState): Position | null {
 }
 
 function maybeDriveAiTurn(room: RoomState): void {
-  if (room.aiTurnTimeout !== null || aiDrivenActor(room) === null) return;
+  // dok se ceka odgovor na "nosim sve", racunar ne igra
+  if (room.aiTurnTimeout !== null || room.claim || aiDrivenActor(room) === null) return;
   room.aiTurnTimeout = setTimeout(() => {
     room.aiTurnTimeout = null;
     // stanje je moglo da se promeni (covek seo umesto racunara, ruka gotova)
     const actor = aiDrivenActor(room);
-    if (actor === null) return;
+    if (actor === null || room.claim) return;
     playAiTurn(room.game, actor);
     broadcastRoomState(room);
   }, 600);

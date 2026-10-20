@@ -356,6 +356,7 @@ export function loadPersistedRooms(): number {
       matchRankingResolved: parsed.matchRankingResolved,
       handsHistory: parsed.handsHistory,
       handSnapshotTaken: parsed.handSnapshotTaken,
+      claim: null,
     };
     roomsByCode.set(room.code, room);
     for (const seat of [0, 1, 2] as Position[]) {

@@ -65,6 +65,7 @@ export interface ReplayHand {
   tricksWon: number[];
   bulasAfter: number[];
   supeDelta: number[];
+  claimedBy: Position | null; // ruka skracena sa "nosim sve"
 }
 
 const plain = (c: PlainCard): PlainCard => ({ suit: c.suit, rank: c.rank });
@@ -102,5 +103,6 @@ export function handReplay(h: HandSnapshot): ReplayHand {
     tricksWon: [...h.tricksWon],
     bulasAfter: [...h.bulasAfter],
     supeDelta: [...h.supeDelta],
+    claimedBy: h.claimedBy ?? null,
   };
 }

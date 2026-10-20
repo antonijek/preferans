@@ -224,6 +224,8 @@ export interface GameState {
   // Zasto je partija zavrsena (MATCH_OVER) — korisnikov zahtev za "predlog
   // za kraj"/napustanje-pa-kraj tokove, klijent ovo koristi za tacnu poruku.
   matchEndReason: 'natural' | 'agreed' | 'leave' | null;
+  // "Nosim sve stihove do kraja" (2026-10-20): ko je preuzeo ostatak ruke uz pristanak ostalih
+  claimedBy: Position | null;
 }
 
 export interface ScoreUpdate {
