@@ -3,6 +3,7 @@
 // samo textContent/escapeHtml.
 
 import { $, el, escapeHtml, IS_PHONE_UA } from './dom.js';
+import { askConfirm, copyLink } from './dialog.js';
 import {
   ctx, nav, leagueApi, postJson, showLeagueScreen, showLeagueError, fmtDate, leagueStatusText, leagueRulesText,
 } from './league-common.js';
@@ -16,17 +17,6 @@ function renderInviteRow(l) {
     (IS_PHONE_UA ? `<a class="share-btn viber" href="viber://forward?text=${text}">Viber</a>` : '') +
     `<button class="share-btn" type="button" id="leagueCopyLinkBtn">🔗 Kopiraj link</button>` +
     `</span>`;
-}
-
-function copyLeagueLink(code, btn) {
-  const url = leagueUrl(code);
-  const done = () => {
-    const old = btn.textContent;
-    btn.textContent = 'Kopirano ✓';
-    setTimeout(() => { btn.textContent = old; }, 2000);
-  };
-  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(url).then(done).catch(() => prompt('Link lige:', url));
-  else prompt('Link lige:', url);
 }
 
 let openLeagueId = null;
@@ -68,7 +58,7 @@ export async function openLeague(id) {
     <button class="mode-btn league-back" id="leagueBackBtn">← Sve lige</button>`;
   $('leagueTitle').textContent = l.name;
   $('leagueBackBtn').onclick = () => nav.toList();
-  $('leagueCopyLinkBtn').onclick = (ev) => copyLeagueLink(l.code, ev.currentTarget);
+  $('leagueCopyLinkBtn').onclick = (ev) => copyLink(leagueUrl(l.code), 'Link lige', ev.currentTarget);
   if (l.status === 'active') $('leaguePlayBtn').onclick = createLeagueRoom;
   renderStandings(standings, myUserId);
   renderLeagueTables(l.id);
@@ -138,8 +128,11 @@ function renderLeagueAdmin(l, members, myUserId) {
       const adminBtn = el('button', 'mode-btn', m.isAdmin ? 'Ukini admina' : 'Postavi za admina');
       adminBtn.onclick = () => act(`${m.userId}/admin`, { admin: !m.isAdmin });
       const removeBtn = el('button', 'mode-btn danger', 'Ukloni');
-      removeBtn.onclick = () => {
-        if (confirm(`Ukloniti ${m.name} iz lige?`)) act(`${m.userId}/remove`, {});
+      removeBtn.onclick = async () => {
+        const yes = await askConfirm({
+          title: 'Ukloniti igrača?', text: `${m.name} više neće biti član lige.`, ok: 'Ukloni', danger: true,
+        });
+        if (yes) act(`${m.userId}/remove`, {});
       };
       row.append(adminBtn, removeBtn);
     }

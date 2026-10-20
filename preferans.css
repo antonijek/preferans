@@ -1301,7 +1301,7 @@
      Lori, unutrašnjost takođe iste boje" — TACNE Lorine vrednosti
      (D:\lora\lora.css .panel): debeo drveni obrub (ista boja kao nas
      sto-rail, #6b4424/#4a2e17 — ne nova boja) umesto tanke zlatne linije. */
-  .screen .box {
+  .screen .box, dialog.app-dialog {
     background: linear-gradient(180deg, #11281c 0%, #0a1b13 100%);
     border-radius: 20px;
     padding: 24px;

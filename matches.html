@@ -233,7 +233,10 @@
       renderMatchDetail(match);
       document.getElementById('matchModal').classList.add('open');
     } catch (e) {
-      alert('Greška: ' + e.message);
+      // greska u istom prozoru gde bi bila partija (ne sistemski alert)
+      const box = document.getElementById('matchDetail');
+      box.textContent = 'Partija nije učitana: ' + e.message;
+      document.getElementById('matchModal').classList.add('open');
     }
   }
 

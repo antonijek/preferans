@@ -1,0 +1,11 @@
+/* Prozori u stilu igre (dialog.js). Okvir i pozadina dele pravilo sa
+   .screen .box u preferans.css. */
+
+dialog.app-dialog { color: inherit; max-width: min(420px, calc(100vw - 32px)); margin: auto; text-align: center; }
+dialog.app-dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+.app-dialog-title { font-family: 'Cinzel', serif; font-size: 1.3em; margin: 0 0 10px; overflow-wrap: anywhere; }
+.app-dialog-text { opacity: 0.85; line-height: 1.4; margin: 0 0 12px; overflow-wrap: anywhere; }
+.app-dialog-text:empty { display: none; }
+.app-dialog-buttons { display: flex; gap: 8px; justify-content: center; margin-top: 14px; }
+.app-dialog-buttons .mode-btn { width: auto; flex: 1 1 0; margin: 0; }
+.app-dialog-buttons .mode-btn[hidden] { display: none; }

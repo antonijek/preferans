@@ -17,6 +17,7 @@ import { searchChoosePlayCard, searchChooseAction, applyLegalAction } from './en
 import { sfx } from './sfx.js';
 import { $, el, escapeHtml, IS_PHONE_UA } from './dom.js';
 import { initLeagueUi, goToLeagues, consumeLeagueLink, wantedLeagueCode } from './league-ui.js';
+import { copyLink } from './dialog.js';
 
 // Feature-flag za search-bazirani AI (Monte Carlo determinizacija, vidi
 // plan "toasty-rolling-sparkle") — localStorage prekidac radi trenutnog
@@ -3664,18 +3665,7 @@ window.shareRoomMore = shareRoomMore;
 function copyRoomLink(btn) {
   if (!myRoomCode) return;
   const url = `${location.origin}${location.pathname}?room=${myRoomCode}`;
-  const label = btn || document.getElementById('copyRoomLinkBtn');
-  const showCopied = () => {
-    if (!label) return;
-    const old = label.textContent;
-    label.textContent = 'Kopirano ✓';
-    setTimeout(() => { label.textContent = old; }, 2000);
-  };
-  if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(url).then(showCopied).catch(() => prompt('Link sobe:', url));
-  } else {
-    prompt('Link sobe:', url);
-  }
+  copyLink(url, 'Link sobe', btn || document.getElementById('copyRoomLinkBtn'));
 }
 window.copyRoomLink = copyRoomLink;
 

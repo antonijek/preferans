@@ -24,6 +24,8 @@ const SHELL_FILES = [
   '/league-create.js',
   '/league-page.js',
   '/league.css',
+  '/dialog.js',
+  '/dialog.css',
   '/manifest.json',
   '/icon.svg',
   '/icons/icon-192.png',

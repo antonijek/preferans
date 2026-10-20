@@ -241,6 +241,29 @@ async function main() {
   check('tabela: moj red je istaknut', rows.filter((r) => r.me).length === 1);
   await A.screenshot({ path: process.env.SHOT_DIR ? `${process.env.SHOT_DIR}/league-standings.png` : 'league-standings.png', fullPage: true });
 
+  // --- 5. prozori u stilu igre (dialog.js) umesto confirm/prompt ---
+  await A.click('#leagueCopyLinkBtn');
+  await A.waitForFunction(() => document.getElementById('leagueCopyLinkBtn').textContent.includes('Kopirano')
+    || document.getElementById('appDialog')?.open, { timeout: 3000 });
+  if (await A.evaluate(() => document.getElementById('appDialog')?.open)) {
+    check('link lige u prozoru kad kopiranje nije dozvoljeno', (await A.inputValue('#appDialogLink')).includes(`?liga=${code}`));
+    await A.click('#appDialogOk');
+  } else {
+    check('link lige kopiran', true);
+  }
+  const lastRemove = '#leagueMembers .league-member:last-child .mode-btn.danger';
+  await A.click(lastRemove);
+  await A.waitForSelector('#appDialog[open]', { timeout: 3000 });
+  await A.click('#appDialogCancel');
+  await A.waitForTimeout(300);
+  check('Otkaži ne uklanja igrača', (await A.$$('#leagueMembers .league-member')).length === 3);
+  await A.click(lastRemove);
+  await A.waitForSelector('#appDialog[open]', { timeout: 3000 });
+  await A.screenshot({ path: process.env.SHOT_DIR ? `${process.env.SHOT_DIR}/dialog.png` : 'dialog.png' });
+  await A.click('#appDialogOk');
+  await A.waitForFunction(() => document.querySelectorAll('#leagueMembers .league-member').length === 2, { timeout: 5000 });
+  check('Ukloni u prozoru uklanja igrača', true);
+
   check('nema JS gresaka u pregledacu', pageErrors.length === 0);
   if (pageErrors.length) console.log(pageErrors);
   await browser.close();
