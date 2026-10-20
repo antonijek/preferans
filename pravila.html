@@ -21,82 +21,7 @@
 <link rel="icon" href="/icons/favicon-32.png">
 <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Article", "@id": "https://preferans.igrajmo.online/pravila.html#article", "headline": "Pravila preferansa — kompletna pravila igre", "description": "Kompletna pravila preferansa (balkanski preferans, preferanc): licitacija, Mogu, Igra, praćenje, kontra, refe, bodovanje bula i supa, Betl, Sans.", "inLanguage": "sr", "url": "https://preferans.igrajmo.online/pravila.html", "image": "https://preferans.igrajmo.online/icons/og-image.jpg", "about": {"@type": "Game", "name": "Preferans", "alternateName": ["Preferanc", "Balkanski preferans"], "numberOfPlayers": {"@type": "QuantitativeValue", "value": 3}}, "isPartOf": {"@id": "https://preferans.igrajmo.online/#site"}}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Preferans online", "item": "https://preferans.igrajmo.online/"}, {"@type": "ListItem", "position": 2, "name": "Pravila", "item": "https://preferans.igrajmo.online/pravila.html"}]}, {"@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Koliko igrača igra preferans?", "acceptedAnswer": {"@type": "Answer", "text": "Preferans igraju tri igrača. Pratioci sarađuju protiv nosioca u toku jedne ruke, ali bodove upisuje samo onaj ko je direktno učestvovao u odbrani (vidi odnos protivnika)."}}, {"@type": "Question", "name": "Koliko karata se koristi u preferansu?", "acceptedAnswer": {"@type": "Answer", "text": "Igra se špilom od 32 karte, od sedmice do keca u sve četiri boje. Svaki igrač dobija po 10 karata, a 2 karte idu u talon."}}, {"@type": "Question", "name": "Ko pobeđuje u preferansu?", "acceptedAnswer": {"@type": "Answer", "text": "Partija traje dok zbir bula sve trojice igrača ne postane tačno nula. Tada se računa finalni rezultat svakog igrača (bule i supe) — pobednik je igrač sa najboljim, odnosno najnižim rezultatom."}}, {"@type": "Question", "name": "Da li su preferans i preferanc ista igra?", "acceptedAnswer": {"@type": "Answer", "text": "Da, preferans i preferanc su isti naziv iste igre — preferanc je uobičajen izgovor u delovima Balkana. Oba naziva se odnose na balkansku varijantu, različitu od ruskog ili francuskog preferansa."}}, {"@type": "Question", "name": "Šta je refa u preferansu?", "acceptedAnswer": {"@type": "Answer", "text": "Refa duplira bodove u sledećoj ruci tog igrača. Pokreće se kad svi kažu „dalje” u licitaciji, ili kad niko ne da kontru na standardni Pik."}}, {"@type": "Question", "name": "Šta je kontra u preferansu?", "acceptedAnswer": {"@type": "Answer", "text": "Kontra je izjava pratioca da veruje da može srušiti nosioca. Kontraš tada snosi svu odgovornost odbrane — mora, zajedno sa drugim pratiocem, uhvatiti najmanje 5 štihova da bi prošao, i upisuje sve bodove."}}, {"@type": "Question", "name": "Koliko traje partija preferansa?", "acceptedAnswer": {"@type": "Answer", "text": "Zavisi od početne bule (podrazumevano 100, podesivo pre partije) — za trojicu uživo tipično pola sata do sat vremena."}}, {"@type": "Question", "name": "Kako se igra preferans online?", "acceptedAnswer": {"@type": "Answer", "text": "Na ovoj stranici preferans se igra besplatno u pregledaču, bez instaliranja: online sa drugarima u sobi sa kodom ili linkom, ili protiv računara (AI)."}}]}]}</script>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
-<style>
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: radial-gradient(ellipse at top, #1b3a1f 0%, #0e1a10 45%, #0a0b0c 100%);
-    color: #eef2ee;
-    line-height: 1.6;
-  }
-  a { color: #8ee08e; }
-  .top-bar {
-    position: sticky; top: 0; z-index: 10;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 20px; background: rgba(10,12,10,0.9); backdrop-filter: blur(6px);
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-  }
-  .top-bar .logo { font-family: 'Cinzel', serif; font-weight: 700; font-size: 1.15em; color: #fff; text-decoration: none; }
-  .top-bar .back-link {
-    color: #cfe8cf; text-decoration: none; font-size: 0.9em;
-    border: 1px solid rgba(255,255,255,0.25); padding: 6px 14px; border-radius: 999px;
-  }
-  .top-bar .back-link:hover { background: rgba(255,255,255,0.08); }
-  .wrap { max-width: 820px; margin: 0 auto; padding: 30px 20px 80px; }
-  h1.page-title {
-    font-family: 'Cinzel', serif; font-weight: 800; font-size: clamp(1.6em, 5vw, 2.3em);
-    text-align: center; margin: 10px 0 6px;
-  }
-  .subtitle { text-align: center; color: rgba(255,255,255,0.6); margin-bottom: 28px; font-size: 0.95em; }
-  .toc {
-    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 14px; padding: 18px 22px; margin-bottom: 34px;
-  }
-  .toc h2 { font-family: 'Cinzel', serif; font-size: 1.05em; margin: 0 0 10px; }
-  .toc ol { margin: 0; padding-left: 22px; columns: 2; column-gap: 24px; }
-  .toc li { margin-bottom: 4px; font-size: 0.92em; }
-  .toc a { color: #d7ecd7; text-decoration: none; }
-  .toc a:hover { text-decoration: underline; }
-  section { margin-bottom: 38px; scroll-margin-top: 70px; }
-  h2 {
-    font-family: 'Cinzel', serif; font-weight: 700; font-size: 1.4em;
-    border-bottom: 2px solid rgba(255,235,59,0.4); padding-bottom: 8px; margin-bottom: 14px;
-    color: #ffeb99;
-  }
-  h3 { font-family: 'Cinzel', serif; font-weight: 600; font-size: 1.12em; margin: 20px 0 8px; color: #cdeccd; }
-  h4 { font-size: 1em; margin: 14px 0 6px; color: #b9dab9; }
-  p { margin: 0 0 12px; color: rgba(255,255,255,0.9); }
-  ul, ol { margin: 0 0 12px; padding-left: 24px; }
-  li { margin-bottom: 4px; }
-  strong { color: #fff; }
-  table { width: 100%; border-collapse: collapse; margin: 12px 0 18px; font-size: 0.94em; }
-  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,0.12); }
-  th { color: #ffeb99; font-weight: 600; }
-  code, pre { font-family: 'Consolas', monospace; }
-  pre {
-    background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px; padding: 12px 16px; overflow-x: auto; font-size: 0.9em; color: #d7f5d7;
-  }
-  .note {
-    background: rgba(255,235,59,0.08); border-left: 3px solid #ffeb3b;
-    padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 0.93em;
-    color: rgba(255,255,255,0.85);
-  }
-  .example {
-    background: rgba(76,175,80,0.08); border-left: 3px solid #4caf50;
-    padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 10px 0; font-size: 0.93em;
-  }
-  .cta {
-    text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid rgba(255,255,255,0.12);
-  }
-  .cta a.play-btn {
-    display: inline-block; background: #2e7d32; color: #fff; text-decoration: none;
-    padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 1.05em;
-  }
-  .cta a.play-btn:hover { background: #388e3c; }
-  @media (max-width: 600px) { .toc ol { columns: 1; } }
-</style>
+<link rel="stylesheet" href="/page.css?v=1">
 </head>
 <body>
 
@@ -371,6 +296,7 @@ pad    = +igra × 2   (nosilac dobija bule)</pre>
 
   <div class="cta">
     <a class="play-btn" href="/">🎮 Igraj preferans online sada</a>
+    <p class="subtitle" style="margin-top:18px"><a href="/privatnost.html">Privatnost</a></p>
   </div>
 </div>
 
