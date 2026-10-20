@@ -109,6 +109,43 @@ export async function initDb(): Promise<void> {
     db.run("CREATE TABLE settings (k TEXT PRIMARY KEY, v TEXT NOT NULL)");
   }
 
+  // Zatvorene lige (korisnikov zahtev 2026-10-14, vidi leagues.ts) — van
+  // if/else-a iznad iz istog razloga kao match_log (sveza i postojeca baza).
+  const leaguesTable = db.exec(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='leagues'"
+  );
+  if (leaguesTable.length === 0) {
+    db.run(`CREATE TABLE leagues (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      created_by INTEGER NOT NULL,
+      starts_at TEXT NOT NULL,
+      ends_at TEXT NOT NULL,
+      norma INTEGER NOT NULL DEFAULT 0,
+      scoring_json TEXT NOT NULL,
+      rank_by TEXT NOT NULL DEFAULT 'total',
+      initial_bule INTEGER NOT NULL DEFAULT 100,
+      refe_per_player INTEGER NOT NULL DEFAULT 2,
+      turn_seconds INTEGER NOT NULL DEFAULT 30,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+    db.run(`CREATE TABLE league_members (
+      league_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      is_admin INTEGER NOT NULL DEFAULT 0,
+      joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (league_id, user_id)
+    )`);
+    db.run('CREATE INDEX idx_league_members_user ON league_members(user_id)');
+  }
+  // partija odigrana u ligi — tabela lige se racuna iz match_log
+  const matchLogCols = new Set((db.exec('PRAGMA table_info(match_log)')[0]?.values ?? []).map((row) => row[1]));
+  if (!matchLogCols.has('league_id')) {
+    db.run('ALTER TABLE match_log ADD COLUMN league_id INTEGER');
+    db.run('CREATE INDEX idx_match_log_league ON match_log(league_id)');
+  }
+
   persist();
 }
 
@@ -199,6 +236,7 @@ export interface MatchLogEntry {
   rating_deltas: [number, number, number];
   new_ratings: [number, number, number];
   hands_json: string;
+  league_id?: number | null;
 }
 
 export function saveMatchLog(entry: MatchLogEntry): void {
@@ -208,8 +246,8 @@ export function saveMatchLog(entry: MatchLogEntry): void {
       player0_user_id, player1_user_id, player2_user_id,
       player0_name, player1_name, player2_name,
       final_bulas, final_scores, rating_deltas, new_ratings,
-      hands_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      hands_json, league_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       entry.room_code,
       entry.match_end_reason,
@@ -225,6 +263,7 @@ export function saveMatchLog(entry: MatchLogEntry): void {
       JSON.stringify(entry.rating_deltas),
       JSON.stringify(entry.new_ratings),
       entry.hands_json,
+      entry.league_id ?? null,
     ]
   );
 }

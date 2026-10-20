@@ -72,9 +72,12 @@ export interface LobbyRoom {
   locked: boolean;
   canSit: boolean; // slobodno mesto, ili mesto koje drzi racunar
   canWatch: boolean;
+  league: { id: number; name: string } | null;
 }
 
-export function listLobbyRooms(): LobbyRoom[] {
+// isLeagueMember: da li korisnik koji gleda listu sme da sedne za ligaski
+// sto (lige su zatvorene) — prosledjuje pozivalac, RoomManager ne zna za lige.
+export function listLobbyRooms(isLeagueMember: (leagueId: number) => boolean = () => false): LobbyRoom[] {
   const rooms: LobbyRoom[] = [];
   for (const room of roomsByCode.values()) {
     const phase = room.game.state.phase;
@@ -99,8 +102,9 @@ export function listLobbyRooms(): LobbyRoom[] {
       round: room.game.state.round,
       spectators: room.spectators.size,
       locked: room.locked,
-      canSit: waiting ? hasEmpty : hasBot && !room.locked,
+      canSit: (waiting ? hasEmpty : hasBot && !room.locked) && (room.leagueId === null || isLeagueMember(room.leagueId)),
       canWatch: !waiting && !room.locked,
+      league: room.leagueId !== null ? { id: room.leagueId, name: room.leagueName ?? 'Liga' } : null,
     });
   }
   // prvo stolovi gde moze da se sedne, pa oni gde se igra
@@ -246,6 +250,8 @@ interface SerializedRoom {
   botSeats?: Position[];
   hadBots?: boolean;
   turnSeconds?: number;
+  leagueId?: number | null;
+  leagueName?: string | null;
   dealNextReady: Position[];
   endMatchReady: Position[];
   seatRatings: [number, number, number];
@@ -270,6 +276,8 @@ function serializeRoom(room: RoomState): SerializedRoom {
     botSeats: Array.from(room.botSeats),
     hadBots: room.hadBots,
     turnSeconds: room.turnSeconds,
+    leagueId: room.leagueId,
+    leagueName: room.leagueName,
     dealNextReady: Array.from(room.dealNextReady),
     endMatchReady: Array.from(room.endMatchReady),
     seatRatings: room.seatRatings,
@@ -335,6 +343,8 @@ export function loadPersistedRooms(): number {
       turnTotalMs: 0,
       rematchCode: null,
       notifiedTurnKey: null,
+      leagueId: parsed.leagueId ?? null,
+      leagueName: parsed.leagueName ?? null,
       nextHandScheduled: false,
       nextHandTimeout: null,
       dealNextReady: new Set(parsed.dealNextReady),

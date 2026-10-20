@@ -62,6 +62,10 @@ export interface RoomState {
   // Za koju odluku (turnDecisionKey) je igracu vec poslato "tvoj potez" —
   // isto stanje poslato ponovo ne salje ponovo obavestenje.
   notifiedTurnKey: string | null;
+  // Ligaska partija (leagues.ts): sedaju samo clanovi lige, racunar ne
+  // igra, kraj partije se upisuje u tabelu lige (match_log.league_id).
+  leagueId: number | null;
+  leagueName: string | null;
   // Sprecava dupliranje setTimeout-a za automatski nastavak na sledecu ruku
   // — broadcastRoomState() se poziva mnogo puta dok je faza GAME_OVER
   // (svaki put kad neko npr. otvori chat), bez ovoga bi se zakazalo N
@@ -154,6 +158,8 @@ export function createRoomState(code: string, options: RoomOptions = {}): RoomSt
     turnTotalMs: 0,
     rematchCode: null,
     notifiedTurnKey: null,
+    leagueId: null,
+    leagueName: null,
     nextHandScheduled: false,
     nextHandTimeout: null,
     dealNextReady: new Set(),

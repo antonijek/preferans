@@ -1,0 +1,69 @@
+/* Zatvorene lige (league-ui.js) — samo postojece nijanse: prozirna bela
+   podloga kao kartice u lobiju, zlato iz promenljivih u preferans.css. */
+
+.league-wrap { width: min(640px, 100%); text-align: left; }
+.league-intro { opacity: 0.85; margin: 0 0 14px; line-height: 1.4; }
+.league-note { opacity: 0.7; font-size: 0.85em; margin: 8px 0; line-height: 1.4; }
+.league-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.league-actions .mode-btn { width: auto; flex: 1 1 160px; margin: 0; }
+.league-back { margin-top: 18px; }
+
+.league-list { display: flex; flex-direction: column; gap: 8px; margin: 0 0 6px; }
+.league-card {
+  display: block; width: 100%; text-align: left; color: inherit; font: inherit; cursor: pointer;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px; padding: 10px 12px;
+}
+.league-card:hover { border-color: rgba(var(--gold-rgb), 0.7); }
+.league-card.status-active { border-left: 3px solid var(--gold); }
+.league-card.status-finished { opacity: 0.65; }
+.league-card-name { font-weight: 700; overflow-wrap: anywhere; }
+.league-card-meta { font-size: 0.85em; opacity: 0.8; margin-top: 2px; }
+
+.league-join { margin-top: 18px; }
+.league-join-row { display: flex; gap: 8px; }
+.league-join-row input { flex: 1 1 auto; min-width: 0; text-transform: uppercase; letter-spacing: 2px; }
+.league-join-row input:placeholder-shown { text-transform: none; letter-spacing: normal; }
+.league-join-row .mode-btn { width: auto; flex: none; margin: 0; }
+
+.league-form { display: flex; flex-direction: column; gap: 4px; }
+.league-form-group { margin: 10px 0 4px; }
+.league-form-label { font-weight: 600; margin-bottom: 6px; }
+.league-radio { display: flex; align-items: center; gap: 8px; margin: 4px 0; cursor: pointer; }
+.league-points { margin: 0 0 6px 26px; }
+.league-points .setup-field { margin: 6px 0; }
+
+.league-title { overflow-wrap: anywhere; }
+.league-status { text-align: center; font-weight: 600; }
+.league-status.status-active { color: var(--gold-bright); }
+.league-rules { text-align: center; opacity: 0.75; font-size: 0.88em; margin: 6px 0 12px; line-height: 1.4; }
+.league-play { display: block; width: auto; margin: 12px auto; }
+.league-invite { margin: 16px 0 6px; font-size: 0.92em; }
+.league-invite b { letter-spacing: 2px; color: var(--gold-bright); }
+.league-invite .room-share-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
+.league-invite .share-btn { width: auto; flex: none; margin: 0; }
+
+.league-table-wrap { overflow-x: auto; }
+.league-table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
+.league-table th, .league-table td { padding: 6px 8px; text-align: right; white-space: nowrap; }
+.league-table th:nth-child(2), .league-table td:nth-child(2) {
+  text-align: left; white-space: normal; overflow-wrap: anywhere;
+}
+.league-table th { opacity: 0.7; font-weight: 600; border-bottom: 1px solid rgba(255, 255, 255, 0.2); }
+.league-table td { border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.league-table tr.me td { color: var(--gold-bright); font-weight: 600; }
+.league-table tr.below-norma td { opacity: 0.5; }
+
+.league-members { display: flex; flex-direction: column; gap: 6px; }
+.league-member { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.league-member-name { flex: 1 1 140px; min-width: 0; overflow-wrap: anywhere; }
+.league-member .mode-btn { width: auto; flex: none; margin: 0; padding: 4px 10px; min-height: unset; font-size: 0.85em; }
+
+/* lobi: oznaka ligaskog stola */
+.lobby-league { color: var(--gold-bright); font-weight: 600; }
+
+/* soba na cekanju u ligi: bez racunara (server ga ionako odbija) */
+.waiting-league-note { display: none; margin-top: 10px; color: var(--gold-bright); font-size: 0.92em; }
+body.league-room .waiting-league-note { display: block; }
+body.league-room #roomStatus .fill-bots-btn,
+body.league-room #roomStatus .waiting-note { display: none; }

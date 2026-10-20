@@ -22,6 +22,7 @@ import {
   isAway, maybeNotifyTurn, turnActor, turnDecisionKey,
 } from './roomBroadcast.js';
 import { notifyUser } from '../push.js';
+import { getLeague, isLeagueMember, leagueStatus } from '../leagues.js';
 
 type Ack = (response: Record<string, unknown>) => void;
 
@@ -181,7 +182,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
   if (!resumed) socket.emit('room:none');
 
   socket.on('room:list', (_payload: unknown, ack?: Ack) => {
-    ack?.({ rooms: listLobbyRooms() });
+    ack?.({ rooms: listLobbyRooms((leagueId) => isLeagueMember(leagueId, userId)) });
   });
 
   // Korisnikov zahtev: "ustani od stola" (peekHomeScreen, klijent) treba da
@@ -249,7 +250,28 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     ack?.({ ok: true });
   });
 
-  socket.on('room:create', (payload: { initialBule?: number; refePerPlayer?: number; withBots?: boolean; turnSeconds?: number }, ack?: Ack) => {
+  socket.on('room:create', (payload: { initialBule?: number; refePerPlayer?: number; withBots?: boolean; turnSeconds?: number; leagueId?: number }, ack?: Ack) => {
+    // Ligaska soba: podesavanja diktira liga, sedaju samo clanovi, bez racunara
+    if (payload?.leagueId != null) {
+      const league = getLeague(Number(payload.leagueId));
+      if (!league || !isLeagueMember(league.id, userId)) {
+        ack?.({ error: 'Nisi član ove lige.' });
+        return;
+      }
+      if (leagueStatus(league) !== 'active') {
+        ack?.({ error: leagueStatus(league) === 'upcoming' ? 'Liga još nije počela.' : 'Liga je završena.' });
+        return;
+      }
+      const room = createRoom({ initialBule: league.initial_bule, refePerPlayer: league.refe_per_player });
+      room.turnSeconds = league.turn_seconds;
+      room.leagueId = league.id;
+      room.leagueName = league.name;
+      const seat = joinAsPlayer(room, userId, socket, name)!;
+      ack?.({ code: room.code, seat });
+      broadcastRoomState(room);
+      sendChatBacklog(socket, room);
+      return;
+    }
     // Client-supplied config is just a preference — always clamp server-side
     // rather than trust it, same principle as withAuthenticatedActor() for
     // game actions.
@@ -297,10 +319,14 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     socket.leave(old.code);
     clearUserLocation(userId);
     let created = false;
+    // revans ligaske partije ostaje u ligi dok liga traje
+    const league = old.leagueId !== null ? getLeague(old.leagueId) : undefined;
+    const keepLeague = !!league && leagueStatus(league) === 'active';
     if (!room) {
       const cfg = old.game.getConfig();
       room = createRoom({ initialBule: cfg.initialBule, refePerPlayer: cfg.refePerPlayer });
       room.turnSeconds = old.turnSeconds;
+      if (keepLeague) { room.leagueId = league!.id; room.leagueName = league!.name; }
       old.rematchCode = room.code;
       created = true;
     }
@@ -316,7 +342,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
       const otherHumans = ([0, 1, 2] as Position[]).filter(
         (p) => p !== mySeat && p !== old.abandonedSeat && !old.botSeats.has(p) && old.seatUserIds[p] !== null
       );
-      if (otherHumans.length === 0) {
+      if (otherHumans.length === 0 && room.leagueId === null) {
         fillSeatsWithBots(room);
         room.game.newHand();
       } else {
@@ -345,6 +371,10 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
       ack?.({ error: 'Partija je već počela' });
       return;
     }
+    if (room.leagueId !== null) {
+      ack?.({ error: 'U ligaškoj partiji ne igra računar — čekaju se članovi lige.' });
+      return;
+    }
     if (fillSeatsWithBots(room) === 0) {
       ack?.({ error: 'Nema praznih mesta' });
       return;
@@ -366,6 +396,10 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     const alreadySeated = room.seatUserIds.includes(userId);
     if (room.game.state.phase !== 'WAITING' && room.locked && !alreadySeated) {
       ack?.({ error: 'Soba je zaključana' });
+      return;
+    }
+    if (room.leagueId !== null && !alreadySeated && !isLeagueMember(room.leagueId, userId)) {
+      ack?.({ error: `Ovo je ligaška partija (${room.leagueName ?? 'liga'}) — sedaju samo članovi lige. Možeš da gledaš.` });
       return;
     }
     const seat = joinAsPlayer(room, userId, socket, name);

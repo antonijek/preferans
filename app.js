@@ -15,6 +15,8 @@ import {
 } from './engine/dist/ai.js';
 import { searchChoosePlayCard, searchChooseAction, applyLegalAction } from './engine/dist/aiSearch.js';
 import { sfx } from './sfx.js';
+import { $, el, escapeHtml, IS_PHONE_UA } from './dom.js';
+import { initLeagueUi, goToLeagues, consumeLeagueLink, wantedLeagueCode } from './league-ui.js';
 
 // Feature-flag za search-bazirani AI (Monte Carlo determinizacija, vidi
 // plan "toasty-rolling-sparkle") — localStorage prekidac radi trenutnog
@@ -692,13 +694,6 @@ function updateSoundEffects() {
   soundSnapshot = { phase: s.phase, trickLen, talonVisible, bidsLen: s.bids.length };
 }
 
-const $ = id => document.getElementById(id);
-const el = (tag, cls, html) => {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (html !== undefined) e.innerHTML = html;
-  return e;
-};
 const fmt = c => `${c.rank}${c.suit}`;
 const rankValue = r => RANK_ORDER.indexOf(r);
 // Raspored ruke: tref, herc, pik, karo — unutar boje od A (najjace) do 7
@@ -811,14 +806,6 @@ function seatDisplayName(pos) {
   // koji POS_LABELS namerno nema (koristi se za stalnu oznaku sedista).
   if (mode === 'online') return POS_LABELS[pos];
   return SEAT_PLAYER_NAME[pos];
-}
-
-// Online seatDisplayName() vraca korisnikov registrovani email — nepouzdan
-// unos. Svaki string koji se sa njim gradi pa ubacuje u innerHTML (el()
-// helper, bid log) MORA proci kroz ovo, inace je otvoren XSS (neko se
-// registruje sa "<img src=x onerror=...>" kao email).
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 // === RENDER: STO & SEDENJA ===
@@ -2368,6 +2355,13 @@ function renderResult() {
       if (mode === 'online' && s.unrated) {
         html += `<p class="muted-line" style="text-align:center">🤖 Za stolom je igrao računar — ova partija se ne računa za rejting.</p>`;
       }
+      const leagueRes = mode === 'online' ? lastMatchRankingResult?.league : null;
+      if (leagueRes) {
+        const leagueTxt = leagueRes.counted
+          ? `🏆 Upisano u tabelu lige „${escapeHtml(leagueRes.name ?? '')}“.`
+          : `🏆 Partija je prekinuta pre ${leagueRes.minHands} ruku — ne ulazi u tabelu lige „${escapeHtml(leagueRes.name ?? '')}“.`;
+        html += `<p class="muted-line league-result-note" style="text-align:center">${leagueTxt}</p>`;
+      }
       $('resultMsg').innerHTML = html;
     } catch (err) {
       console.error('[MATCH_OVER render greška, koristim jednostavan fallback]', err);
@@ -2950,7 +2944,12 @@ async function connectOnlineSocket() {
   // pocetni ekran jeste ispravan odgovor, nema kuda drugde da se vratimo.
   onlineSocket.on('room:none', () => {
     document.body.classList.remove('online-in-game');
+    document.body.classList.remove('league-room');
     $('loginScreen').classList.remove('active');
+    // isti obrazac kao ?room= ispod, za pozivni link lige (?liga=KOD)
+    if (consumeLeagueLink()) return;
+    // ponovno povezivanje dok gleda ligu — ostaje na ligi
+    if ($('leagueScreen').classList.contains('active')) return;
     // Stigli smo preko linka za sobu (copyRoomLink) i jos nismo probali da se
     // pridruzimo ovom konekcijom — uradi to sam umesto da prvo pokazes
     // pocetni ekran. sessionStorage cuvar sprekava beskonacno ponavljanje
@@ -3031,6 +3030,8 @@ async function connectOnlineSocket() {
       }
     }
     game.state = state;
+    // ligaska soba: bez "Popuni racunarom", napomena za cekanje (league.css)
+    document.body.classList.toggle('league-room', !!state.league);
     updateTurnClockFromState(state);
     markTurnInTitle(state);
     syncHandHistoryFromServer(state.handsHistory);
@@ -3053,6 +3054,7 @@ async function connectOnlineSocket() {
       $('homeScreen').classList.remove('active');
       $('roomScreen').classList.remove('active');
       $('setupScreen').classList.remove('active');
+      $('leagueScreen').classList.remove('active');
       $('chatToggleBtn').style.display = '';
       $('matchMenuBtn').style.display = '';
       $('peekHomeBtn').style.display = '';
@@ -3187,6 +3189,7 @@ function backToSetup() {
 
 function goToRoomScreen() {
   $('homeScreen').classList.remove('active');
+  $('leagueScreen').classList.remove('active');
   $('roomScreen').classList.add('active');
 }
 
@@ -3433,53 +3436,64 @@ function renderRoomList(rooms) {
     return;
   }
   container.innerHTML = '';
-  for (const r of rooms) {
-    const isMine = r.code === myRoomCode;
-    const row = el('div', 'lobby-table' + (isMine ? ' mine' : ''));
-    const seats = el('div', 'lobby-table-seats');
-    for (const seat of r.seats) {
-      const chip = el('span', 'lobby-seat' + (seat.name === null ? ' empty' : seat.bot ? ' bot' : ''));
-      chip.textContent = seat.name === null ? 'slobodno' : seat.bot ? `🤖 ${seat.name}` : seat.name;
-      seats.appendChild(chip);
-    }
-    row.appendChild(seats);
+  for (const r of rooms) container.appendChild(buildLobbyRow(r));
+}
 
-    const meta = el('div', 'lobby-table-meta');
-    const status = el('span', `lobby-status ${r.status}`);
-    status.textContent = r.status === 'waiting' ? 'čeka igrače' : `igra se · ruka ${r.round}`;
-    meta.appendChild(status);
-    const bula = el('span', '');
-    bula.textContent = r.status === 'waiting' ? `bula ${r.initialBule}` : `bula do kraja ${r.bulaLeft}`;
-    meta.appendChild(bula);
-    if (r.spectators > 0) {
-      const sp = el('span', '');
-      sp.textContent = `👁 ${r.spectators}`;
-      sp.title = 'Broj kibicera';
-      meta.appendChild(sp);
-    }
-    if (r.locked) meta.appendChild(el('span', '', '🔒'));
-    row.appendChild(meta);
-
-    const actions = el('div', 'lobby-table-actions');
-    if (isMine) {
-      actions.appendChild(el('span', 'lobby-mine-tag', 'Ti si ovde'));
-    } else {
-      const sit = () => { $('roomCodeInput').value = r.code; joinRoomOnline(); };
-      const watch = () => { $('roomCodeInput').value = r.code; joinAsSpectatorOnline(); };
-      if (r.canSit) {
-        const btn = el('button', 'mode-btn primary', r.status === 'waiting' ? 'Sedi' : 'Sedi umesto računara');
-        btn.onclick = sit;
-        actions.appendChild(btn);
-      }
-      if (r.canWatch) {
-        const btn = el('button', 'mode-btn', '👁 Gledaj');
-        btn.onclick = watch;
-        actions.appendChild(btn);
-      }
-    }
-    row.appendChild(actions);
-    container.appendChild(row);
+// Jedan sto u lobiju — isti red i na stranici lige (league-ui.js).
+function buildLobbyRow(r) {
+  const isMine = r.code === myRoomCode;
+  const row = el('div', 'lobby-table' + (isMine ? ' mine' : ''));
+  row.dataset.roomCode = r.code;
+  const seats = el('div', 'lobby-table-seats');
+  for (const seat of r.seats) {
+    const chip = el('span', 'lobby-seat' + (seat.name === null ? ' empty' : seat.bot ? ' bot' : ''));
+    chip.textContent = seat.name === null ? 'slobodno' : seat.bot ? `🤖 ${seat.name}` : seat.name;
+    seats.appendChild(chip);
   }
+  row.appendChild(seats);
+
+  const meta = el('div', 'lobby-table-meta');
+  if (r.league) {
+    const tag = el('span', 'lobby-league');
+    tag.textContent = `🏆 ${r.league.name}`;
+    tag.title = 'Ligaška partija — sedaju samo članovi lige';
+    meta.appendChild(tag);
+  }
+  const status = el('span', `lobby-status ${r.status}`);
+  status.textContent = r.status === 'waiting' ? 'čeka igrače' : `igra se · ruka ${r.round}`;
+  meta.appendChild(status);
+  const bula = el('span', '');
+  bula.textContent = r.status === 'waiting' ? `bula ${r.initialBule}` : `bula do kraja ${r.bulaLeft}`;
+  meta.appendChild(bula);
+  if (r.spectators > 0) {
+    const sp = el('span', '');
+    sp.textContent = `👁 ${r.spectators}`;
+    sp.title = 'Broj kibicera';
+    meta.appendChild(sp);
+  }
+  if (r.locked) meta.appendChild(el('span', '', '🔒'));
+  row.appendChild(meta);
+
+  const actions = el('div', 'lobby-table-actions');
+  if (isMine) {
+    actions.appendChild(el('span', 'lobby-mine-tag', 'Ti si ovde'));
+  } else {
+    // sa stranice lige prvo na ekran sobe, tamo se vidi status i greska
+    const sit = () => { goToRoomScreen(); $('roomCodeInput').value = r.code; joinRoomOnline(); };
+    const watch = () => { goToRoomScreen(); $('roomCodeInput').value = r.code; joinAsSpectatorOnline(); };
+    if (r.canSit) {
+      const btn = el('button', 'mode-btn primary lobby-sit-btn', r.status === 'waiting' ? 'Sedi' : 'Sedi umesto računara');
+      btn.onclick = sit;
+      actions.appendChild(btn);
+    }
+    if (r.canWatch) {
+      const btn = el('button', 'mode-btn lobby-watch-btn', '👁 Gledaj');
+      btn.onclick = watch;
+      actions.appendChild(btn);
+    }
+  }
+  row.appendChild(actions);
+  return row;
 }
 
 // Status sobe koja ceka igrace: kod, dugmad za poziv i "ne cekaj" — racunar
@@ -3489,6 +3503,7 @@ function renderWaitingStatus(code, lead) {
   return `<div class="waiting-code">${lead} <b>${code}</b></div>` +
     `<div class="waiting-share">${renderRoomShareRow(code)}</div>` +
     `<div class="waiting-note">Čeka se još igrača… Pozovi prijatelje ili ne čekaj:</div>` +
+    `<div class="waiting-league-note">🏆 Ligaška partija — čeka se još članova lige (računar ne igra).</div>` +
     `<button class="mode-btn fill-bots-btn" onclick="fillWithBotsOnline()">🤖 Popuni računarom i počni</button>` +
     `<button class="link-btn notify-wait-btn" style="display:${pushState === 'off' ? '' : 'none'}" onclick="enablePlayerPush()">🔔 Javi mi na telefon kad sto bude pun</button>`;
 }
@@ -3570,13 +3585,20 @@ function createRoomOnline(withBots = false) {
   const turnSeconds = parseInt($('roomTurnSeconds')?.value ?? '30', 10);
   onlineSocket.emit('room:create', { initialBule, refePerPlayer, withBots, turnSeconds }, (res) => {
     if (res.error) { $('roomError').textContent = res.error; return; }
-    mySeat = res.seat;
-    myRoomCode = res.code;
-    resetHandHistoryForNewRoom();
-    $('roomCodeInput').value = res.code;
-    $('roomStatus').innerHTML = renderWaitingStatus(res.code, 'Kod sobe:');
-    updateRoomJoinButtonState();
+    enterCreatedRoom(res);
   });
+}
+
+// zajednicko za obicnu i ligasku sobu (league-ui.js createLeagueRoom)
+function enterCreatedRoom(res) {
+  goToRoomScreen();
+  $('roomError').textContent = '';
+  mySeat = res.seat;
+  myRoomCode = res.code;
+  resetHandHistoryForNewRoom();
+  $('roomCodeInput').value = res.code;
+  $('roomStatus').innerHTML = renderWaitingStatus(res.code, 'Kod sobe:');
+  updateRoomJoinButtonState();
 }
 
 function joinRoomOnline() {
@@ -3613,8 +3635,7 @@ function joinAsSpectatorOnline() {
 // (navigator.share native share sheet, SAMO na telefonu kad postoji) i
 // Kopiraj link (uvek). HTML string se ubacuje pored koda sobe u
 // #roomStatus na sva 3 mesta gde se taj status prikazuje (napravi/
-// pridruzi se/reconnect) — vidi pozive ispod.
-const IS_PHONE_UA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+// pridruzi se/reconnect) — vidi pozive ispod. IS_PHONE_UA je u dom.js.
 function renderRoomShareRow(code) {
   const url = `${location.origin}${location.pathname}?room=${code}`;
   const text = encodeURIComponent(`Hajde da igramo Preferans! Uđi u moju sobu: ${url}`);
@@ -4007,6 +4028,15 @@ window.requestKibicOnline = requestKibicOnline;
 window.toggleChat = toggleChat;
 window.sendChatOnline = sendChatOnline;
 window.leaveMatch = leaveMatch;
+window.goToLeagues = goToLeagues;
+
+initLeagueUi({
+  getToken: () => onlineToken,
+  getSocket: () => onlineSocket,
+  showToast: showAppToast,
+  enterCreatedRoom,
+  buildLobbyRow,
+});
 
 // INIT
 renderSeats();
@@ -4019,8 +4049,8 @@ if (onlineToken) {
   $('loginScreen').classList.add('active');
   $('loginError').textContent = 'Povezivanje...';
   connectOnlineSocket();
-} else if (wantedRoomCode) {
-  // Stigli smo preko linka za sobu ali nismo ulogovani — pokazi login
+} else if (wantedRoomCode || wantedLeagueCode) {
+  // Stigli smo preko linka za sobu/ligu ali nismo ulogovani — pokazi login
   // (umesto lokalnog setup ekrana za igru protiv racunara) da bi se posle
   // prijave odmah otislo u tu sobu (vidi 'room:none' handler).
   $('loginScreen').classList.add('active');

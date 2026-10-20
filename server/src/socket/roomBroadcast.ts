@@ -10,6 +10,7 @@ import type { HandSnapshot, ChatMessage } from '../rooms/RoomState.js';
 import { CHAT_LOG_LIMIT } from '../rooms/RoomState.js';
 import { persistRoom } from '../rooms/RoomManager.js';
 import { notifyUser } from '../push.js';
+import { countsForLeague, MIN_HANDS_FOR_EARLY_END } from '../leagueStandings.js';
 
 // A couple of small values (whose turn it is to kontra, which of MY OWN
 // cards are currently legal to play) require private engine logic
@@ -57,6 +58,7 @@ export function buildClientState(room: RoomState, viewer: Viewer) {
     // ko je na potezu (i bez vremena za potez) — klijent menja naslov
     // kartice u "Tvoj potez" dok je stranica u pozadini
     actorSeat: turnActor(room),
+    league: room.leagueId !== null ? { id: room.leagueId, name: room.leagueName } : null,
     turnSeat: room.turnDeadline !== null ? turnActor(room) : null,
     turnRemainingMs: room.turnDeadline !== null ? Math.max(0, room.turnDeadline - Date.now()) : null,
     turnTotalMs: room.turnTotalMs,
@@ -243,6 +245,7 @@ function resolveMatchRanking(room: RoomState): void {
     const uid = room.seatUserIds[seat];
     ratings[seat] = uid !== null ? getUserRating(uid) : 1000;
   }
+  // (do ovde se stize samo bez racunara — partija ide u tabelu lige ako je ligaska)
   const deltas = calculateRatingDeltas(scores, ratings);
   const newRatings: [number, number, number] = [0, 0, 0];
   for (const seat of [0, 1, 2] as Position[]) {
@@ -254,14 +257,18 @@ function resolveMatchRanking(room: RoomState): void {
       room.seatRatings[seat] = updated;
     }
   }
-  const payload = { scores, deltas, newRatings };
+  // matchEndReason je uvek postavljen engine-om (natural/agreed/leave) kad dodjemo dovde.
+  const reason = room.game.state.matchEndReason ?? 'natural';
+  // klijent pise "upisano u tabelu lige" ili zasto nije (prekid pre 10 ruku)
+  const league = room.leagueId !== null
+    ? { name: room.leagueName, counted: countsForLeague(reason, room.game.state.round), minHands: MIN_HANDS_FOR_EARLY_END }
+    : null;
+  const payload = { scores, deltas, newRatings, league };
   room.sockets.forEach((socket) => socket?.emit('game:matchRankingResult', payload));
   room.spectators.forEach((spectator) => spectator.socket?.emit('game:matchRankingResult', payload));
 
   // Istorija partija (korisnikov zahtev 2026-09-11) — snima JEDAN red u
-  // match_log sa JSON-serijalizovanim nizovima. matchEndReason je uvek
-  // postavljen engine-om (natural/agreed/leave) kad dodjemo dovde.
-  const reason = room.game.state.matchEndReason ?? 'natural';
+  // match_log sa JSON-serijalizovanim nizovima.
   saveMatchLog({
     room_code: room.code,
     match_end_reason: reason,
@@ -277,6 +284,7 @@ function resolveMatchRanking(room: RoomState): void {
     rating_deltas: deltas,
     new_ratings: newRatings,
     hands_json: JSON.stringify(room.handsHistory),
+    league_id: room.leagueId,
   });
 }
 

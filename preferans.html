@@ -34,6 +34,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./preferans.css?v=7">
+<link rel="stylesheet" href="./league.css?v=1">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -272,6 +273,7 @@
     <h1 class="home-greeting" id="homeGreeting">Zdravo!</h1>
     <p class="home-tagline">Preferans online — igraj preferans uživo (poznat i kao balkanski preferans ili preferanc) sa pravim igračima, besplatno u browseru.</p>
     <button class="mode-btn primary home-cta" onclick="goToRoomScreen()">🎮 Sobe — napravi ili se pridruži</button>
+    <button class="mode-btn home-cta" id="leaguesBtn" style="margin-top:10px" onclick="goToLeagues()">🏆 Lige — tabela, norma, pozivni link</button>
     <!-- Obavestenja na telefon (korisnikov zahtev 2026-10-14) — vidno samo
          dok nisu ukljucena i pregledac ih podrzava, vidi refreshPushUi() -->
     <button class="mode-btn home-cta" id="notifyBtn" style="display:none;margin-top:10px" onclick="enablePlayerPush()">🔔 Obavesti me na telefon kad sam na potezu</button>
@@ -436,6 +438,15 @@
     <button class="mode-btn" onclick="goToHomeScreen()">← Nazad</button>
     <button class="mode-btn" onclick="logoutOnline()">Odjavi se</button>
   </section>
+  </div>
+</div>
+
+<!-- Zatvorene lige (korisnikov zahtev 2026-10-14) — spisak mojih liga,
+     pravljenje lige, tabela i clanovi. Sadrzaj pravi app.js (renderLeague*). -->
+<div class="screen rich-page" id="leagueScreen">
+  <div class="full-page-header"><span class="logo"><img src="/icons/logo-mark.svg" class="logo-mark" alt="">Preferans</span></div>
+  <div class="box setup-box league-wrap">
+    <div id="leagueView"><div class="room-list-empty">Učitavanje...</div></div>
   </div>
 </div>
 
