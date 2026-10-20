@@ -2,8 +2,7 @@ import type { RoomState } from '../rooms/RoomState.js';
 import type { Position } from '../../../engine/dist/types.js';
 import { redactStateFor } from '../redact.js';
 import type { Viewer } from '../redact.js';
-import { applyAction } from './gameEvents.js';
-import { computeAiAction } from '../ai/aiSeat.js';
+import { playAiTurn } from '../ai/botTurn.js';
 import { getUserRating, updateUserRating, saveMatchLog } from '../db.js';
 import { calculateRatingDeltas } from '../../../engine/dist/scoring.js';
 import type { HandSnapshot, ChatMessage } from '../rooms/RoomState.js';
@@ -412,8 +411,7 @@ function maybeScheduleTurnTimer(room: RoomState): void {
       room.turnDeadline = null;
       return;
     }
-    const action = computeAiAction(room.game, actor);
-    if (action) applyAction(room.game, action);
+    playAiTurn(room.game, actor);
     postSystemMessage(room, `⏱ Isteklo vreme za potez — računar je odigrao za: ${room.seatNames[actor] ?? 'igrača'}.`);
     broadcastRoomState(room);
   }, ms);
@@ -435,8 +433,7 @@ function maybeDriveAiTurn(room: RoomState): void {
     // stanje je moglo da se promeni (covek seo umesto racunara, ruka gotova)
     const actor = aiDrivenActor(room);
     if (actor === null) return;
-    const action = computeAiAction(room.game, actor);
-    if (action) applyAction(room.game, action);
+    playAiTurn(room.game, actor);
     broadcastRoomState(room);
   }, 600);
 }
