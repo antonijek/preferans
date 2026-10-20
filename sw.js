@@ -27,6 +27,7 @@ const SHELL_FILES = [
   '/dialog.js',
   '/dialog.css',
   '/session-replaced.js',
+  '/share.js',
   '/manifest.json',
   '/icon.svg',
   '/icons/icon-192.png',

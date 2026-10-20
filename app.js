@@ -19,6 +19,7 @@ import { $, el, escapeHtml, IS_PHONE_UA } from './dom.js';
 import { initLeagueUi, goToLeagues, consumeLeagueLink, wantedLeagueCode } from './league-ui.js';
 import { copyLink } from './dialog.js';
 import { watchSessionReplaced } from './session-replaced.js';
+import { shareResult } from './share.js';
 
 // Feature-flag za search-bazirani AI (Monte Carlo determinizacija, vidi
 // plan "toasty-rolling-sparkle") — localStorage prekidac radi trenutnog
@@ -2244,6 +2245,7 @@ function renderResult() {
     $('nextRoundBtn').classList.toggle('primary', !showRematch);
     rematchBtn.textContent = rematchOffer ? `🔁 Prihvati revanš (${rematchOffer.byName})` : '🔁 Revanš';
   }
+  $('shareResultBtn').style.display = s.phase === 'MATCH_OVER' ? '' : 'none';
   // Status "ko je vec spreman" (samo online, samo GAME_OVER — ne MATCH_OVER,
   // gde dugme vodi na pocetni ekran umesto da deli sledecu rundu).
   const dealStatusEl = $('dealNextStatus');
@@ -2718,6 +2720,35 @@ function requestRematch() {
   });
 }
 window.requestRematch = requestRematch;
+
+// "Podeli rezultat" (share.js): isti plasman i rezultat kao na ekranu kraja partije
+async function shareMatchResult() {
+  const s = game.state;
+  if (s?.phase !== 'MATCH_OVER') return;
+  const { scores, results } = matchStanding(s);
+  const ranking = [0, 1, 2].sort((a, b) => scores[a] - scores[b]);
+  const me = [0, 1, 2].find((p) => isHuman(p));
+  const rows = ranking.map((p, i) => ({ place: i + 1, name: POS_LABELS[p], result: signed(results[p]), me: p === me }));
+  const myPlace = rows.findIndex((r) => r.me) + 1;
+  const hands = `${s.round} ${s.round === 1 ? 'ruka' : 'ruku'}`;
+  const info = {
+    title: myPlace === 1 ? 'Pobeda!' : 'Kraj partije',
+    sub: `${hands} · pobednik ${POS_LABELS[ranking[0]]}`,
+    date: new Date().toLocaleDateString('sr-Latn-RS', { day: 'numeric', month: 'long', year: 'numeric' }),
+    rows,
+  };
+  const text = myPlace
+    ? `Preferans: ${myPlace}. mesto (${rows[myPlace - 1].result}) posle ${hands}.`
+    : `Preferans: partija od ${hands}, pobednik ${POS_LABELS[ranking[0]]}.`;
+  try {
+    const how = await shareResult(info, text);
+    if (how === 'saved') showAppToast('📤 Slika je sačuvana, a tekst kopiran — pošalji ih uz poruku.');
+    else if (how === 'saved-no-text') showAppToast('📤 Slika je sačuvana — pošalji je uz poruku.');
+  } catch (e) {
+    showAppToast(`⚠️ Slika rezultata nije napravljena: ${e.message}`);
+  }
+}
+window.shareMatchResult = shareMatchResult;
 
 function resultActionLocal() {
   if (game.state.phase === 'MATCH_OVER') {

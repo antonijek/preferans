@@ -207,6 +207,10 @@ async function main() {
   await agreeEndMatch(A, [B, C]);
   await A.waitForSelector('#resultMsg .league-result-note', { timeout: 5000 });
   check('posle 1 ruke: "ne ulazi u tabelu lige"', (await A.textContent('#resultMsg .league-result-note')).includes('ne ulazi'));
+  // "Podeli rezultat" (share.js): bez sistemskog deljenja slika se preuzima
+  const [shot] = await Promise.all([A.waitForEvent('download', { timeout: 8000 }), A.click('#shareResultBtn')]);
+  check('Podeli rezultat: slika rezultata', shot.suggestedFilename() === 'preferans-rezultat.png');
+  if (process.env.SHOT_DIR) await shot.saveAs(`${process.env.SHOT_DIR}/share.png`);
 
   // --- 4. revans ostaje ligaski, 10 ruku + dogovor: upisuje se ---
   await A.click('#rematchBtn');
