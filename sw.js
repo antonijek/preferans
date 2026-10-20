@@ -15,6 +15,7 @@ const CACHE_NAME = 'preferans-v40';
 const SHELL_FILES = [
   '/',
   '/preferans.html',
+  '/theme.css',
   '/preferans.css',
   '/app.js',
   '/sfx.js',
@@ -28,6 +29,7 @@ const SHELL_FILES = [
   '/dialog.css',
   '/session-replaced.js',
   '/share.js',
+  '/card-order.js',
   '/manifest.json',
   '/icon.svg',
   '/icons/icon-192.png',

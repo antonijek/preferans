@@ -288,6 +288,8 @@ export interface MatchLogRow {
   final_scores: string;
   rating_deltas: string;
   new_ratings: string;
+  hands_json: string;
+  league_id: number | null;
 }
 
 export function getAllMatches(limit = 100): MatchLogRow[] {

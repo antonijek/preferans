@@ -20,6 +20,7 @@ import { initLeagueUi, goToLeagues, consumeLeagueLink, wantedLeagueCode } from '
 import { copyLink } from './dialog.js';
 import { watchSessionReplaced } from './session-replaced.js';
 import { shareResult } from './share.js';
+import { isRed, sortHand, cardImageSrc } from './card-order.js';
 
 // Feature-flag za search-bazirani AI (Monte Carlo determinizacija, vidi
 // plan "toasty-rolling-sparkle") — localStorage prekidac radi trenutnog
@@ -327,7 +328,6 @@ window.addEventListener('load', () => {
 
 const SUIT_NAMES = { '♠': 'Pik', '♥': 'Herc', '♦': 'Karo', '♣': 'Tref' };
 const SUIT_GLYPH = { '♠': '♠', '♥': '♥', '♦': '♦', '♣': '♣' };
-const RANK_ORDER = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
 // Kreira NOVU Game instancu sa datim podesavanjima (pocetna bula, broj refea
 // po igracu — korisnikov zahtev: "sto" postavlja ovo, nema vise fiksno
@@ -698,15 +698,6 @@ function updateSoundEffects() {
 }
 
 const fmt = c => `${c.rank}${c.suit}`;
-const rankValue = r => RANK_ORDER.indexOf(r);
-// Raspored ruke: tref, herc, pik, karo — unutar boje od A (najjace) do 7
-const HAND_SUIT_ORDER = ['♣', '♥', '♠', '♦'];
-const sortHand = cards => cards.slice().sort((a, b) => {
-  const suitDiff = HAND_SUIT_ORDER.indexOf(a.suit) - HAND_SUIT_ORDER.indexOf(b.suit);
-  if (suitDiff !== 0) return suitDiff;
-  return rankValue(b.rank) - rankValue(a.rank);
-});
-const isRed = s => s === '♥' || s === '♦';
 // Lepezasto preklapanje karata u ruci — postavlja --rot/--lift CSS varijable
 // po karti (CSS u preferans.html ih koristi za transform), srednja karta
 // ostaje ravna, ivicne se blago rotiraju/spustaju kao prava lepeza.
@@ -732,7 +723,6 @@ function applyHandFan(container) {
 // posle toga trazio da izgled bude IZBOR (neki su navikli na stare
 // tekstualne karte, "sad djeluju premale") — cuva se po korisniku
 // (localStorage), cisto kozmetika na klijentu, isti obrazac kao toggleSound.
-const SUIT_TO_FILE_LETTER = { '♠': 'S', '♥': 'H', '♦': 'D', '♣': 'C' };
 function getCardStyle() {
   try { return localStorage.getItem('cardStyle') === 'text' ? 'text' : 'illustrated'; } catch { return 'illustrated'; }
 }
@@ -759,7 +749,7 @@ const cardEl = (c, opts = {}) => {
     node.innerHTML = `<div class="rank">${c.rank}</div><div class="suit">${c.suit}</div>`;
   } else {
     const img = document.createElement('img');
-    img.src = `/icons/cards/${c.rank}${SUIT_TO_FILE_LETTER[c.suit]}.svg`;
+    img.src = cardImageSrc(c);
     img.alt = `${c.rank}${c.suit}`;
     img.draggable = false;
     // Width/height (CSS i dalje odredjuje stvarnu velicinu, .card je uvek

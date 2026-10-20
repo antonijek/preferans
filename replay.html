@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1b5e20">
+<meta name="robots" content="noindex">
+<title>Pregled partije — Preferans online</title>
+<link rel="icon" href="/icons/favicon-32.png">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/theme.css?v=1">
+<link rel="stylesheet" href="/page.css?v=1">
+<link rel="stylesheet" href="/replay.css?v=1">
+</head>
+<body>
+
+<div class="top-bar">
+  <a class="logo" href="/"><img src="/icons/logo-mark.svg" style="height:1.15em;width:1.15em;vertical-align:-0.22em;margin-right:0.15em" alt="">Preferans</a>
+  <a class="back-link" href="/matches.html">← Moje partije</a>
+</div>
+
+<div class="wrap replay-wrap">
+  <h1 class="page-title" id="rpTitle">Pregled partije</h1>
+  <p class="subtitle" id="rpSub">Učitavanje...</p>
+  <div class="rp-error" id="rpError"></div>
+
+  <div id="rpBody" hidden>
+    <div class="rp-hand-pick">
+      <button type="button" class="rp-btn" id="rpPrevHand" title="Prethodna ruka">◀</button>
+      <select id="rpHandSelect" aria-label="Ruka"></select>
+      <button type="button" class="rp-btn" id="rpNextHand" title="Sledeća ruka">▶</button>
+    </div>
+
+    <div class="rp-info" id="rpInfo"></div>
+
+    <div class="rp-table">
+      <div class="rp-player rp-seat-a" id="rpSeatA"></div>
+      <div class="rp-player rp-seat-b" id="rpSeatB"></div>
+      <div class="rp-trick" id="rpTrick"></div>
+      <div class="rp-player rp-seat-me" id="rpSeatMe"></div>
+    </div>
+
+    <div class="rp-step" id="rpStepText"></div>
+    <div class="rp-controls">
+      <button type="button" class="rp-btn" id="rpFirst" title="Početak ruke">⏮</button>
+      <button type="button" class="rp-btn" id="rpPrev" title="Karta nazad (←)">◀</button>
+      <button type="button" class="rp-btn rp-play" id="rpPlay">▶ Pusti</button>
+      <button type="button" class="rp-btn" id="rpNext" title="Karta napred (→)">▶</button>
+      <button type="button" class="rp-btn" id="rpLast" title="Kraj ruke">⏭</button>
+    </div>
+    <div class="rp-link">
+      <button type="button" class="rp-btn" id="rpCopyLink">🔗 Kopiraj link do ovog mesta</button>
+      <input type="text" id="rpLinkField" readonly hidden>
+    </div>
+    <p class="rp-note" id="rpNote"></p>
+  </div>
+</div>
+
+<script type="module" src="/replay.js?v=1"></script>
+</body>
+</html>

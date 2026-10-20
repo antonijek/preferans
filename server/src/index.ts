@@ -11,6 +11,8 @@ import { registerSocketHandlers } from './socket/index.js';
 import { removeAbandonedWaitingRooms, removeStuckRooms, loadPersistedRooms, forEachRoom } from './rooms/RoomManager.js';
 import { resumeRoomTimers } from './socket/roomBroadcast.js';
 import { leaguesRouter } from './leagues.js';
+import { replayRouter } from './replay.js';
+import { statsRouter } from './stats.js';
 import { seoRouter } from './seo.js';
 import { initPush } from './push.js';
 
@@ -79,6 +81,8 @@ async function main(): Promise<void> {
   app.use('/api', authRouter);
   app.use('/api/admin', adminRouter);
   app.use('/api/leagues', leaguesRouter);
+  app.use('/api/replay', replayRouter);
+  app.use('/api/stats', statsRouter);
 
   const httpServer = http.createServer(app);
   const io = new SocketIOServer(httpServer, { cors: { origin: true } });

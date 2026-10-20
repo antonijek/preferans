@@ -1,0 +1,26 @@
+/* Boje teme za sve stranice (igra, pravila, privatnost, pregled partije) —
+   premesteno iz preferans.css 2026-10-20 da ih vide i stranice bez igre. */
+/* Jedinstvena zlatna paleta ("klasicna kockarnica" pravac) — korisnikov
+   zahtev: koristio sam 2-3 blago razlicite nijanse zlatne nedosledno
+   (bilo #b8860b/#d4af37/#ffd54f) na razlicitim mestima. Sad SVE zlatno/braon u
+   fajlu ide kroz ove tri promenljive:
+   --gold       = glavna linija/okvir (paneli, dugmad, kajle) — vec je bila
+                  dominantan izbor (5+ mesta), ostaje sidro.
+   --gold-bright = TEKST/brojevi/hover-akcenti koji moraju da "iskoce" na
+                  tamnoj pozadini (bula, refe tackice, fokus stanje) —
+                  namerno svetlije od --gold, nije "treca nijansa" vec
+                  NAMENSKI drugi korak iste palete (kao svetlije/tamnije
+                  dugme istog materijala), dosledno primenjen svuda gde je
+                  ranije bio nasumican izbor izmedju sve tri stare boje.
+   --gold-dark  = najtamniji ton, za gradijente/senke (dugmad, dubina). */
+:root {
+  --gold: #b8860b;
+  --gold-rgb: 184, 134, 11;
+  --gold-bright: #ffd54f;
+  --gold-dark: #6b5320;
+  /* čoha stola i drveni okvir (sto, kutije, slika "Podeli rezultat") */
+  --felt: #177245;
+  --felt-dark: #0e4d2e;
+  --wood: #6b4424;
+  --wood-dark: #4a2e17;
+}

@@ -73,6 +73,13 @@
   }
   .win { color: #8be78b; font-weight: 600; }
   .lose { color: #ff8a80; }
+  .replay-link { margin-left: 10px; white-space: nowrap; color: inherit; }
+  /* licna statistika (stats-view.js) */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .stat-tile { background: rgba(255,255,255,0.05); border-radius: 10px; padding: 10px 12px; }
+  .stat-value { font-size: 1.35em; font-weight: 700; }
+  .stat-label { font-size: 0.8em; opacity: 0.75; }
+  .stat-games { margin-top: 10px; font-size: 0.9em; opacity: 0.9; }
 </style>
 </head>
 <body>
@@ -89,6 +96,8 @@
 <div id="matchesBox" style="display:none">
   <h1><img src="/icons/logo-mark.svg" style="height:1em;width:1em;vertical-align:-0.15em;margin-right:0.15em" alt="">Moje partije</h1>
   <div class="sub" id="whoami"></div>
+
+  <div class="card" id="statsBox" hidden></div>
 
   <div class="card">
     <h2><span>Istorija partija</span><button onclick="loadMatches()">🔄 Osveži</button></h2>
@@ -161,6 +170,9 @@
       document.getElementById('loginBox').style.display = 'none';
       document.getElementById('matchesBox').style.display = 'block';
       document.getElementById('whoami').textContent = 'Prijavljen kao: ' + (me.user.name || me.user.email);
+      // licna statistika (stats-view.js, modul) — moze da se ucita i pre ovoga
+      document.body.dataset.ready = '1';
+      document.dispatchEvent(new Event('pref:matches-ready'));
     } catch (e) {
       document.getElementById('loginErr').textContent = 'Nisi prijavljen (' + e.message + ').';
       document.getElementById('loginBox').style.display = 'block';
@@ -218,6 +230,12 @@
         btn.textContent = '📋';
         btn.onclick = () => openMatchModal(m.id);
         tdAction.appendChild(btn);
+        // pregled ruku po ruku (replay.html)
+        const replay = document.createElement('a');
+        replay.className = 'clickable replay-link';
+        replay.href = '/replay.html?id=' + m.id;
+        replay.textContent = '▶ Pregled';
+        tdAction.appendChild(replay);
         tr.appendChild(tdAction);
 
         body.appendChild(tr);
@@ -279,6 +297,7 @@
 
     const html = [];
     html.push('<h2>Partija #' + m.id + ' — ' + escapeHtml(m.room_code) + ' ' + (iWon ? '🏆' : '') + '</h2>');
+    html.push('<p><a class="replay-link" href="/replay.html?id=' + m.id + '">▶ Pregled ruku po ruku (sve karte, štih po štih)</a></p>');
     html.push('<div class="hand-meta">');
     html.push('<span>Završena: ' + new Date(m.ended_at + 'Z').toLocaleString('sr-RS') + '</span>');
     html.push('<span>Razlog: ' + reasonLabel + '</span>');
@@ -354,5 +373,6 @@
 
   if (token) tryEnter();
 </script>
+<script type="module" src="/stats-view.js?v=1"></script>
 </body>
 </html>

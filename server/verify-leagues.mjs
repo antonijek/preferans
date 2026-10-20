@@ -11,98 +11,13 @@ import { chromium } from 'playwright';
 // Pokretanje: sveza baza, npr. DB_PATH=<tmp> PORT=3001 node dist/index.js
 // (registracija je ogranicena na 5 po satu po IP adresi, ovde se trose 4).
 
-const URL = 'http://localhost:3001/';
+import {
+  URL, makeChecker, fillRegistration, registerFromHome, phaseOf, roundOf, TERMINAL, driveUntil, agreeEndMatch, dumpPages,
+} from './verify-helpers.mjs';
+
 const LEAGUE_NAME = 'Liga <b>Test</b>';
-let failed = false;
-function check(label, condition) {
-  console.log((condition ? 'PASS' : 'FAIL') + ' - ' + label);
-  if (!condition) failed = true;
-}
-
-async function fillRegistration(page, letter, stamp) {
-  await page.fill('#loginName', `Test-${letter}`);
-  await page.fill('#loginEmail', `lg${letter}-${stamp}@test.com`);
-  await page.fill('#loginPassword', 'test1234');
-  await page.click('#loginScreen [onclick="doRegister()"]');
-}
-
-async function registerFromHome(page, letter, stamp) {
-  await page.goto(URL);
-  await page.click('[onclick="goOnline()"]');
-  await fillRegistration(page, letter, stamp);
-  await page.waitForSelector('#homeScreen.active', { timeout: 5000 });
-}
-
-const phaseOf = (page) => page.evaluate(() => window.game?.state?.phase ?? null);
-const roundOf = (page) => page.evaluate(() => window.game?.state?.round ?? 0);
-const TERMINAL = ['GAME_OVER', 'REFE', 'MATCH_OVER'];
-
-// Isti pristup kao verify-match-end-history.mjs: svako odigra prvu legalnu
-// stvar. U svakoj ruci prvi na potezu licitira, ostali kazu "dalje" — kad
-// svi kazu "dalje", server deli ponovo u ISTOJ ruci (round se ne menja).
-async function tryAct(page, { dealNext }) {
-  const phase = await phaseOf(page);
-  if (!phase) return;
-  if (phase === 'BIDDING') {
-    const raise = page.locator('#bidControls .bid-btn.primary');
-    const pass = page.locator('#bidControls .bid-btn.danger');
-    const noBidYet = await page.evaluate(() => window.game.state.currentBid === 0);
-    if (noBidYet && (await raise.count()) > 0) await raise.first().click();
-    else if ((await pass.count()) > 0) await pass.first().click();
-  } else if (phase === 'DISCARDING') {
-    const cards = page.locator('#handArea .card');
-    if ((await cards.count()) < 2) return;
-    await cards.nth(0).click();
-    await cards.nth(1).click();
-    const confirm = page.locator('#bidControls .bid-btn.primary');
-    if ((await confirm.count()) > 0) await confirm.first().click();
-  } else if (['DECLARING', 'FOLLOW_DECLARING', 'KONTRA_DECLARING'].includes(phase)) {
-    const btn = page.locator('#bidControls button').first();
-    if ((await btn.count()) > 0) await btn.click();
-  } else if (phase === 'PLAYING') {
-    const card = page.locator('#handArea .card.playable').first();
-    if ((await card.count()) > 0) await card.click();
-  } else if (dealNext && (phase === 'GAME_OVER' || phase === 'REFE')) {
-    const next = page.locator('#nextRoundBtn');
-    if (await next.isVisible()) await next.click();
-  }
-}
-
-// Stanje igre koje mora da se menja dok se igra — ako stoji, igra je zapela.
-const progressKey = (page) => page.evaluate(() => {
-  const s = window.game?.state;
-  return s ? `${s.round}|${s.phase}|${s.currentPlayer}|${s.bids?.length}|${s.trickCount}|${s.currentTrick?.length}` : 'none';
-});
-
-async function driveUntil(pages, predicate, { maxIters = 3000, dealNext = false } = {}) {
-  let lastKey = null;
-  let still = 0;
-  for (let i = 0; i < maxIters; i++) {
-    if (await predicate()) return true;
-    const key = await progressKey(pages[0]);
-    still = key === lastKey ? still + 1 : 0;
-    lastKey = key;
-    if (still >= 150) {
-      console.log(`  ZASTOJ: stanje se ne menja (${key})`);
-      await dumpPages();
-      return false;
-    }
-    for (const p of pages) await tryAct(p, { dealNext }).catch(() => {});
-    await pages[0].waitForTimeout(120);
-  }
-  return false;
-}
-
-async function agreeEndMatch(proposer, others) {
-  await proposer.click('#matchMenuBtn');
-  await proposer.click('#matchMenuPanel [onclick*="proposeEndMatch"]');
-  await proposer.click('#endMatchBanners .end-match-actions .bid-btn.primary');
-  for (const p of others) {
-    await p.waitForSelector('#endMatchBanners .end-match-actions .bid-btn.primary', { timeout: 5000 });
-    await p.click('#endMatchBanners .end-match-actions .bid-btn.primary');
-  }
-  await proposer.waitForFunction(() => window.game?.state?.phase === 'MATCH_OVER', { timeout: 8000 });
-}
+const { check, state } = makeChecker();
+const reg = (letter, stamp) => [`Test-${letter}`, `lg${letter}-${stamp}@test.com`];
 
 async function openLeaguePage(page) {
   await page.evaluate(() => window.goToLeagues());
@@ -118,35 +33,18 @@ async function standings(page) {
   })));
 }
 
-let pagesForDebug = [];
-async function dumpPages() {
-  for (const [i, p] of pagesForDebug.entries()) {
-    const info = await p.evaluate(() => ({
-      screens: [...document.querySelectorAll('.screen.active')].map((s) => s.id),
-      phase: window.game?.state?.phase ?? null,
-      round: window.game?.state?.round ?? null,
-      currentPlayer: window.game?.state?.currentPlayer ?? null,
-      inGame: document.body.classList.contains('online-in-game'),
-      bidButtons: document.querySelectorAll('#bidControls button').length,
-      handCards: document.querySelectorAll('#handArea .card').length,
-      roomError: document.getElementById('roomError')?.textContent,
-      leagueError: document.getElementById('leagueError')?.textContent ?? null,
-    })).catch((e) => ({ evalError: e.message }));
-    console.log(`page${'ABCD'[i]}:`, JSON.stringify(info));
-  }
-  if (pageErrors.length) console.log('JS greske:', pageErrors);
-}
 const pageErrors = [];
+let debugPages = [];
 
 async function main() {
   const browser = await chromium.launch();
   const stamp = Date.now();
   const [A, B, C, D] = await Promise.all([1, 2, 3, 4].map(() => browser.newContext().then((c) => c.newPage())));
-  pagesForDebug = [A, B, C, D];
+  debugPages = [A, B, C];
   [A, B, C, D].forEach((p, i) => p.on('pageerror', (e) => pageErrors.push(`page${'ABCD'[i]}: ${e.message}`)));
 
   // --- 1. liga i pozivni link ---
-  await registerFromHome(A, 'a', stamp);
+  await registerFromHome(A, ...reg('a', stamp));
   await A.click('#leaguesBtn');
   await A.waitForSelector('#leagueScreen.active #leagueCreateBtn', { timeout: 5000 });
   await A.click('#leagueCreateBtn');
@@ -164,11 +62,11 @@ async function main() {
   for (const [page, letter] of [[B, 'b'], [C, 'c']]) {
     await page.goto(`${URL}?liga=${code}`);
     await page.waitForSelector('#loginScreen.active', { timeout: 5000 });
-    await fillRegistration(page, letter, stamp);
+    await fillRegistration(page, ...reg(letter, stamp));
     await page.waitForSelector('#leagueScreen.active #leagueTitle', { timeout: 8000 });
   }
   check('B je posle registracije preko linka na stranici lige', (await B.textContent('#leagueTitle')) === LEAGUE_NAME);
-  await registerFromHome(D, 'd', stamp);
+  await registerFromHome(D, ...reg('d', stamp));
 
   // --- 2. ligaska soba ---
   await openLeaguePage(A);
@@ -190,7 +88,6 @@ async function main() {
   await D.waitForFunction(() => document.getElementById('roomError').textContent.includes('ligaška'), { timeout: 5000 });
   check('igrac van lige ne moze da sedne ni kodom', true);
   await D.close();
-  pagesForDebug = [A, B, C];
 
   for (const p of [B, C]) {
     await openLeaguePage(p);
@@ -271,12 +168,13 @@ async function main() {
   check('nema JS gresaka u pregledacu', pageErrors.length === 0);
   if (pageErrors.length) console.log(pageErrors);
   await browser.close();
-  console.log(failed ? '\nSOME CHECKS FAILED' : '\nALL CHECKS PASSED');
-  process.exit(failed ? 1 : 0);
+  console.log(state.failed ? '\nSOME CHECKS FAILED' : '\nALL CHECKS PASSED');
+  process.exit(state.failed ? 1 : 0);
 }
 
 main().catch(async (err) => {
   console.error('FAILED:', err);
-  await dumpPages();
+  await dumpPages(debugPages);
+  if (pageErrors.length) console.log('JS greske:', pageErrors);
   process.exit(1);
 });
