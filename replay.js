@@ -18,6 +18,8 @@ let step = 0;
 let timer = null;
 
 const cardKey = (c) => `${c.rank}${c.suit}`;
+// kad jedan branilac ne dodje, stih ima 2 karte — pun stih je najduzi u ruci
+const trickSize = (h) => Math.max(2, ...h.tricks.map((t) => t.cards.length));
 const cardText = (c) => `${c.rank}${c.suit}`;
 
 function cardImg(c, cls = '') {
@@ -57,7 +59,7 @@ function tricksWonAt(h, played) {
   const won = [0, 0, 0];
   const lastTrick = played.length ? played[played.length - 1].trick : -1;
   for (let t = 0; t <= lastTrick; t++) {
-    const done = played.filter((p) => p.trick === t).length === 3;
+    const done = played.filter((p) => p.trick === t).length === trickSize(h);
     if (done && h.tricks[t].winner !== null) won[h.tricks[t].winner]++;
   }
   return won;
@@ -70,7 +72,9 @@ function renderHandOptions() {
     const o = document.createElement('option');
     o.value = String(i);
     const kontra = h.kontraLevel ? ' ×' : '';
-    o.textContent = `Ruka ${i + 1} — ${nameOf(h.declarer)}: ${h.game || '—'}${kontra} ${h.passed ? '✓' : '✗'}`;
+    o.textContent = h.game
+      ? `Ruka ${i + 1} — ${nameOf(h.declarer)}: ${h.game}${kontra} ${h.passed ? '✓' : '✗'}`
+      : `Ruka ${i + 1} — svi dalje`;
     sel.appendChild(o);
   });
 }
@@ -92,8 +96,8 @@ function cardsRow(cards) {
 function renderInfo(h) {
   const box = $('rpInfo');
   box.innerHTML = '';
-  const contract = `${nameOf(h.declarer)}: ${h.game || '—'}${h.kontraLevel ? ` (${h.kontraLevel})` : ''} — ${h.passed ? 'prošao' : 'pao'}`;
-  box.appendChild(infoLine('Nosilac', contract));
+  const contract = `${nameOf(h.declarer)}: ${h.game}${h.kontraLevel ? ` (${h.kontraLevel})` : ''} — ${h.passed ? 'prošao' : 'pao'}`;
+  box.appendChild(h.game ? infoLine('Nosilac', contract) : infoLine('Igra', 'svi su rekli dalje'));
   if (h.dealer !== null) box.appendChild(infoLine('Delilac', nameOf(h.dealer)));
   if (h.bids) box.appendChild(infoLine('Licitacija', h.bids.map((b) => `${nameOf(b.player)} ${b.label}`).join(' · ') || '—'));
   const follow = h.follow.map((f, p) => (f ? `${nameOf(p)} ${f === 'DODJEM' ? 'dođem' : f === 'NE_DODJEM' ? 'ne dođem' : f}` : null)).filter(Boolean);
@@ -112,12 +116,12 @@ function renderSeat(boxId, h, p, cards, won) {
   name.textContent = nameOf(p);
   head.appendChild(name);
   const tags = [];
-  if (p === h.declarer) tags.push(`nosilac · ${h.game || '—'}`);
+  if (h.game && p === h.declarer) tags.push(`nosilac · ${h.game}`);
   if (p === h.dealer) tags.push('delilac');
   tags.push(`štihova ${won[p]}`);
   head.appendChild(el('span', 'rp-seat-tags', tags.join(' · ')));
   box.appendChild(head);
-  box.classList.toggle('declarer', p === h.declarer);
+  box.classList.toggle('declarer', !!h.game && p === h.declarer);
   const row = el('div', 'rp-hand');
   for (const c of sortHand(cards)) row.appendChild(cardImg(c));
   if (cards.length === 0) row.appendChild(el('span', 'rp-empty', '—'));
@@ -134,7 +138,7 @@ function renderTrick(h, played) {
   }
   const t = last.trick;
   const cards = played.filter((p) => p.trick === t);
-  const complete = cards.length === 3;
+  const complete = cards.length === trickSize(h);
   for (const p of cards) {
     const slot = el('div', 'rp-trick-card');
     if (complete && h.tricks[t].winner === p.player) slot.classList.add('winner');
@@ -151,7 +155,7 @@ function stepText(h, s) {
   if (s === 0) return `Deljenje — ${h.complete ? 'početne ruke' : 'stari zapis: vide se samo odigrane karte'}`;
   if (hasDiscard && s === 1) return `${nameOf(h.declarer)} uzima talon i škartira ${h.discard.map(cardText).join(' ')}`;
   const p = plays[s - 1 - (hasDiscard ? 1 : 0)];
-  const end = s === total - 1 ? ` — kraj ruke, ${h.passed ? 'prošao' : 'pao'}` : '';
+  const end = s === total - 1 && h.game ? ` — kraj ruke, ${h.passed ? 'prošao' : 'pao'}` : '';
   return `Štih ${p.trick + 1}, karta ${p.idx + 1}: ${nameOf(p.player)} ${cardText(p.card)}${end}`;
 }
 

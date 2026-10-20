@@ -49,3 +49,17 @@ test('stari zapis: samo odigrane karte, bez licitacije', () => {
   assert.deepEqual(r.hands[1], [c('A♠'), c('8♥')]);
   assert.deepEqual(r.hands[0], [c('7♠')]);
 });
+
+test('kad jedan branilac ne dodje, stih od 2 karte ima dobitnika', () => {
+  const r = handReplay({
+    ...base,
+    declaredGame: 'Tref',
+    followChoices: [null, 'DODJEM', 'NE_DODJEM'],
+    tricks: [
+      [{ position: 0, suit: '♠', rank: 'A' }, { position: 1, suit: '♣', rank: '7' }], // adut tuce keca
+      [{ position: 1, suit: '♥', rank: '8' }],
+    ],
+  });
+  assert.equal(r.tricks[0]!.winner, 1);
+  assert.equal(r.tricks[1]!.winner, null);
+});

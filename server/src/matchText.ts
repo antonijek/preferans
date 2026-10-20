@@ -40,7 +40,9 @@ export function matchToText(m: MatchRow): string {
   m.hands.forEach((h, i) => {
     out.push('');
     const kontra = h.kontraLevel ? ` (${h.kontraLevel})` : '';
-    out.push(`=== Ruka ${i + 1} (runda ${h.round}) — nosilac ${who(h.declarer)}: ${h.declaredGame || '?'}${kontra} — ${h.passed ? 'PROŠAO' : 'PAO'}`);
+    out.push(h.declaredGame
+      ? `=== Ruka ${i + 1} (runda ${h.round}) — nosilac ${who(h.declarer)}: ${h.declaredGame}${kontra} — ${h.passed ? 'PROŠAO' : 'PAO'}`
+      : `=== Ruka ${i + 1} (runda ${h.round}) — svi dalje`);
     if (h.dealer !== undefined) out.push(`Delilac: ${who(h.dealer)}`);
     if (h.hands) for (const p of [0, 1, 2]) out.push(`  ${who(p).padEnd(14)} ${formatHand(h.hands[p] ?? [])}`);
     out.push(`  Talon: ${h.talon.map(card).join(' ') || '—'}${h.discard?.length ? `   Škart: ${h.discard.map(card).join(' ')}` : ''}`);

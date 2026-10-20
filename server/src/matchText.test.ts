@@ -49,3 +49,18 @@ test('stariji zapis bez ruku i licitacije se ispisuje bez gresaka', () => {
   assert.match(text, /nosilac B: Sans — PROŠAO/);
   assert.doesNotMatch(text, /Licitacija/);
 });
+
+test('ruka u kojoj su svi rekli dalje', () => {
+  const allPass = {
+    round: 5, endedAt: '', declarer: 0, declaredGame: '', caller: null, callee: null,
+    followChoices: [null, null, null], kontraLevel: null, passed: false,
+    bulasAfter: [100, 100, 100], supeDelta: [0, 0, 0], tricks: [], tricksWon: [0, 0, 0], talon: [c('7♣'), c('8♣')],
+    bids: [{ player: 1, type: 'PASS' }, { player: 2, type: 'PASS' }, { player: 0, type: 'PASS' }],
+  } as HandSnapshot;
+  const text = matchToText({
+    id: 1, room_code: 'X', ended_at: 'x', match_end_reason: 'agreed', rounds_played: 1,
+    names: ['A', 'B', 'C'], final_scores: [0, 0, 0], hands: [allPass],
+  });
+  assert.match(text, /Ruka 1 \(runda 5\) — svi dalje/);
+  assert.doesNotMatch(text, /PAO/);
+});

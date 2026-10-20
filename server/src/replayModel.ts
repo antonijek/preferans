@@ -21,11 +21,15 @@ export function bidLabel(b: { type: string; value?: number }): string {
   return `${b.type}${b.value !== undefined ? ` ${b.value}` : ''}`;
 }
 
-/** Dobitnik svakog stiha (null za nezavrsen stih). */
+/**
+ * Dobitnik svakog stiha (null za nezavrsen stih). Kad jedan branilac ne
+ * dodje, igraju dvojica i stih ima 2 karte — pun stih je onaj najduzi.
+ */
 export function trickWinners(h: HandSnapshot): Array<Position | null> {
   const trump = h.declaredGame ? getTrumpSuit(h.declaredGame as Game) : null;
+  const size = Math.max(2, ...h.tricks.map((t) => t.length));
   return h.tricks.map((t) => {
-    if (t.length !== 3) return null;
+    if (t.length !== size) return null;
     const tc = t.map((c) => ({ player: c.position, card: { suit: c.suit as Suit, rank: c.rank } })) as unknown as TrickCard[];
     return trickWinner(tc, trump);
   });
