@@ -120,7 +120,7 @@ async function main(): Promise<void> {
     process.exit(1);
   });
 
-  // Svakih 5 minuta ocisti WAITING sobe bez aktivnih igraca starije od 30 min,
+  // Svakih 5 minuta ocisti WAITING sobe u kojima niko nije bio WAITING_AWAY_MS,
   // i sobe usred partije gde bas niko (nijedno sediste) nije bio 24h+ (vidi
   // removeStuckRooms — razlicit, mnogo duzi prag od gornjeg).
   setInterval(() => {

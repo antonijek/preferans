@@ -2979,7 +2979,10 @@ async function connectOnlineSocket() {
     if (info.code) { $('roomCodeInput').value = info.code; myRoomCode = info.code; updateRoomJoinButtonState(); }
     if (game.state?.phase === 'WAITING' || !game.state) {
       $('roomStatus').innerHTML = renderWaitingStatus(info.code, 'Kod sobe:');
-      $('homeScreen').classList.remove('active');
+      // ko gleda ligu dok ceka u sobi, ostaje na ligi (soba je u "Stolovi lige")
+      if ($('leagueScreen').classList.contains('active')) return;
+      // posle osvezavanja je jos upaljen "Povezivanje..." (loginScreen, INIT)
+      for (const id of ['homeScreen', 'loginScreen', 'setupScreen']) $(id).classList.remove('active');
       $('roomScreen').classList.add('active');
     }
   });
@@ -4045,7 +4048,10 @@ renderSeats();
 // refresh stranice tokom online igre (ili dok se ceka jos igraca) izgubio
 // sesiju i ostavio korisnika "izgubljenog", jer se ranije konekcija
 // pokretala SAMO rucnim klikom na "Igraj online" (uzivo prijavljen bag).
+// setupScreen je upaljen vec u HTML-u (prikaz pre ucitavanja skripte) —
+// ugasi ga kad se umesto njega prikazuje prijava, inace ostaju dva ekrana.
 if (onlineToken) {
+  $('setupScreen').classList.remove('active');
   $('loginScreen').classList.add('active');
   $('loginError').textContent = 'Povezivanje...';
   connectOnlineSocket();
@@ -4053,6 +4059,7 @@ if (onlineToken) {
   // Stigli smo preko linka za sobu/ligu ali nismo ulogovani — pokazi login
   // (umesto lokalnog setup ekrana za igru protiv racunara) da bi se posle
   // prijave odmah otislo u tu sobu (vidi 'room:none' handler).
+  $('setupScreen').classList.remove('active');
   $('loginScreen').classList.add('active');
 } else {
   $('setupScreen').classList.add('active');

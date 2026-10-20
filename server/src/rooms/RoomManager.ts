@@ -166,23 +166,29 @@ export function clearUserLocation(userId: number): void {
   userLocation.delete(userId);
 }
 
-// WAITING soba (partija jos nije pocela) koja nema aktivnih konekcija se
-// automatski brise posle 30 min — sprecava curenje memorije kad igrac
-// napravi sobu i zaboravi na nju. Za sobe u toku partije NE vazi ovde (M6
-// reconnect moze da ceka neograniceno PO SEDISTU — vidi komentar na
-// game:leave u roomEvents.ts) — ali pogledaj removeStuckRooms ispod za
-// izuzetak kad bas NIKO (nijedno od sva tri sedista) nije tu, jako dugo.
-const ABANDONED_WAITING_MS = 30 * 60 * 1000;
+export function isAnyoneConnected(room: RoomState): boolean {
+  return room.sockets.some((s) => s !== null) || Array.from(room.spectators.values()).some((s) => s.socket !== null);
+}
+
+// WAITING soba (partija jos nije pocela) bez ikoga povezanog brise se tek
+// posle WAITING_AWAY_MS od poslednje aktivnosti (disconnect handler je
+// postavlja) — po uzoru na Loru (2026-10-20): domacin koji ode u Viber/
+// WhatsApp da posalje link gubi vezu (telefon uspava stranicu), a i obicno
+// osvezavanje stranice je kratak prekid; ranije se soba brisala ODMAH, pa je
+// drugar dobijao link do sobe koje vise nema. Dok niko nije tu, soba nije
+// u lobiju (listLobbyRooms), ali se ulazi linkom/kodom. Za sobe u toku
+// partije NE vazi ovde (M6 reconnect ceka PO SEDISTU) — vidi removeStuckRooms.
+export const WAITING_AWAY_MS = Number(process.env.WAITING_AWAY_MS ?? 15 * 60 * 1000);
 
 export function removeAbandonedWaitingRooms(): number {
   const now = Date.now();
   let removed = 0;
   for (const [code, room] of roomsByCode) {
-    const anyoneConnected =
-      room.sockets.some((s) => s !== null) ||
-      Array.from(room.spectators.values()).some((s) => s.socket !== null);
     const isWaiting = room.game.state.phase === 'WAITING';
-    if (isWaiting && !anyoneConnected && now - room.createdAt > ABANDONED_WAITING_MS) {
+    if (isWaiting && !isAnyoneConnected(room) && now - room.lastActivityAt > WAITING_AWAY_MS) {
+      for (const uid of room.seatUserIds) {
+        if (uid !== null) clearUserLocation(uid);
+      }
       roomsByCode.delete(code);
       deleteActiveRoom(code);
       removed++;
@@ -208,11 +214,8 @@ export function removeStuckRooms(): number {
   const now = Date.now();
   let removed = 0;
   for (const [code, room] of roomsByCode) {
-    const anyoneConnected =
-      room.sockets.some((s) => s !== null) ||
-      Array.from(room.spectators.values()).some((s) => s.socket !== null);
     const isWaiting = room.game.state.phase === 'WAITING';
-    if (!isWaiting && !anyoneConnected && now - room.lastActivityAt > STUCK_ROOM_MS) {
+    if (!isWaiting && !isAnyoneConnected(room) && now - room.lastActivityAt > STUCK_ROOM_MS) {
       for (const uid of room.seatUserIds) {
         if (uid !== null) clearUserLocation(uid);
       }

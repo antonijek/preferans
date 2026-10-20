@@ -7,7 +7,8 @@ import {
   clearUserLocation,
   listLobbyRooms,
   fillSeatsWithBots,
-  removeRoom,
+  isAnyoneConnected,
+  persistRoom,
 } from '../rooms/RoomManager.js';
 import { adminCloseRoom } from './roomAdmin.js';
 import type { RoomState, ChatMessage } from '../rooms/RoomState.js';
@@ -774,17 +775,12 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
       if (spectator?.socket === socket) spectator.socket = null;
     }
 
-    // Uzivo prijavljen bag: soba u cekanju (igra jos nije ni pocela) je
-    // ostajala zauvek "otvorena" u lobiju cak i kad je svako ko ju je
-    // napravio davno diskonektovan i nikad se nece vratiti — nema sta da
-    // se izgubi (nikakva partija jos nije ni pocela), pa je bezbedno
-    // obrisati je cim NIKO vise nije prikacen. Ne dira sobe SA vec
-    // pocetom igrom — tamo je diskonekcija normalna (M6 reconnect ceka ih).
-    if (room.game.state.phase === 'WAITING') {
-      const anyoneConnected =
-        room.sockets.some((s) => s !== null) ||
-        Array.from(room.spectators.values()).some((s) => s.socket !== null);
-      if (!anyoneConnected) removeRoom(room.code);
+    // Soba u cekanju bez ikoga: ne brise se odmah (osvezavanje stranice,
+    // domacin u Viberu salje link) — removeAbandonedWaitingRooms je brise
+    // posle WAITING_AWAY_MS od ovog trenutka, a dotle nije u lobiju.
+    if (room.game.state.phase === 'WAITING' && !isAnyoneConnected(room)) {
+      room.lastActivityAt = Date.now();
+      persistRoom(room);
     }
   });
 }
