@@ -133,12 +133,11 @@ export function computeAiAction(game: Game, seat: Position): GameAction | null {
       const followers = ([0, 1, 2] as Position[]).filter((p) => p !== s.winner);
       const neDodjem = followers.find((p) => s.followChoices[p] === 'NE_DODJEM');
       if (neDodjem === undefined) return null;
-      const neDodjemHand = s.players[neDodjem]!.hand;
       const action = chooseCallOrAlone({
-        caller: seat,
-        neDodjemHand: neDodjemHand as never,
+        callerHand: s.players[seat]!.hand as never,
+        partnerBidLevel: s.players[neDodjem]!.bidLevel,
         declaredGame: s.declaredGame as never,
-      } as never);
+      });
       return action === 'CALL'
         ? { type: 'call', caller: seat, callee: neDodjem }
         : { type: 'continueWithoutCall' };

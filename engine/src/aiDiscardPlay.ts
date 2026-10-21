@@ -5,7 +5,7 @@ import { RANK_VALUE, RANKS } from './constants.js';
 import { isCardLegal } from './trick.js';
 import type { Card, Game, Suit, Position, ContraLevel } from './types.js';
 import { CARD_POINTS, sequentialRunFromAce } from './aiHandEval.js';
-import { sansDefenderLead, declarerLead } from './aiLeads.js';
+import { sansDefenderLead, declarerLead, sansDefenderDiscard } from './aiLeads.js';
 
 // === DISCARD STRATEGIJA ===
 //
@@ -472,6 +472,11 @@ export function choosePlayCard(args: {
     // Moraš adut — bacaj najslabiji
     const trumps = legal.filter(c => c.suit === trump);
     return trumps.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
+  }
+  const isSansGame = args.declaredGame === 'Sans' || args.declaredGame === 'Igra-Sans';
+  if (!isDeclarer && isSansGame && myPosition != null && declarer != null) {
+    const card = sansDefenderDiscard({ legal, hand, trump, myPosition, declarer, tricks });
+    if (card) return card;
   }
   // Betl odbrana — signalizacija DUZINE boje kroz REDOSLED odbacivanja
   // (istrazivanje 2026-09-18/19, profipreferans.blogspot.com Betl clanak —

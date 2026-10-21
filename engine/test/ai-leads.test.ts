@@ -2,7 +2,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sansDefenderLead, declarerLead } from '../src/aiLeads.ts';
+import { sansDefenderLead, declarerLead, sansDefenderDiscard } from '../src/aiLeads.ts';
 import type { Card, Position } from '../src/types.ts';
 
 const hand = (s: string): Card[] => s.split(' ').map((x) => ({ id: x, rank: x.slice(0, -1), suit: x.slice(-1) } as Card));
@@ -36,4 +36,14 @@ test('nosilac ne naplacuje boju u kojoj je pratilac vec pokazao da je prazan', (
   const tricks = [[tc(0, '9♦'), tc(1, '7♣'), tc(2, '8♦')]]; // igrac 1 ne prati karo
   const c = declarerLead({ legal: h, hand: h, trump: '♣', myPosition: 0, declarer: 0, tricks });
   assert.ok(c === null || c.suit !== '♦', `ne sme karo: ${c?.id}`);
+});
+
+test('protiv Sansa, boje iste duzine: prvo niz bez asa, as ostaje ulaz (korisnik 2026-10-21)', () => {
+  const h = hand('A♠ 9♠ 8♠ K♥ Q♥ 7♥ 10♦ 9♦ J♣ 8♣');
+  assert.equal(sansDefenderLead({ legal: h, hand: h, trump: null, myPosition: 0, declarer: 1, tricks: [] })!.id, 'K♥');
+});
+
+test('protiv Sansa bez trazene boje: cuva boju koju razvija i asa, baca male ispod asa', () => {
+  const h = hand('A♠ 9♠ 8♠ K♥ Q♥ 7♥ J♣ 8♣');
+  assert.equal(sansDefenderDiscard({ legal: h, hand: h, trump: null, myPosition: 2, declarer: 1, tricks: [] })!.id, '8♠');
 });

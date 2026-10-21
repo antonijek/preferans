@@ -74,14 +74,27 @@ function topOfSequence(cards: Card[]): Card | null {
   return null;
 }
 
-/** Najduza boja medju dozvoljenim (izjednaceno: jaca najvisa karta), bez izuzetih. */
+// Boja koja se razvija bez asa: niz od K ili D (K,D / D,J...). Kod iste
+// duzine ide pre boje sa asom — as ostaje ulaz (korisnik 2026-10-21, Sans,
+// A,9,8 pik i K,D,7 herc: "igrao bih K herca, onda ga posle cekam u piku da
+// uzmem Asem i onda nastavim sa hercom").
+const isSequenceWithoutAce = (cards: Card[]) => cards[0]!.rank !== 'A' && topOfSequence(cards) !== null;
+
+/** Najduza boja medju dozvoljenim (izjednaceno: niz bez asa, pa jaca najvisa karta), bez izuzetih. */
 function longestSuit(ctx: LeadContext, exclude: Set<Suit>): Card[] | null {
   let best: Card[] | null = null;
   for (const s of SUITS) {
     if (exclude.has(s)) continue;
     const cards = cardsIn(ctx.legal, s);
     if (cards.length === 0) continue;
-    if (!best || cards.length > best.length || (cards.length === best.length && desc(cards[0]!, best[0]!) < 0)) best = cards;
+    if (!best || cards.length > best.length) {
+      best = cards;
+      continue;
+    }
+    if (cards.length < best.length) continue;
+    const seq = isSequenceWithoutAce(cards);
+    const bestSeq = isSequenceWithoutAce(best);
+    if (seq !== bestSeq ? seq : desc(cards[0]!, best[0]!) < 0) best = cards;
   }
   return best;
 }
@@ -111,4 +124,22 @@ export function declarerLead(ctx: LeadContext): Card | null {
     if (!best || m.length > best.length) best = m;
   }
   return best ? best[0]! : null;
+}
+
+/**
+ * Pratilac protiv Sansa nema trazenu boju: cuva boju koju razvija (onu koju
+ * je otvorio, ili bi otvorio) i asa kao ulaz, a prvo baca male karte ispod
+ * svog asa (korisnik 2026-10-21, A,9,8 pik / K,D,7 herc / J,8 tref: "cuvao
+ * herc a osusio As pik, ostavio ga samog", "vjerovatno bih bacio 9 i 8
+ * pik"). Bez takvih karata: najniza karta van te boje koja nije A ni K.
+ */
+export function sansDefenderDiscard(ctx: LeadContext): Card | null {
+  const developing = lastSuitILed(ctx) ?? longestSuit({ ...ctx, legal: ctx.hand }, new Set())?.[0]!.suit ?? null;
+  const lowest = (cards: Card[]) => cards.slice().sort(desc)[cards.length - 1] ?? null;
+  const underAce = SUITS.filter((s) => s !== developing)
+    .map((s) => cardsIn(ctx.legal, s))
+    .filter((cards) => cards.length >= 2 && cards[0]!.rank === 'A')
+    .map((cards) => cards[cards.length - 1]!);
+  if (underAce.length > 0) return lowest(underAce);
+  return lowest(ctx.legal.filter((c) => c.suit !== developing && c.rank !== 'A' && c.rank !== 'K'));
 }

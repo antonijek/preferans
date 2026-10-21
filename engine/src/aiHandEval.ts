@@ -209,7 +209,7 @@ export function countDeclarerTricks(hand: Card[], trump: Suit | null): number {
 // se racuna kao "besplatan" iz talona (2 uzete karte, 2 se odbacuju — u
 // proseku donosi priblizno 1 dodatni stih), pa u SVOJIH 10 karata treba
 // ~5 realnih stihova pre nego sto se uopste razmatra licitacija. Ovo je
-// mnogo stroze od praga koji vazi za DOLAZAK/pratnju (>=2 u countSafeTricks)
+// mnogo stroze od praga koji vazi za DOLAZAK/pratnju (>=3 u chooseFollow)
 // — korisnik je eksplicitno razdvojio ta dva praga ("to je rezon za dolaz,
 // ne za odigravanje... ovdje imas samo 2, dakle obavezno dalje").
 const MIN_TRICKS_TO_BID = 5;
@@ -360,49 +360,40 @@ export function trumpOnlySafeTricks(hand: Card[], trump: Suit | null): number {
   return safe;
 }
 
-// Broji "sigurne stihove" u ruci za tu igru (adut + as van aduta)
+// Rezoni pratioca u adutskoj igri (koliko stihova verovatno nosi), prag
+// za dolazak je 3 (chooseFollow). Korisnik 2026-10-21: "K i mala se racuna
+// ... ali treba 3 rezona da bi dosao — jer vecinom jedan rezon sece
+// nosilac", pa na konkretne ruke (iste ruke su u testu ai-match10):
+//  - kratka boja (do 3 karte) daje 1 rezon: as, ili kralj sa jos bar jednom
+//    kartom — i A,K je samo 1 (A,K,7 pik i A,9,8 tref: "ovdje su samo 2
+//    rezona, pik i tref"), drugi krug nosilac obicno sece; 2 tek A,K,D ili
+//    K,D,J; D,J,10 bez asa i kralja = 1 ("dodjem");
+//  - duga boja (4+): as bez kralja = 1 (A,9,8,7: "dodjem"), K,D bez asa = 1;
+//    A,K,x,x = 0 — "najverovatnije on pika nema ili ga je skartao, sto znaci
+//    da ja tu nemam stih" (isto rekao i 2026-09-06 za A,K,D,8);
+//  - 3+ aduta i prazna boja ili singl = pola rezona: J,9,7 adut i bez herca
+//    je "na granici", "da je Dama umesto J ... dosao bih sigurno".
 export function countSafeTricks(hand: Card[], trump: Suit | null): number {
-  let safe = trumpOnlySafeTricks(hand, trump);
-
-  // Van-adutski A/K su sigurni SAMO ako je ta boja KOD MENE kratka (do 3
-  // karte). Kad je duga (4+) I ja drzim njen vrh (npr. A,K,Q,8 treفa),
-  // nosiocu ostaju samo mali listovi te boje — pri odbacaju posle uzimanja
-  // talona, ima veliki podsticaj da bas njih baci i ostane prazan, pa onda
-  // moze da zatura MOJ as/kralj adutom kad se ta boja povede (korisnikov
-  // zahtev, uzivo potvrdjeno 2026-09-06: "ako je rekao igru karo... velika
-  // sansa je da bi odbacio upravo trefa jer... su kod mene najjaci... u tom
-  // slucaju tu nemam stih"). Ovaj rizik postoji SAMO protiv nosioca (jedini
-  // koji uopste bira sta odbacuje) — zato ova provera vazi ovde (pratilac),
-  // a ne u countDeclarerTricks (nosilac nema od koga da "strahuje" od tudjeg
-  // odbacaja).
-  const offSuitLengths = new Map<Suit, number>();
-  for (const c of hand) {
-    if (c.suit === trump) continue;
-    offSuitLengths.set(c.suit, (offSuitLengths.get(c.suit) ?? 0) + 1);
+  let rezoni = trumpOnlySafeTricks(hand, trump);
+  const trumps = hand.filter((c) => c.suit === trump).length;
+  let short = false;
+  for (const suit of ['♠', '♥', '♦', '♣'] as Suit[]) {
+    if (suit === trump) continue;
+    const cards = hand.filter((c) => c.suit === suit);
+    const has = (r: string) => cards.some((c) => c.rank === r);
+    if (cards.length <= 1) short = true;
+    if (cards.length >= 4) {
+      const aceWithoutKing = has('A') && !has('K');
+      const kingQueen = has('K') && has('Q') && !has('A');
+      if (aceWithoutKing || kingQueen) rezoni += 1;
+    } else if (has('A') || (has('K') && cards.length >= 2)) {
+      const threeHonours = has('K') && has('Q') && (has('A') || has('J'));
+      rezoni += threeHonours ? 2 : 1;
+    }
+    if (!has('A') && !has('K') && has('Q') && has('J') && has('10')) rezoni += 1;
   }
-  const offAces = hand.filter(
-    c => c.rank === 'A' && c.suit !== trump && (offSuitLengths.get(c.suit) ?? 0) <= 3,
-  ).length;
-  // Svaki POJEDINACNI vanadutski kralj sa bar JEDNOM pratecom kartom u istoj
-  // boji (duzina 2-3) je SAM PO SEBI siguran stih za pratioca — NE treba mu
-  // drugi kralj negde drugde da bi vazio (korisnikov zahtev, uzivo
-  // potvrdjeno 2026-09-06: "K i jos jedna je stih ako si pratilac", "kad ima
-  // pratilac drugog K [tj. jos jednu kartu uz K], tu se racuna stih").
-  // Potpuno go Kralj (duzina 1, bez ijedne prateце karte) i dalje NE racuna.
-  // Korisnik 2026-10-20 (partija #10, ruke 17 i 83 — Bora dosao sa K,7 i
-  // K,9,7 i uzeo 1 odnosno 0): "ne bih dosao — ako [nosilac] nema jednu od te
-  // 2 boje onda [kralj] sigurno pada". Kralj sa malim kartama vise NIJE
-  // siguran stih; racuna se samo uz asa iste boje (A,K).
-  const offKings = hand.filter((c) => {
-    if (c.rank !== 'K' || c.suit === trump) return false;
-    const len = offSuitLengths.get(c.suit) ?? 0;
-    return len >= 2 && len <= 3 && hand.some((x) => x.suit === c.suit && (x.rank === 'A' || x.rank === 'Q'));
-  }).length;
-
-  safe += offAces; // svaki as van aduta je siguran
-  safe += offKings;
-
-  return safe;
+  if (trumps >= 3 && short) rezoni += 0.5;
+  return rezoni;
 }
 
 // Helper: izvlaci adut boju iz igre

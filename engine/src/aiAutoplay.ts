@@ -168,10 +168,9 @@ export function applyHeuristicTurn(game: Game): AutoplayStepResult {
       const neDodjem = followers.find((p) => s.followChoices[p] === 'NE_DODJEM');
       const callerCandidate = followers.find((p) => s.followChoices[p] === 'DODJEM');
       if (neDodjem === undefined || callerCandidate === undefined) return 'no_actor';
-      const neDodjemHand = s.players[neDodjem]!.hand;
       const action = chooseCallOrAlone({
-        caller: callerCandidate,
-        neDodjemHand,
+        callerHand: s.players[callerCandidate]!.hand,
+        partnerBidLevel: s.players[neDodjem]!.bidLevel,
         declaredGame: s.declaredGame!,
       });
       if (action === 'CALL') game.call(callerCandidate, neDodjem);

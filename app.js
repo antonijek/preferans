@@ -1754,16 +1754,12 @@ function renderFollowing() {
     const gen = handGeneration;
     setTimeout(() => {
       if (gen !== handGeneration || game.state.phase !== 'FOLLOW_DECLARING' || game.state.caller !== null) return;
-      // Zovi partnera ako NJEGOVA ruka ima bar 1 siguran stih da doprinese,
-      // inace igraj sam (RULES 5.3 — poziv ima smisla samo ako pozvani
-      // stvarno moze pomoci).
       if (searchAiEnabled()) {
         applyLegalAction(game, searchChooseAction(game.state, callerCandidate, 300));
       } else {
-        const neDodjemHand = game.state.players[neDodjem].hand;
         const action = aiChooseCallOrAlone({
-          caller: callerCandidate,
-          neDodjemHand,
+          callerHand: game.state.players[callerCandidate].hand,
+          partnerBidLevel: game.state.players[neDodjem].bidLevel,
           declaredGame: game.state.declaredGame,
         });
         if (action === 'CALL') game.call(callerCandidate, neDodjem);

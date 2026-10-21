@@ -12,6 +12,7 @@ import { makeDeck, shuffle } from './deck.js';
 import { applyHeuristicTurn } from './aiAutoplay.js';
 import { estimatedMaxLevel, isIgraWorthy } from './aiHandEval.js';
 import { choosePlayCard } from './aiDiscardPlay.js';
+import { sansDefenderLead } from './aiLeads.js';
 import { chooseKontra, chooseFollow, chooseCallOrAlone } from './aiFollowKontra.js';
 import { chooseDeclareGame, chooseBidAction } from './aiBidding.js';
 import { STANDARD_GAMES, IGRA_GAMES } from './constants.js';
@@ -244,6 +245,40 @@ export function scoreCandidate(args: {
   return total / counted;
 }
 
+// Pratilac: karte koje pretraga uopste ne razmatra. Vazi i za racunare na
+// serveru (searchChooseAction) i za igru u pregledacu (searchChoosePlayCard)
+// — do 2026-10-21 su ova ogranicenja imali samo racunari na serveru.
+//  - Partija #10 (2026-10-20): pretraga je 19 puta odbacila asa/kralja kad
+//    nije imala trazenu boju i 8 puta vodila adut kroz partnera — pravila
+//    nijednom (ne bacaju A/K dok ima nize karte i ne vode adut).
+//  - Partije #9/#10 (2026-10-21): protiv Sansa korisnik otvara najduzu boju
+//    sa vrha (K iz K,D, A iz A,D,J,8) i nastavlja je — pravila (aiLeads.ts)
+//    se sa njim slazu, pretraga je otvarala nasumicne male karte.
+function defenderPlayFilter(state: GameState, seat: Position, legal: Card[]): Card[] {
+  // u Betlu pratiocu jake karte ne trebaju (a skart je signal partneru)
+  const betl = state.declaredGame === 'Betl' || state.declaredGame === 'Igra-Betl';
+  if (seat === state.winner || betl) return legal;
+  const keep = (cards: Card[]) => (cards.length > 0 ? cards : legal);
+  if (state.currentTrick.length === 0) {
+    if (state.trump) return keep(legal.filter((c) => c.suit !== state.trump));
+    if (state.declaredGame === 'Sans' || state.declaredGame === 'Igra-Sans') {
+      const lead = sansDefenderLead({
+        legal,
+        hand: state.players[seat]!.hand,
+        trump: null,
+        myPosition: seat,
+        declarer: state.winner!,
+        tricks: state.tricks,
+      });
+      return lead ? [lead] : legal;
+    }
+    return legal;
+  }
+  const led = state.currentTrick[0]!.card.suit;
+  if (legal.some((c) => c.suit === led)) return legal;
+  return keep(legal.filter((c) => c.suit === state.trump || (c.rank !== 'A' && c.rank !== 'K')));
+}
+
 /**
  * Faza 1: bira koju kartu da odigra `seat` pretragom umesto fiksne
  * heuristike. Ako postoji samo 1 legalna karta (cest slucaj kasnije u
@@ -257,10 +292,11 @@ export function searchChoosePlayCard(
 ): Card {
   const probe = new Game();
   probe.state = structuredClone(state);
-  const legal = probe.getLegalCards(seat);
-  if (legal.length === 0) {
+  const allLegal = probe.getLegalCards(seat);
+  if (allLegal.length === 0) {
     throw new Error('aiSearch.searchChoosePlayCard: nema legalnih karata za dato sedište');
   }
+  const legal = defenderPlayFilter(state, seat, allLegal);
   if (legal.length === 1) return legal[0]!;
 
   // Uzivo prijavljen bag (2026-09-22, korisnik: "sve pravilo koje smo
@@ -369,6 +405,12 @@ export function searchChooseAction(
   samples: number,
   rng: Rng = Math.random,
 ): LegalAction {
+  // igranje karte: isti put (ogranicenja + prednost potezu iz pravila) kao
+  // igra u pregledacu, da racunari na serveru i lokalno igraju jednako
+  if (state.phase === 'PLAYING') {
+    const card = searchChoosePlayCard(state, seat, samples, rng);
+    return { type: 'playCard', player: seat, cardId: card.id, label: `${card.rank}${card.suit}` };
+  }
   const probe = new Game();
   probe.state = structuredClone(state);
   let candidates = probe.getLegalActions().filter((a) => a.player === seat);
@@ -505,16 +547,12 @@ export function searchChooseAction(
     }
     const hasCallChoice = candidates.some((a) => a.type === 'call' || a.type === 'continueWithoutCall');
     if (hasCallChoice) {
-      // neDodjemHand se ovde cita direktno iz state (server-side, STVARNA
-      // ruka) — ISTA pristupna sema koju vec koristi aiAutoplay.ts rollout
-      // za ovu istu odluku (vidi poziv chooseCallOrAlone tamo), nije novo
-      // "varanje" search-a.
       const followers = ([0, 1, 2] as Position[]).filter((p) => p !== state.winner);
       const neDodjem = followers.find((p) => state.followChoices[p] === 'NE_DODJEM');
       if (neDodjem !== undefined && state.declaredGame) {
         const recommended = chooseCallOrAlone({
-          caller: seat,
-          neDodjemHand: state.players[neDodjem]!.hand,
+          callerHand: state.players[seat]!.hand,
+          partnerBidLevel: state.players[neDodjem]!.bidLevel,
           declaredGame: state.declaredGame,
         });
         const filtered = candidates.filter((a) =>
@@ -561,28 +599,6 @@ export function searchChooseAction(
     const noSans = candidates.filter((a) => a.type !== 'declare' || (a.game !== 'Sans' && a.game !== 'Igra-Sans'));
     if (noSans.length > 0) candidates = noSans;
   }
-  // Ista partija, igranje pratioca: pretraga je 19 puta odbacila asa/kralja
-  // kad nije imala trazenu boju i 8 puta vodila adut kroz partnera — pravila
-  // nijednom (pravila nikad ne bacaju A/K dok ima nize karte i ne vode adut).
-  if (state.phase === 'PLAYING' && seat !== state.winner) {
-    const hand = state.players[seat]!.hand;
-    const cardOf = (a: LegalAction) => (a.type === 'playCard' ? hand.find((c) => c.id === a.cardId) : undefined);
-    const plays = candidates.filter((a) => a.type === 'playCard');
-    if (state.currentTrick.length === 0 && state.trump) {
-      const nonTrump = plays.filter((a) => cardOf(a)?.suit !== state.trump);
-      if (nonTrump.length > 0) candidates = nonTrump;
-    } else if (state.currentTrick.length > 0) {
-      const led = state.currentTrick[0]!.card.suit;
-      if (!plays.some((a) => cardOf(a)?.suit === led)) {
-        const keepHonours = plays.filter((a) => {
-          const c = cardOf(a);
-          return !!c && (c.suit === state.trump || (c.rank !== 'A' && c.rank !== 'K'));
-        });
-        if (keepHonours.length > 0) candidates = keepHonours;
-      }
-    }
-  }
-
   if (candidates.length === 1) return candidates[0]!;
 
   let best = candidates[0]!;

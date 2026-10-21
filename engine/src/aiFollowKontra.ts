@@ -30,7 +30,7 @@ export function chooseFollow(ctx: FollowContext): FollowAction {
     // ponistava/redeal), pa je dolazak stroziji (korisnikov zahtev, uzivo
     // potvrdjeno 2026-09-06): treba ili 2 sigurna ADUTSKA stiha, ili 2 (bilo
     // koja, i adutska i vanadutska) asa — ne bilo koja mesovita kombinacija
-    // koja inace zadovoljava opsti prag od 2.
+    // koja bi inace zadovoljila opsti prag (bio 2, od 2026-10-21 je 3).
     const trumpTricks = trumpOnlySafeTricks(ctx.hand, trump);
     const totalAces = ctx.hand.filter(c => c.rank === 'A').length;
     return (trumpTricks >= 2 || totalAces >= 2) ? 'DODJEM' : 'NE_DODJEM';
@@ -49,9 +49,10 @@ export function chooseFollow(ctx: FollowContext): FollowAction {
     const suitsWithTricks = suitTricks.filter(n => n > 0).length;
     return total >= 2 && suitsWithTricks >= 2 ? 'DODJEM' : 'NE_DODJEM';
   }
-  const safe = countSafeTricks(ctx.hand, trump);
-  // Dodji ako ima najmanje 2 sigurna stiha
-  return safe >= 2 ? 'DODJEM' : 'NE_DODJEM';
+  // Adutska igra: 3 rezona, ne 2 (korisnik 2026-10-21: "treba 3 rezona da bi
+  // dosao ... jer vecinom jedan rezon sece nosilac"). Pik i Sans gore imaju
+  // svoja pravila i ostaju kakvi su.
+  return countSafeTricks(ctx.hand, trump) >= 3 ? 'DODJEM' : 'NE_DODJEM';
 }
 
 // Pratilac protiv Sansa: niz od asa (A, A,K...) kao ranije, a bez asa i
@@ -110,10 +111,12 @@ export function chooseKontra(ctx: KontraContext): KontraAction {
   const trumps = ctx.hand.filter(c => c.suit === ctx.trump);
   const highTrumps = trumps.filter(c => RANK_VALUE[c.rank] >= 4).length;
   const partnerCame = ctx.partnerCame ?? true;
+  // Drugi pratilac nije dosao: sa 3 aduta nema kontre ni uz jake sporedne
+  // karte (korisnik 2026-10-21, K,D,9 herc + A,K pik + A tref: "plasim se da
+  // ima puno karo a posto on prvi igra krenuo bi odatle. Dakle nema kontre").
   if (!partnerCame) {
     if (trumps.length >= 5) return 'KONTRA';
     if (trumps.length >= 4 && highTrumps >= 2) return 'KONTRA';
-    if (trumps.length >= 3 && highTrumps >= 2) return 'KONTRA';
     return 'MOZE';
   }
   // 4+ aduta → kontra
@@ -126,45 +129,30 @@ export function chooseKontra(ctx: KontraContext): KontraAction {
 
 // === CALL OR ALONE STRATEGIJA ===
 //
-// Pozivalac (DODJEM) bira: zvati NE_DODJEM sparinga ili igrati sam sa nosiocem.
-// Pravilo: zovi ako smatras da NE_DODJEM moze uhvatiti NAJMANJE 1 stih.
-//   - ima adutski A (siguran)
-//   - ima adutski K + bar 1 malu adutsku kartu
-//   - ima adutsku D + bar 2 male adutske karte
-//   - ima As bilo koji (van aduta — uvek hvata stih)
-// Inace igraj sam sa nosiocem (NE_DODJEM sedi i ceka).
+// Pratilac koji je dosao (drugi je rekao "ne dodjem") bira: zvati ga
+// ("idemo zajedno", treba im 4 stiha) ili igrati sam (2 stiha). Korisnik
+// 2026-10-21: "Kad sam jak a iz njegove licitacije zakljucujem sta on ima.
+// Ako je licitovao pa stao na 3 ili 2 ili 4 onda znaci da ima tu boju."
+// Zove kad je drugi licitacijom pokazao sporednu boju koju on sam nema ili
+// ima malo (A,K,D pik + A,K,8 tref + 9,8 karo, drugi stao na 3: "ako on ima
+// karo, ja ostalo ... mi nosimo sigurno 4, zvao bih ga"); a kad i sam ima
+// tu boju — "imam 3 karoa ... nosilac nema to", ne zove. Bez licitacije
+// drugog: "sve mi isto", igra sam. Racunar ne gleda tudje karte.
 
 export type CallOrAloneAction = 'CALL' | 'ALONE';
 
 export interface CallOrAloneContext {
-  caller: Position;        // DODJEM igrac koji bira
-  neDodjemHand: Card[];    // ruka NE_DODJEM igraca
+  callerHand: Card[];       // ruka pratioca koji je dosao
+  partnerBidLevel: number;  // dokle je licitirao onaj koji nije dosao (0 = nije)
   declaredGame: Game;
 }
 
+const BID_SUIT: Partial<Record<number, Suit>> = { 2: '♠', 3: '♦', 4: '♥', 5: '♣' };
+
 export function chooseCallOrAlone(ctx: CallOrAloneContext): CallOrAloneAction {
   const trump = getTrumpSuitFromGame(ctx.declaredGame);
-  const hand = ctx.neDodjemHand;
-
-  // As bilo koji (van aduta) — siguran stih
-  const anyAce = hand.some(c => c.rank === 'A');
-  if (anyAce) return 'CALL';
-
-  // Adut probe
-  if (trump !== null) {
-    const trumps = hand.filter(c => c.suit === trump);
-    const hasTrumpA = trumps.some(c => c.rank === 'A');
-    const hasTrumpK = trumps.some(c => c.rank === 'K');
-    const hasTrumpD = trumps.some(c => c.rank === 'Q');
-    const trumpLen = trumps.length;
-
-    if (hasTrumpA) return 'CALL';
-    // Adut K + bar 1 mala adutska (K je drugi najjaci kad A izadje)
-    if (hasTrumpK && trumpLen >= 2) return 'CALL';
-    // Adut D + bar 2 male (kad A i K izadju, D hvata)
-    if (hasTrumpD && trumpLen >= 3) return 'CALL';
-  }
-
-  // Nema sigurnog stiha — igraj sam
-  return 'ALONE';
+  const partnerSuit = BID_SUIT[ctx.partnerBidLevel];
+  if (!partnerSuit || partnerSuit === trump) return 'ALONE';
+  const mine = ctx.callerHand.filter((c) => c.suit === partnerSuit).length;
+  return mine <= 2 ? 'CALL' : 'ALONE';
 }
