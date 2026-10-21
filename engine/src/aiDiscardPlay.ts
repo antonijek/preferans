@@ -269,35 +269,50 @@ export function choosePlayCard(args: {
         // nikad nije povukao adut (korisnik: "mogao je jednom adut").
         const iLedTrump = tricks.some(t => t[0]?.player === myPosition && t[0].card.suit === trump);
         const firstRoundOfExtended = extendedDraw && !iLedTrump;
-        if ((undiscoveredDefenderTrumps < myTrumpsNow.length || firstRoundOfExtended) && myTrumpsNow.length > 0) {
-          return myTrumpsNow.slice().sort((a, b) => RANK_VALUE[b.rank] - RANK_VALUE[a.rank])[0]!;
-        }
-        // Adut je iscrpljen u mojoj ruci, ili bi neki pratilac mogao da
-        // drzi isto ili vise aduta od mene — vreme je da pređem na
-        // najdužu (pa najjaču) van-adutsku boju umesto na staro "uvek
-        // najslabija prvo" pravilo.
+        // Najduza sporedna boja; kod iste duzine nastavi boju koju sam vec
+        // vodio, ne otvaraj novu — partija #11 ruka 10: Milan posle A,K pik
+        // otvorio K,J karo i dao stih asu (korisnik: "nek nastavi sa pikom,
+        // zasto je stao?").
         const bySuit = new Map<Suit, Card[]>();
         for (const c of legal) {
           if (c.suit === trump) continue;
           if (!bySuit.has(c.suit)) bySuit.set(c.suit, []);
           bySuit.get(c.suit)!.push(c);
         }
-        if (bySuit.size > 0) {
-          // Iste duzine: nastavi boju koju sam vec vodio, ne otvaraj novu —
-          // partija #11 ruka 10: Milan posle A,K pik otvorio K,J karo i
-          // dao stih asu (korisnik: "nek nastavi sa pikom, zasto je stao?").
-          const lastLed = [...tricks].reverse().find(t => t[0]?.player === myPosition)?.[0]?.card.suit;
-          const bestSuitCards = [...bySuit.values()].sort((a, b) => {
-            if (b.length !== a.length) return b.length - a.length;
-            const contA = a[0]!.suit === lastLed ? 1 : 0;
-            const contB = b[0]!.suit === lastLed ? 1 : 0;
-            if (contA !== contB) return contB - contA;
-            const topA = Math.max(...a.map(c => RANK_VALUE[c.rank]));
-            const topB = Math.max(...b.map(c => RANK_VALUE[c.rank]));
-            return topB - topA;
-          })[0]!;
-          return bestSuitCards.slice().sort((a, b) => RANK_VALUE[b.rank] - RANK_VALUE[a.rank])[0]!;
+        const lastLed = [...tricks].reverse().find(t => t[0]?.player === myPosition)?.[0]?.card.suit;
+        const sideSuit = [...bySuit.values()].sort((a, b) => {
+          if (b.length !== a.length) return b.length - a.length;
+          const contA = a[0]!.suit === lastLed ? 1 : 0;
+          const contB = b[0]!.suit === lastLed ? 1 : 0;
+          if (contA !== contB) return contB - contA;
+          const topA = Math.max(...a.map(c => RANK_VALUE[c.rank]));
+          const topB = Math.max(...b.map(c => RANK_VALUE[c.rank]));
+          return topB - topA;
+        })[0];
+        const highestTrump = () => myTrumpsNow.slice().sort((a, b) => RANK_VALUE[b.rank] - RANK_VALUE[a.rank])[0]!;
+        const highestSide = () => sideSuit!.slice().sort((a, b) => RANK_VALUE[b.rank] - RANK_VALUE[a.rank])[0]!;
+        if (myTrumpsNow.length > 0 && undiscoveredDefenderTrumps > 0
+          && (undiscoveredDefenderTrumps < myTrumpsNow.length || firstRoundOfExtended)) {
+          return highestTrump();
         }
+        // Pratioci vise nemaju adut: vuci jos (pratilac mora da skartira, mozda
+        // bas tu boju), ali sacuvaj onoliko aduta koliko puta ces jos dati ruku
+        // u svojoj boji — da posle secenja opet igras nju. Korisnik, partija
+        // #11 ruka 12 (7 aduta i J,10,9 pik): "igrao bih 5 puta adut, pa pik,
+        // pa kad posecem, opet pik i onda se nadam da ce moj poslednji pik da
+        // uzme stih". Ranije je odigrao svih 7 aduta, pa 3 gubitnika pik.
+        if (myTrumpsNow.length > 0 && undiscoveredDefenderTrumps <= 0) {
+          if (!sideSuit) return highestTrump();
+          const seen = new Set<string>(hand.map(c => c.id));
+          for (const t of tricks) for (const tc of t) seen.add(tc.card.id);
+          const top = Math.max(...sideSuit.map(c => RANK_VALUE[c.rank]));
+          const higherOut = RANKS.filter(r => RANK_VALUE[r] > top && !seen.has(`${r}${sideSuit[0]!.suit}`)).length;
+          const reserve = Math.min(higherOut, sideSuit.length - 1);
+          if (myTrumpsNow.length > reserve) return highestTrump();
+        }
+        // Adut je iscrpljen u mojoj ruci, ili bi neki pratilac mogao da
+        // drzi isto ili vise aduta od mene — vreme je za sporednu boju.
+        if (sideSuit) return highestSide();
       }
     }
     // Nosilac u Sansu/Igra-Sansu (BEZ aduta): uzivo prijavljen bag

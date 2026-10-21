@@ -75,3 +75,15 @@ test('nosilac posle secenja ipak jednom vuce adut, pa nastavlja pik (partija #11
   const lead5 = choosePlayCard({ ...base, winnerTricks: 4, hand: hand('K♥ 8♥ J♠ 10♠ K♦ J♦'), tricks });
   assert.equal(lead5!.suit, '♠');
 });
+
+test('aduti izvuceni: nosilac cuva 2 aduta za ulaz pa igra pik (partija #11, ruka 12)', () => {
+  const base = { currentTrick: [], trump: '♣' as const, declaredGame: 'Tref' as const, isDeclarer: true,
+    myPosition: 1 as Position, declarer: 1 as Position, nextActivePosition: 0 as Position, twoHanded: true };
+  const t = (a: string, b: string) => [tc(1, a), tc(0, b)];
+  // pratilac je pratio 9 tref — vise nema aduta; nosilac jos vuce
+  const after1 = [t('A♣', '9♣')];
+  assert.equal(choosePlayCard({ ...base, winnerTricks: 1, hand: hand('K♣ Q♣ J♣ 10♣ 8♣ 7♣ J♠ 10♠ 9♠'), tricks: after1 })!.suit, '♣');
+  // posle 5 aduta (ostala 2): J pik
+  const after5 = [...after1, t('K♣', '7♠'), t('Q♣', '8♥'), t('J♣', '8♠'), t('10♣', 'K♥')];
+  assert.equal(choosePlayCard({ ...base, winnerTricks: 5, hand: hand('8♣ 7♣ J♠ 10♠ 9♠'), tricks: after5 })!.id, 'J♠');
+});
