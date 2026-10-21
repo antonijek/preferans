@@ -2,6 +2,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { choosePlayCard } from '../src/aiDiscardPlay.ts';
 import { sansDefenderLead, declarerLead, sansDefenderDiscard, defenderSafeExit } from '../src/aiLeads.ts';
 import type { Card, Position } from '../src/types.ts';
 
@@ -60,4 +61,17 @@ test('udvoje: pratilac otvara boju najjacom kartom, i K iz K,8 kad mora (korisni
   assert.equal(defenderSafeExit(ctx)!.id, '10♣');
   const forced = hand('K♠ 8♠ 9♦');
   assert.equal(defenderSafeExit({ ...ctx, legal: forced, hand: forced })!.id, 'K♠');
+});
+
+test('nosilac posle secenja ipak jednom vuce adut, pa nastavlja pik (partija #11, ruka 10)', () => {
+  const base = { currentTrick: [], trump: '♥' as const, declaredGame: 'Herc' as const, winnerTricks: 1, isDeclarer: true,
+    myPosition: 1 as Position, declarer: 1 as Position, nextActivePosition: 2 as Position, twoHanded: true };
+  // 1. stih: Bora A tref, Milan sece 7 herc
+  const t1 = [tc(2, 'A♣'), tc(1, '7♥')];
+  const lead2 = choosePlayCard({ ...base, hand: hand('A♥ K♥ 8♥ A♠ K♠ J♠ 10♠ K♦ J♦'), tricks: [t1] });
+  assert.equal(lead2!.suit, '♥');
+  // posle A herc (pala dama) i A,K pik: J pik, ne K,J karo
+  const tricks = [t1, [tc(1, 'A♥'), tc(2, 'Q♥')], [tc(1, 'A♠'), tc(2, '7♠')], [tc(1, 'K♠'), tc(2, '8♠')]];
+  const lead5 = choosePlayCard({ ...base, winnerTricks: 4, hand: hand('K♥ 8♥ J♠ 10♠ K♦ J♦'), tricks });
+  assert.equal(lead5!.suit, '♠');
 });

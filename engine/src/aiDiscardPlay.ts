@@ -264,7 +264,11 @@ export function choosePlayCard(args: {
           return count + theirs.length;
         }, 0);
         const undiscoveredDefenderTrumps = RANKS.length - originalTrumps.length - trumpsPlayedByDefenders;
-        const firstRoundOfExtended = extendedDraw && trumpsIPlayedBefore.length === 0;
+        // prvi krug = jos nisam VODIO adut; secenje (npr. u 1. stihu) se ne
+        // racuna — partija #11 ruka 10: Milan je isekao prvi tref i zato
+        // nikad nije povukao adut (korisnik: "mogao je jednom adut").
+        const iLedTrump = tricks.some(t => t[0]?.player === myPosition && t[0].card.suit === trump);
+        const firstRoundOfExtended = extendedDraw && !iLedTrump;
         if ((undiscoveredDefenderTrumps < myTrumpsNow.length || firstRoundOfExtended) && myTrumpsNow.length > 0) {
           return myTrumpsNow.slice().sort((a, b) => RANK_VALUE[b.rank] - RANK_VALUE[a.rank])[0]!;
         }
@@ -279,8 +283,15 @@ export function choosePlayCard(args: {
           bySuit.get(c.suit)!.push(c);
         }
         if (bySuit.size > 0) {
+          // Iste duzine: nastavi boju koju sam vec vodio, ne otvaraj novu —
+          // partija #11 ruka 10: Milan posle A,K pik otvorio K,J karo i
+          // dao stih asu (korisnik: "nek nastavi sa pikom, zasto je stao?").
+          const lastLed = [...tricks].reverse().find(t => t[0]?.player === myPosition)?.[0]?.card.suit;
           const bestSuitCards = [...bySuit.values()].sort((a, b) => {
             if (b.length !== a.length) return b.length - a.length;
+            const contA = a[0]!.suit === lastLed ? 1 : 0;
+            const contB = b[0]!.suit === lastLed ? 1 : 0;
+            if (contA !== contB) return contB - contA;
             const topA = Math.max(...a.map(c => RANK_VALUE[c.rank]));
             const topB = Math.max(...b.map(c => RANK_VALUE[c.rank]));
             return topB - topA;
