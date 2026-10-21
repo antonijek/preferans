@@ -53,3 +53,23 @@ test('igra u pregledaču: pratilac bez tražene boje i aduta ne baca asa ni kral
     assert.ok(!id.startsWith('A') && !id.startsWith('K'), `baca ${id}`);
   }
 });
+
+test('takmicenje Igra: pretraga proglasava igru po pravilima (partija #11, ruka 8: Igra-Tref)', () => {
+  const g = new Game({ seed: 77 });
+  g.newHand(1);
+  const s = g.state;
+  s.players[2]!.hand = hand('A♣ K♣ Q♣ 10♣ A♥ J♥ 8♥ A♦ J♦ 7♦');
+  s.players[0]!.hand = hand('9♣ 8♣ 7♣ K♥ Q♥ 10♥ 9♥ 9♠ K♦ 8♦');
+  s.players[1]!.hand = hand('7♥ A♠ K♠ Q♠ J♠ 10♠ 7♠ Q♦ 10♦ 9♦');
+  s.talon = hand('8♠ J♣');
+  // Bora (2) igra, Antonije (0) dalje, Milan (1) igra
+  for (let i = 0; i < 6 && s.phase === 'BIDDING'; i++) {
+    const p = g.state.currentBidder;
+    if (p === 0) g.pass(0); else g.sayIgra(p);
+  }
+  assert.equal(g.state.phase, 'DECLARING');
+  assert.notEqual(g.state.igraCompetitors, null);
+  if (g.state.currentBidder === 1) g.declareIgra(1, 'Igra-Pik');
+  const a = searchChooseAction(g.state, 2 as Position, 20);
+  assert.equal(a.type === 'declare' ? a.game : a.type, 'Igra-Tref');
+});

@@ -566,9 +566,8 @@ export function searchChooseAction(
   // Uzivo prijavljen bag (2026-09-22, isti dan): nosilac je proglasio Pik
   // drzeci SAMO 1 kartu umesto Tref sa 5 karata ukljucujuci Asa — istog
   // korena kao BIDDING/KONTRA gore. RAZLIKA: DECLARING nije prag/da-ne
-  // konvencija, vec izbor IZMEDJU vise kvalifikovanih opcija — zato MEKI
-  // bonus (kao searchChoosePlayCard gore), NE tvrd filter: ne zelimo da ikad
-  // potpuno iskljucimo bilo koju opciju iz razmatranja. DRUGI put uzivo
+  // konvencija, vec izbor IZMEDJU vise kvalifikovanih opcija — prvo resen
+  // mekim bonusom, od 2026-10-21 tvrdim pravilom (vidi dole). DRUGI put uzivo
   // prijavljen, isti dan: ruka bez ijednog asa je proglasila Pik umesto
   // Betl (isBetlSafe) — otkrilo da PRVA verzija ovog bloka nije uopste
   // poredila Betl/Sans sa adutskim bojama. Ispravka koristi
@@ -578,24 +577,29 @@ export function searchChooseAction(
   // Igra-declare (IGRA_GAMES) — vidi audit-nalaz u istoj funkciji o zasebnom
   // bagu koji je tamo ispravljen (chooseIgraGame ranije birala najduzu boju,
   // ne najsigurniju).
-  let declareHeuristicPick: string | null = null;
+  //
+  // Partija #11 (2026-10-21, ruka 8): u takmicenju dvojice koji su rekli Igra
+  // igraPlayer jos nije postavljen, pa se predlog trazio medju obicnim igrama
+  // i nikad nije bio medju kandidatima — pretraga je sama izabrala Igra-Karo
+  // sa A,J,7 karo umesto Igra-Tref sa A,K,D,10 (korisnik: "jedino tref mogu.
+  // Imam najvise stihova tu i najveca je vrednost"). Sad se igra uvek bira po
+  // pravilima (najvise stihova, pa veca vrednost); pretraga samo kad pravilo
+  // ne nudi dozvoljenu igru.
   if (state.phase === 'DECLARING') {
     const hand = state.players[seat]!.hand;
-    const isIgra = state.igraPlayer !== null;
+    const isIgra = state.igraPlayer !== null || state.igraCompetitors !== null;
     const games = isIgra ? IGRA_GAMES : STANDARD_GAMES;
     const recommended = chooseDeclareGame(hand, state.currentBid, games);
-    if (candidates.some((a) => a.type === 'declare' && a.game === recommended)) {
-      declareHeuristicPick = recommended;
-    }
+    const pick = candidates.find((a) => a.type === 'declare' && a.game === recommended);
+    if (pick) return pick;
   }
-  const DECLARE_HEURISTIC_BONUS = 3;
 
   // Partija #10 (2026-10-20, korisnik: "sans katastrofa igraju"): SVIH 19
   // Sans/Igra-Sans racunara je izabrala pretraga, pravila ni jedan — u
   // simulaciji se pratioci (pravila) u Sansu lose brane, pa Sans izgleda
   // isplativo; protiv coveka su pali 9 puta. Sans samo kad ga i pravila
   // biraju (a pravila ga ne biraju sa praznom bojom, vidi chooseDeclareGame).
-  if (state.phase === 'DECLARING' && declareHeuristicPick !== 'Sans' && declareHeuristicPick !== 'Igra-Sans') {
+  if (state.phase === 'DECLARING') {
     const noSans = candidates.filter((a) => a.type !== 'declare' || (a.game !== 'Sans' && a.game !== 'Igra-Sans'));
     if (noSans.length > 0) candidates = noSans;
   }
@@ -610,7 +614,7 @@ export function searchChooseAction(
       samples,
       rng,
       applyCandidate: (g) => applyLegalAction(g, action),
-    }) + (action.type === 'declare' && action.game === declareHeuristicPick ? DECLARE_HEURISTIC_BONUS : 0)
+    })
       + (bidHeuristicMatch?.(action) ? BID_HEURISTIC_BONUS : 0);
     if (score > bestScore) {
       bestScore = score;

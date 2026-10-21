@@ -119,3 +119,9 @@ test('poziv: zovi kad je drugi licitacijom pokazao boju koju ja nemam (korisnik 
   assert.equal(call('A♠ 8♠ 7♠ K♣ 9♣ 10♦ 8♦ 7♦ 9♥ 8♥', 3), 'ALONE'); // i ja imam 3 karoa
   assert.equal(call('A♠ K♠ Q♠ A♣ K♣ 8♣ A♦ 9♦ 9♥ 8♥', 0), 'ALONE'); // on nije licitirao
 });
+
+// partija #11 (2026-10-21), korisnikovi odgovori
+test('partija #11: K,D,10 u adutu = 2 stiha (ruka 6), A,K,J,10,8 protiv Sansa (ruka 3)', () => {
+  assert.equal(chooseFollow({ hand: hand('K♥ Q♥ 10♥ A♠ 8♠ Q♣ J♣ 9♣ Q♦ 7♦'), declaredGame: 'Herc' }), 'DODJEM');
+  assert.equal(chooseFollow({ hand: hand('A♥ K♥ J♥ 10♥ 8♥ K♦ J♦ 10♦ 9♣ 7♣'), declaredGame: 'Sans' }), 'DODJEM');
+});

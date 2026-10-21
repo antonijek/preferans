@@ -47,7 +47,11 @@ export function chooseFollow(ctx: FollowContext): FollowAction {
     const suitTricks = SUITS.map(s => sansDefenderTricks(ctx.hand, s));
     const total = suitTricks.reduce((sum, n) => sum + n, 0);
     const suitsWithTricks = suitTricks.filter(n => n > 0).length;
-    return total >= 2 && suitsWithTricks >= 2 ? 'DODJEM' : 'NE_DODJEM';
+    // Izuzetak: duga boja sa A,K (5+ karata) je sama dovoljna — korisnik
+    // 2026-10-21, partija #11 ruka 3, A,K,J,10,8 herc: "obavezno dolazim ...
+    // osim ako nema trecu damu on sigurno pada".
+    const longRun = SUITS.some(s => ctx.hand.filter(c => c.suit === s).length >= 5 && sequentialRunFromAce(ctx.hand, s) >= 2);
+    return (total >= 2 && suitsWithTricks >= 2) || longRun ? 'DODJEM' : 'NE_DODJEM';
   }
   // Adutska igra: 3 rezona, ne 2 (korisnik 2026-10-21: "treba 3 rezona da bi
   // dosao ... jer vecinom jedan rezon sece nosilac"). Pik i Sans gore imaju

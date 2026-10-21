@@ -354,10 +354,14 @@ export function trumpOnlySafeTricks(hand: Card[], trump: Suit | null): number {
   // vazi za koga god drzi karte (vidi countDeclarerTricks): kratka duzina
   // (<=3) daje samo 1, duzina 4+ daje duzinu-1.
   if (trumpA) return trumpLength <= 3 ? 1 : trumpLength - 1;
-  let safe = 0;
-  if (trumpK && trumpLength >= 2) safe += 1;
-  if (trumpD && trumpLength >= 3 && !trumpK) safe += 1;
-  return safe;
+  // Bez asa: niz od kralja (K, K,D, K,D,J) nosi onoliko stihova koliko ima
+  // karata u nizu, ako ima i malu da je baci na asa — K,D,10 = 2 (korisnik
+  // 2026-10-21: "moram doci, imam 2 sigurna adutska stiha"), K,D = 1, K,x = 1.
+  if (trumpK) {
+    const run = ['K', 'Q', 'J', '10'].findIndex((r) => !trumps.some((c) => c.rank === r));
+    return Math.min(run === -1 ? 4 : run, trumpLength - 1);
+  }
+  return trumpD && trumpLength >= 3 ? 1 : 0;
 }
 
 // Rezoni pratioca u adutskoj igri (koliko stihova verovatno nosi), prag
