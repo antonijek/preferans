@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/theme.css?v=1">
 <link rel="stylesheet" href="/page.css?v=1">
-<link rel="stylesheet" href="/replay.css?v=1">
+<link rel="stylesheet" href="/replay.css?v=2">
 </head>
 <body>
 
@@ -26,9 +26,11 @@
 
   <div id="rpBody" hidden>
     <div class="rp-hand-pick">
-      <button type="button" class="rp-btn" id="rpPrevHand" title="Prethodna ruka">◀</button>
       <select id="rpHandSelect" aria-label="Ruka"></select>
-      <button type="button" class="rp-btn" id="rpNextHand" title="Sledeća ruka">▶</button>
+      <div class="rp-hand-nav">
+        <button type="button" class="rp-btn" id="rpPrevHand">‹ Prethodna ruka</button>
+        <button type="button" class="rp-btn" id="rpNextHand">Sledeća ruka ›</button>
+      </div>
     </div>
 
     <div class="rp-info" id="rpInfo"></div>
@@ -48,6 +50,9 @@
       <button type="button" class="rp-btn" id="rpNext" title="Karta napred (→)">▶</button>
       <button type="button" class="rp-btn" id="rpLast" title="Kraj ruke">⏭</button>
     </div>
+    <div class="rp-hand-nav rp-hand-nav-bottom">
+      <button type="button" class="rp-btn" id="rpNextHandBottom">Sledeća ruka ›</button>
+    </div>
     <div class="rp-link">
       <button type="button" class="rp-btn" id="rpCopyLink">🔗 Kopiraj link do ovog mesta</button>
       <input type="text" id="rpLinkField" readonly hidden>
@@ -56,6 +61,6 @@
   </div>
 </div>
 
-<script type="module" src="/replay.js?v=1"></script>
+<script type="module" src="/replay.js?v=2"></script>
 </body>
 </html>

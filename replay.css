@@ -11,9 +11,13 @@
 .rp-btn:hover:not(:disabled) { border-color: var(--gold); }
 .rp-btn:disabled { opacity: 0.35; cursor: default; }
 
-.rp-hand-pick { display: flex; gap: 8px; align-items: center; margin: 10px 0 12px; }
+.rp-hand-pick { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 12px; }
+.rp-hand-nav { display: flex; gap: 8px; }
+.rp-hand-nav .rp-btn { flex: 1 1 0; }
+.rp-hand-nav-bottom { margin: 10px 0 0; }
+.rp-btn.rp-attention { border-color: var(--gold-bright); color: var(--gold-bright); font-weight: 700; }
 .rp-hand-pick select {
-  flex: 1 1 auto; min-width: 0; font: inherit; color: inherit; padding: 8px 10px; border-radius: 10px;
+  width: 100%; font: inherit; color: inherit; padding: 8px 10px; border-radius: 10px;
   background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.25);
 }
 .rp-hand-pick select option { color: initial; }

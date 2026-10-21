@@ -135,7 +135,7 @@ function renderTrick(h, played) {
   box.innerHTML = '';
   const last = played[played.length - 1];
   if (!last) {
-    box.appendChild(el('div', 'rp-empty', 'Igra još nije počela'));
+    box.appendChild(el('div', 'rp-empty', notPlayedText(h) ?? 'Igra još nije počela'));
     return;
   }
   const t = last.trick;
@@ -152,7 +152,17 @@ function renderTrick(h, played) {
   }
 }
 
+// ruka bez ijednog stiha: svi rekli dalje, ili nijedan pratilac nije dosao
+function notPlayedText(h) {
+  if (h.tricks.length > 0) return null;
+  return h.game ? 'Ruka se ne igra — pratioci nisu došli, nosilac je prošao' : 'Svi su rekli dalje';
+}
+
 function stepText(h, s) {
+  if (s === stepsOf(h).total - 1 && notPlayedText(h)) {
+    const base = s === 0 ? 'Deljenje' : `${nameOf(h.declarer)} uzima talon i škartira ${h.discard.map(cardText).join(' ')}`;
+    return `${base} — ${notPlayedText(h).toLowerCase()}`;
+  }
   const { plays, hasDiscard, total } = stepsOf(h);
   if (s === 0) return `Deljenje — ${h.complete ? 'početne ruke' : 'stari zapis: vide se samo odigrane karte'}`;
   if (hasDiscard && s === 1) return `${nameOf(h.declarer)} uzima talon i škartira ${h.discard.map(cardText).join(' ')}`;
@@ -177,7 +187,11 @@ function render() {
   renderTrick(h, played);
   $('rpStepText').textContent = `${stepText(h, step)}  (korak ${step + 1}/${total})`;
   $('rpPrevHand').disabled = handIdx === 0;
-  $('rpNextHand').disabled = handIdx === data.hands.length - 1;
+  const lastHand = handIdx === data.hands.length - 1;
+  $('rpNextHand').disabled = lastHand;
+  $('rpNextHandBottom').disabled = lastHand;
+  // kraj ruke: istakni prelazak na sledecu
+  $('rpNextHandBottom').classList.toggle('rp-attention', step === total - 1 && !lastHand);
   $('rpPrev').disabled = step === 0;
   $('rpFirst').disabled = step === 0;
   $('rpNext').disabled = step === total - 1;
@@ -270,6 +284,10 @@ async function load() {
 $('rpHandSelect').onchange = (e) => setHand(Number(e.target.value));
 $('rpPrevHand').onclick = () => setHand(handIdx - 1);
 $('rpNextHand').onclick = () => setHand(handIdx + 1);
+$('rpNextHandBottom').onclick = () => {
+  setHand(handIdx + 1);
+  $('rpHandSelect').scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
 $('rpFirst').onclick = () => go(-Infinity);
 $('rpPrev').onclick = () => go(-1);
 $('rpNext').onclick = () => go(1);
