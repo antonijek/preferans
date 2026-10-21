@@ -188,6 +188,7 @@ export function computeAiAction(game: Game, seat: Position): GameAction | null {
         declarer: s.winner,
         tricks: s.tricks as never,
         nextActivePosition: game.nextActivePlayer(seat) as never,
+        twoHanded: [0, 1, 2].filter((p) => game.isPlayerActive(p as Position)).length === 2,
       } as never);
       return { type: 'playCard', player: seat, cardId: card ? card.id : legal[0]!.id };
     }

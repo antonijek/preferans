@@ -5,7 +5,7 @@ import { RANK_VALUE, RANKS } from './constants.js';
 import { isCardLegal } from './trick.js';
 import type { Card, Game, Suit, Position, ContraLevel } from './types.js';
 import { CARD_POINTS, sequentialRunFromAce } from './aiHandEval.js';
-import { sansDefenderLead, declarerLead, sansDefenderDiscard } from './aiLeads.js';
+import { sansDefenderLead, declarerLead, sansDefenderDiscard, defenderSafeExit } from './aiLeads.js';
 
 // === DISCARD STRATEGIJA ===
 //
@@ -97,12 +97,14 @@ export function choosePlayCard(args: {
   // celu ruku, resetuje se tek na newHand() — vidi Player.bidLevel).
   // Koristi se za konvenciju ispod: partnerova licitacija otkriva boju.
   bidLevels?: [number, number, number];
+  // igra se udvoje (drugi pratilac ne igra) — vidi defenderSafeExit
+  twoHanded?: boolean;
 }): Card | null {
   const {
     hand, currentTrick, trump, avoidTricks = false,
     isDeclarer = false, kontraLevel = null, trickCount = 0,
     myPosition, declarer, tricks = [], nextActivePosition = null,
-    bidLevels,
+    bidLevels, twoHanded = false,
   } = args;
   const legal = hand.filter(c => isCardLegal(c, hand, currentTrick, trump));
   if (legal.length === 0) return null;
@@ -111,7 +113,7 @@ export function choosePlayCard(args: {
   // izbegavanje štiha sad)
   if (currentTrick.length === 0) {
     const leadCtx = myPosition != null && declarer != null
-      ? { legal, hand, trump, myPosition, declarer, tricks }
+      ? { legal, hand, trump, myPosition, declarer, tricks, twoHanded }
       : null;
     // Pratilac protiv Sansa/Igra-Sansa: najduza boja, vrh niza, i nastavlja je
     // (aiLeads.ts; zamenilo raniju konvenciju "prvi stih iz trefa, uz kontru iz
@@ -366,6 +368,11 @@ export function choosePlayCard(args: {
     if (isDeclarer && trump && leadCtx) {
       const lead = declarerLead(leadCtx);
       if (lead) return lead;
+    }
+    // Pratilac: ne otvara K,x / D,x (aiLeads.ts, korisnik u partiji #11).
+    if (!isDeclarer && trump && leadCtx) {
+      const exit = defenderSafeExit(leadCtx);
+      if (exit) return exit;
     }
     const sorted = legal.slice().sort((a, b) => {
       // Van aduta prioritet (čuvaj adute)

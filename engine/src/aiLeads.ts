@@ -19,6 +19,8 @@ export interface LeadContext {
   myPosition: Position;
   declarer: Position;
   tricks: { player: Position; card: Card }[][];
+  // igra se udvoje: drugi pratilac nije dosao (ni pozvan)
+  twoHanded?: boolean;
 }
 
 const SUITS: Suit[] = ['♠', '♥', '♦', '♣'];
@@ -142,4 +144,32 @@ export function sansDefenderDiscard(ctx: LeadContext): Card | null {
     .map((cards) => cards[cards.length - 1]!);
   if (underAce.length > 0) return lowest(underAce);
   return lowest(ctx.legal.filter((c) => c.suit !== developing && c.rank !== 'A' && c.rank !== 'K'));
+}
+
+/**
+ * Pratilac protiv aduta kad nema sta da naplati: ne otvara boju u kojoj ima
+ * kralja (ili damu) bez jace karte iz niza — K,x / D,x cekaju da nosilac sam
+ * otvori tu boju. Korisnik 2026-10-21 (partija #11, ruka 5: Bora 10,9 tref /
+ * K,10 herc / K,7 pik protiv nosiocevih A,D herc i A,D pik, odigrao 7 pik i
+ * izgubio kralja): "trebalo je tref da igra jer druge 2 boje ceka da mu se
+ * otvore i ima stihove". Vraca najnizu kartu iz bezbedne boje, ili null.
+ * Udvoje se boja otvara najjacom kartom ("udvoje se igra uvek jacom u
+ * boji"; K,8 pik koji mora da otvori: "K pik") — i kad bezbedne boje nema.
+ */
+export function defenderSafeExit(ctx: LeadContext): Card | null {
+  if (!ctx.trump) return null;
+  const safe: Card[] = [];
+  for (const s of SUITS) {
+    if (s === ctx.trump) continue;
+    const cards = cardsIn(ctx.legal, s);
+    const has = (r: string) => cards.some((c) => c.rank === r);
+    const bareKing = has('K') && !has('A') && !has('Q');
+    const bareQueen = has('Q') && !has('A') && !has('K') && !has('J');
+    if (!bareKing && !bareQueen) safe.push(...cards);
+  }
+  const lowest = safe.sort(desc)[safe.length - 1];
+  if (!ctx.twoHanded) return lowest ?? null;
+  const suit = lowest?.suit;
+  const pool = suit ? cardsIn(ctx.legal, suit) : ctx.legal.filter((c) => c.suit !== ctx.trump).sort(desc);
+  return pool[0] ?? null;
 }

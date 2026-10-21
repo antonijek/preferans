@@ -2,7 +2,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sansDefenderLead, declarerLead, sansDefenderDiscard } from '../src/aiLeads.ts';
+import { sansDefenderLead, declarerLead, sansDefenderDiscard, defenderSafeExit } from '../src/aiLeads.ts';
 import type { Card, Position } from '../src/types.ts';
 
 const hand = (s: string): Card[] => s.split(' ').map((x) => ({ id: x, rank: x.slice(0, -1), suit: x.slice(-1) } as Card));
@@ -46,4 +46,18 @@ test('protiv Sansa, boje iste duzine: prvo niz bez asa, as ostaje ulaz (korisnik
 test('protiv Sansa bez trazene boje: cuva boju koju razvija i asa, baca male ispod asa', () => {
   const h = hand('A♠ 9♠ 8♠ K♥ Q♥ 7♥ J♣ 8♣');
   assert.equal(sansDefenderDiscard({ legal: h, hand: h, trump: null, myPosition: 2, declarer: 1, tricks: [] })!.id, '8♠');
+});
+
+test('pratilac ne otvara kralja sa malom, ceka da nosilac otvori (partija #11, ruka 5)', () => {
+  const h = hand('10♣ 9♣ K♥ 10♥ K♠ 7♠');
+  const c = defenderSafeExit({ legal: h, hand: h, trump: '♦', myPosition: 2, declarer: 0, tricks: [] });
+  assert.equal(c!.suit, '♣');
+});
+
+test('udvoje: pratilac otvara boju najjacom kartom, i K iz K,8 kad mora (korisnik 2026-10-21)', () => {
+  const h = hand('10♣ 9♣ K♥ 10♥ K♠ 7♠');
+  const ctx = { legal: h, hand: h, trump: '♦' as const, myPosition: 2 as Position, declarer: 0 as Position, tricks: [], twoHanded: true };
+  assert.equal(defenderSafeExit(ctx)!.id, '10♣');
+  const forced = hand('K♠ 8♠ 9♦');
+  assert.equal(defenderSafeExit({ ...ctx, legal: forced, hand: forced })!.id, 'K♠');
 });

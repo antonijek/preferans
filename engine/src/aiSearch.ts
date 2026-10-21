@@ -329,6 +329,7 @@ export function searchChoosePlayCard(
       declarer: state.winner,
       tricks: state.tricks,
       nextActivePosition: probe.nextActivePlayer(seat),
+      twoHanded: [0, 1, 2].filter((p) => probe.isPlayerActive(p as Position)).length === 2,
     });
     heuristicPick = heuristicCard?.id ?? null;
   } catch {
