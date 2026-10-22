@@ -905,9 +905,7 @@ function renderState() {
   $(`bule-${seatOf(0)}`).textContent = s.bulas[0];
   $(`bule-${seatOf(1)}`).textContent = s.bulas[1];
   $(`bule-${seatOf(2)}`).textContent = s.bulas[2];
-  $(`tricks-${seatOf(0)}`).textContent = s.players[0].tricksWon;
-  $(`tricks-${seatOf(1)}`).textContent = s.players[1].tricksWon;
-  $(`tricks-${seatOf(2)}`).textContent = s.players[2].tricksWon;
+  for (const p of [0, 1, 2]) $(`tricks-${seatOf(p)}`).textContent = shownTricks(s, p);
 }
 
 // === STATUS BAR: ugovor + talon + odbrana + poslednji štih (uvek vidljivo
@@ -1048,6 +1046,16 @@ function renderStatusBar() {
 
 // Rezime praćenja: ko je Dođem/Ne dođem, i da li je neko pozvan ili igra sam.
 // Vraca null dok praćenje nije završeno (ceka se ostatak konteksta).
+// Poziv ("idemo zajedno"): svi stihovi para se racunaju pozivaocu (korisnik
+// 2026-10-22: "kad idemo zajedno treba sve meni da se racuna") — kod njega
+// zbir, kod pozvanog 0. Bodovanje (supe na zbir) to vec radi u engine-u.
+function shownTricks(s, p) {
+  const own = s.players[p].tricksWon;
+  if (s.caller === null || s.callee === null) return own;
+  if (p === s.callee) return 0;
+  return p === s.caller ? own + s.players[s.callee].tricksWon : own;
+}
+
 function defenseSummaryText(s, final = false) {
   if (s.winner === null || s.declaredGame === null) return null;
   const followers = [0, 1, 2].filter(p => p !== s.winner);
@@ -1075,7 +1083,7 @@ function defenseSummaryText(s, final = false) {
       declaredGame: s.declaredGame, kontraLevel: s.kontraLevel, declarerPassed: s.lastHandResult.passed,
       caller: s.caller, callee: s.callee, tricksWon,
     }, p);
-    return `${base} (${tricksWon[p]})${followerStatusBadge(fp)}`;
+    return `${base} (${shownTricks(s, p)})${followerStatusBadge(fp)}`;
   });
   let extra = '';
   if (s.caller !== null && s.callee !== null) {
@@ -2456,7 +2464,7 @@ function renderResult() {
     // Ista "niko ne prati"/"Pik bez kontre" korekcija kao gore — samo za
     // nosioca (pratioci nisu ni igrali, njihovih 0 je i dalje tacno).
     const tricksTxt = (s.declaredGame && s.lastHandResult && p === s.winner &&
-      s.lastHandResult.passed && s.trickCount === 0) ? 10 : s.players[p].tricksWon;
+      s.lastHandResult.passed && s.trickCount === 0) ? 10 : shownTricks(s, p);
     html += `<div class="result-mini-card">
       <div class="result-mini-name">${POS_LABELS[p]}</div>
       <div class="result-mini-bula">${s.bulas[p]}</div>
