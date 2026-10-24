@@ -162,6 +162,7 @@ export function computeAiAction(game: Game, seat: Position): GameAction | null {
           currentLevel: levelNum,
           partnerCame: s.followChoices[partner] === 'DODJEM',
           isDeclarer: seat === s.winner,
+          called: s.caller === seat,
         }) === 'KONTRA';
       if (willKontra) {
         const nextLevel = KONTRA_NEXT[s.kontraLevel ?? 'NONE']!;

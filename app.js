@@ -1851,6 +1851,7 @@ function renderKontra() {
         hand, trump: s.trump, currentLevel: levelNum,
         partnerCame: s.followChoices[[0, 1, 2].find((p) => p !== expected && p !== s.winner)] === 'DODJEM',
         isDeclarer: expected === s.winner,
+        called: s.caller === expected,
       }) === 'KONTRA';
     const gen = handGeneration;
     setTimeout(() => {

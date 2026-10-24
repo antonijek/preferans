@@ -89,6 +89,8 @@ export interface KontraContext {
   partnerCame?: boolean;
   // Odlucuje NOSILAC (rekontra/mortkontra), ne pratilac. Vidi ispravku ispod.
   isDeclarer?: boolean;
+  // Pratilac je pozvao drugog (vidi chooseCallOrAlone).
+  called?: boolean;
 }
 
 // ISPRAVKA (2026-10-03, uzivo prijavljeno + potvrdjeno rezultatom — nosilac
@@ -112,6 +114,10 @@ export function chooseKontra(ctx: KontraContext): KontraAction {
     return sure >= (ctx.currentLevel >= 3 ? 8 : 7) ? 'KONTRA' : 'MOZE';
   }
   if (ctx.trump === null) return 'MOZE';
+  // Posle poziva kontre obicno nema (korisnik 2026-10-24: "Kad je pratilac jak,
+  // a drugi ne dodje obicno se kontra ne daje, ali postoje slucajevi i kad se
+  // daje" — izuzeci jos nisu poznati). Proba: poziv sa kontrom je gubio.
+  if (ctx.called) return 'MOZE';
   const trumps = ctx.hand.filter(c => c.suit === ctx.trump);
   const highTrumps = trumps.filter(c => RANK_VALUE[c.rank] >= 4).length;
   const partnerCame = ctx.partnerCame ?? true;
@@ -151,8 +157,17 @@ export interface CallOrAloneContext {
   declaredGame: Game;
 }
 
+// Jak pratilac zove i bez partnerove licitacije: 4+ rezona, od toga bar
+// jedan u adutu (korisnik 2026-10-24: #13 ruka 5, Bora ♣K,J,10,8 kao adut
+// ♥A,K,D ♠K,8 ♦7 — "morao je da me zove"; ruka 13, Milan ♥K,D,10 kao adut
+// ♣K,9 ♦A,9,7 — "moze da zove komotno"). Sa slabim adutima i dalje sam
+// (2026-10-21, A,K,D pik A,K,8 tref A,9 karo i 9,8 adut: "sve mi isto").
+const CALL_WHEN_REZONI = 4;
+
 export function chooseCallOrAlone(ctx: CallOrAloneContext): CallOrAloneAction {
   const trump = getTrumpSuitFromGame(ctx.declaredGame);
+  const strong = countSafeTricks(ctx.callerHand, trump) >= CALL_WHEN_REZONI;
+  if (trump !== null && strong && trumpOnlySafeTricks(ctx.callerHand, trump) >= 1) return 'CALL';
   const partnerSuit = BID_LEVEL_SUIT[ctx.partnerBidLevel];
   if (!partnerSuit || partnerSuit === trump) return 'ALONE';
   const mine = ctx.callerHand.filter((c) => c.suit === partnerSuit).length;

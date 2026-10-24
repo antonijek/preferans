@@ -7,7 +7,7 @@ import { estimatedMaxLevel, isBetlSafe } from '../src/aiHandEval.ts';
 import { chooseBidAction, chooseDeclareGame } from '../src/aiBidding.ts';
 import { IGRA_GAMES } from '../src/constants.ts';
 import { choosePlayCard } from '../src/aiDiscardPlay.ts';
-import { chooseFollow } from '../src/aiFollowKontra.ts';
+import { chooseCallOrAlone, chooseFollow, chooseKontra } from '../src/aiFollowKontra.ts';
 import type { Card, Position } from '../src/types.ts';
 
 const hand = (s: string): Card[] => s.split(' ').map((x) => ({ id: x, rank: x.slice(0, -1), suit: x.slice(-1) } as Card));
@@ -188,4 +188,13 @@ test('skart: mala iz A,K,10,9 tref, ne 8 uz K,J pik (#13 ruka 32, 2. stih)', () 
     isDeclarer: false, myPosition: 1 as Position, declarer: 2 as Position, tricks: [trick([2, 'A♥'], [0, 'J♥'], [1, '7♥'])],
   });
   assert.equal(c!.id, '9♣');
+});
+
+test('poziv: jak pratilac sa adutskim stihom zove i bez partnerove licitacije, pa ne daje kontru (#13 r5, r13)', () => {
+  const bora = hand('K♣ J♣ 10♣ 8♣ A♥ K♥ Q♥ K♠ 8♠ 7♦');
+  assert.equal(chooseCallOrAlone({ callerHand: bora, partnerBidLevel: 0, declaredGame: 'Tref' }), 'CALL');
+  assert.equal(chooseCallOrAlone({ callerHand: hand('K♣ 9♣ K♥ Q♥ 10♥ J♠ 8♠ A♦ 9♦ 7♦'), partnerBidLevel: 0, declaredGame: 'Herc' }), 'CALL');
+  // 4 aduta sa 2 visoka bi inace bila kontra; posle poziva — ne
+  assert.equal(chooseKontra({ hand: bora, trump: '♣', currentLevel: 0, partnerCame: false }), 'KONTRA');
+  assert.equal(chooseKontra({ hand: bora, trump: '♣', currentLevel: 0, partnerCame: false, called: true }), 'MOZE');
 });
