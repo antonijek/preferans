@@ -568,6 +568,18 @@ export function choosePlayCard(args: {
   // umesto toga).
   const nonHonor = legal.filter(c => c.rank !== 'A' && c.rank !== 'K');
   const pool = nonHonor.length > 0 ? nonHonor : legal;
+  // Visak duge boje sa A,K (korisnik 2026-10-24, #13 ruka 32: Milan ♣A,K,10,9
+  // ♠K,J,8 ♦K,10 bacio 8 pik — "Ako ima A, K i jos 2 u trefu ... velika je
+  // sansa da nosilac nema toliko trefova ... bas dobar primjer sta je lako
+  // skartati"): niske karte te boje ne nose, a mala uz K,J cuva kralja.
+  if (!isDeclarer && trump) {
+    const spare = (['♠', '♥', '♦', '♣'] as Suit[])
+      .map(s => hand.filter(c => c.suit === s).sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank]))
+      .filter(cards => cards.length >= 4 && cards.some(c => c.rank === 'A') && cards.some(c => c.rank === 'K'))
+      .map(cards => cards[0]!)
+      .filter(c => legal.includes(c));
+    if (spare.length > 0) return spare.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
+  }
   // Odbacivanje viska iz nosiočeve VEC POZNATE prazne boje (korisnikova
   // uzivo zapazena taktika, runda 11, 2026-09-21): "kad vidis da nosilac
   // nema jednu boju, znas sta mozes da skartas na njegove adute kasnije,

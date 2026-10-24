@@ -180,3 +180,12 @@ test('dolazak: dugi A,K = 1 rezon, A,K,D = 2, D,10,9 = 1 (#12 r9, #13 r17, #13 r
   // A,K,8,7 + A,9 = i dalje 2 (2026-10-21)
   assert.equal(chooseFollow({ hand: hand('A♠ K♠ 8♠ 7♠ A♣ 9♣ 10♥ 9♥ 8♦ 7♦'), declaredGame: 'Herc' }), 'NE_DODJEM');
 });
+
+test('skart: mala iz A,K,10,9 tref, ne 8 uz K,J pik (#13 ruka 32, 2. stih)', () => {
+  const c = choosePlayCard({
+    hand: hand('8♠ 10♦ K♦ A♣ J♠ 9♣ K♠ 10♣ K♣'), trump: '♥', declaredGame: 'Herc', winnerTricks: 1,
+    currentTrick: [{ player: 2 as Position, card: hand('Q♥')[0]! }, { player: 0 as Position, card: hand('K♥')[0]! }],
+    isDeclarer: false, myPosition: 1 as Position, declarer: 2 as Position, tricks: [trick([2, 'A♥'], [0, 'J♥'], [1, '7♥'])],
+  });
+  assert.equal(c!.id, '9♣');
+});
