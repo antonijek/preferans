@@ -53,6 +53,7 @@ const SHELL_FILES = [
   '/engine/dist/aiSearch.js',
   '/engine/dist/aiAutoplay.js',
   '/engine/dist/aiLeads.js',
+  '/engine/dist/aiDefenderFollow.js',
   '/engine/dist/claim.js',
 ];
 
