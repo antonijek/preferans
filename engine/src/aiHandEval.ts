@@ -369,46 +369,62 @@ export function trumpOnlySafeTricks(hand: Card[], trump: Suit | null): number {
   return trumpD && trumpLength >= 3 ? 1 : 0;
 }
 
-// Rezoni pratioca u adutskoj igri (koliko stihova verovatno nosi), prag
-// za dolazak je 3 (chooseFollow). Korisnik 2026-10-21: "K i mala se racuna
+// Rezoni pratioca u adutskoj igri. Korisnik 2026-10-21: "K i mala se racuna
 // ... ali treba 3 rezona da bi dosao — jer vecinom jedan rezon sece
-// nosilac", pa na konkretne ruke (iste ruke su u testu ai-match10):
-//  - kratka boja (do 3 karte) daje 1 rezon: as, ili kralj sa jos bar jednom
-//    kartom — i A,K je samo 1 (A,K,7 pik i A,9,8 tref: "ovdje su samo 2
-//    rezona, pik i tref"), drugi krug nosilac obicno sece; 2 tek A,K,D ili
-//    K,D,J; D,J,10 bez asa i kralja = 1 ("dodjem");
-//  - duga boja (4+): as bez kralja = 1 (A,9,8,7: "dodjem"), K,D bez asa = 1;
-//    A,K,x,x je bio 0 ("najverovatnije on pika nema ili ga je skartao"), ali
-//    2026-10-24 (#12 ruka 9, ♣K,10,7 ♠A,K,8,7 ♦K,9: "ima 3 rezona") = 1, a
-//    A,K,D,x = 2 (#13 ruka 24, A,K,D,7 karo: "po 2 stiha");
-//  - D,10,9 (tacno te tri karte) = 1 (#13 ruka 17: ♠D,10,9 je treci rezon
-//    uz adutskog i karo asa — "Milan je morao da dodje"); D,J,9 nije — u
-//    partiji #10 je sa ♠D,J,9 i dva K,7 rekao "ne dodjem";
-//  - 3+ aduta i prazna boja ili singl = pola rezona: J,9,7 adut i bez herca
-//    je "na granici", "da je Dama umesto J ... dosao bih sigurno".
-export function countSafeTricks(hand: Card[], trump: Suit | null): number {
-  let rezoni = trumpOnlySafeTricks(hand, trump);
-  const trumps = hand.filter((c) => c.suit === trump).length;
-  let short = false;
-  for (const suit of ['♠', '♥', '♦', '♣'] as Suit[]) {
-    if (suit === trump) continue;
-    const cards = hand.filter((c) => c.suit === suit);
-    const has = (r: string) => cards.some((c) => c.rank === r);
-    if (cards.length <= 1) short = true;
-    if (cards.length >= 4) {
-      if (has('A') && has('K')) rezoni += has('Q') ? 2 : 1;
-      else if (has('A') || (has('K') && has('Q'))) rezoni += 1;
-    } else if (has('A') || (has('K') && cards.length >= 2)) {
-      const threeHonours = has('K') && has('Q') && (has('A') || has('J'));
-      rezoni += threeHonours ? 2 : 1;
-    }
-    if (!has('A') && !has('K') && has('Q')) {
-      const queenTenNine = cards.length === 3 && has('10') && has('9');
-      if ((has('J') && has('10')) || queenTenNine) rezoni += 1;
-    }
+// nosilac", pa na konkretne ruke (iste ruke su u testu ai-match10). Svaka
+// sporedna boja je NAJVISE JEDAN rezon, koji vredi 1 ili 2 stiha:
+//  - kratka boja (do 3 karte): as, ili kralj sa jos bar jednom kartom = 1
+//    (A,K,7 pik i A,9,8 tref: "ovdje su samo 2 rezona, pik i tref"); A,K,D,
+//    K,D,J i makaze A,D bez K vrede 2 stiha (#13 ruka 24, A,D,9 pik i A,K,D,7
+//    karo: "ima u oba po 2 stiha"); D,J,10 bez asa i kralja = 1 ("dodjem");
+//  - duga boja (4+): as bez kralja = 1 (A,9,8,7: "dodjem"), K,D bez asa = 1,
+//    A,K,x,x = 1 (#12 ruka 9, ♣K,10,7 ♠A,K,8,7 ♦K,9: "ima 3 rezona"), A,K,D,x
+//    vredi 2 stiha;
+//  - D,10,9 (tacno te tri karte) = 1 (#13 ruka 17: "Milan je morao da
+//    dodje"); D,J,9 nije — u partiji #10 je sa ♠D,J,9 i dva K,7 rekao "ne
+//    dodjem".
+// Adutski stihovi se broje svaki kao rezon (#11: K,D,10 adut i A,8 pik —
+// "moram doci, imam 2 sigurna adutska stiha"), a 3+ aduta uz praznu boju ili
+// singl je pola rezona (J,9,7 adut i bez herca je "na granici").
+function sideSuitValue(cards: Card[]): number {
+  const has = (r: string) => cards.some((c) => c.rank === r);
+  if (!has('A') && !has('K') && has('Q')) {
+    const queenTenNine = cards.length === 3 && has('10') && has('9');
+    return (has('J') && has('10')) || queenTenNine ? 1 : 0;
   }
-  if (trumps >= 3 && short) rezoni += 0.5;
-  return rezoni;
+  if (cards.length >= 4) {
+    if (has('A') && has('K')) return has('Q') ? 2 : 1;
+    return has('A') || (has('K') && has('Q')) ? 1 : 0;
+  }
+  if (!has('A') && !(has('K') && cards.length >= 2)) return 0;
+  const threeHonours = has('K') && has('Q') && (has('A') || has('J'));
+  const scissors = has('A') && has('Q') && !has('K');
+  return threeHonours || scissors ? 2 : 1;
+}
+
+function defenderCount(hand: Card[], trump: Suit | null): { tricks: number; rezoni: number; doubles: number } {
+  const trumpTricks = trumpOnlySafeTricks(hand, trump);
+  const trumps = hand.filter((c) => c.suit === trump).length;
+  const sides = SUITS.filter((s) => s !== trump).map((s) => hand.filter((c) => c.suit === s));
+  const values = sides.map(sideSuitValue);
+  const half = trumps >= 3 && sides.some((cards) => cards.length <= 1) ? 0.5 : 0;
+  return {
+    tricks: trumpTricks + values.reduce((a, v) => a + v, 0) + half,
+    rezoni: trumpTricks + values.filter((v) => v > 0).length + half,
+    doubles: values.filter((v) => v === 2).length,
+  };
+}
+
+// Koliko stihova pratilac verovatno nosi (za poziv, chooseCallOrAlone).
+export function countSafeTricks(hand: Card[], trump: Suit | null): number {
+  return defenderCount(hand, trump).tricks;
+}
+
+// Dolazak u adutskoj igri (korisnik 2026-10-24): "na 2 rezona ne dolazis
+// osim ako u oba imas po 2 stiha", inace treba 3 rezona.
+export function defenderComes(hand: Card[], trump: Suit | null): boolean {
+  const { rezoni, doubles } = defenderCount(hand, trump);
+  return rezoni >= 3 || doubles >= 2;
 }
 
 // Helper: izvlaci adut boju iz igre

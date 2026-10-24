@@ -7,8 +7,9 @@ import type { Card, Game, Suit, Position, ContraLevel } from './types.js';
 import { CARD_POINTS, sequentialRunFromAce } from './aiHandEval.js';
 import {
   sansDefenderLead, declarerLead, sansDefenderDiscard, defenderSafeExit, partnerSuitLead, defenderSuitLead,
-  defenderTrumpPull, masterTrump, isMaster,
+  defenderTrumpPull, masterTrump, isMaster, declarerKingQueenLead,
 } from './aiLeads.js';
+import { followAfterPartner, withoutKingGuards } from './aiDefenderFollow.js';
 
 // === DISCARD STRATEGIJA ===
 //
@@ -233,7 +234,13 @@ export function choosePlayCard(args: {
       // Prvi krug ide uvek; dalje vazi isto zaustavljanje kao gore. Proba
       // protiv starog AI-ja (40.000 deljenja): oko 4,5 poena po ruci bolje.
       const honorCount = (['A', 'K', 'Q', 'J'] as const).filter(r => originalTrumps.some(c => c.rank === r)).length;
-      const extendedDraw = honorCount >= 2 && (originalTrumps.length === 4 || (originalTrumps.length >= 5 && !hasAce));
+      // 4 aduta: ne bez K i D (korisnik 2026-10-24, #14 ruka 8,
+      // Bora A,J,10,8 herc vukao adut: "ako ima samo 4 aduta i to bez K i D, ne
+      // treba da krece adutom. Nema ih dovoljno i plus nisu najjaci").
+      const hasTrumpRank = (r: string) => originalTrumps.some(c => c.rank === r);
+      const solidFour = hasTrumpRank('K') || hasTrumpRank('Q');
+      const extendedDraw = honorCount >= 2
+        && ((originalTrumps.length === 4 && solidFour) || (originalTrumps.length >= 5 && !hasAce));
       const qualifies =
         (originalTrumps.length >= 5 && hasAce) || (originalTrumps.length === 4 && hasAllFourHonors) || extendedDraw;
       if (qualifies) {
@@ -391,8 +398,10 @@ export function choosePlayCard(args: {
     }
     // Nosilac (adutska igra) koji ne vuce adute: naplati najjace preostale
     // karte umesto da najnizom daruje stih (aiLeads.ts, korisnik u partiji #10).
+    // Pre toga boja sa K,D (as kod protivnika) — kecevi se cuvaju (#14 ruka 8:
+    // Bora sa A pik i K,D karo, adut ne vuce: "trebalo je K karo").
     if (isDeclarer && trump && leadCtx) {
-      const lead = declarerLead(leadCtx);
+      const lead = declarerKingQueenLead(leadCtx) ?? declarerLead(leadCtx);
       if (lead) return lead;
     }
     // Pratilac: ne otvara K,x / D,x (aiLeads.ts, korisnik u partiji #11).
@@ -417,6 +426,11 @@ export function choosePlayCard(args: {
   const leadSuit = currentTrick[0]!.card.suit;
   const sameSuit = legal.filter(c => c.suit === leadSuit);
 
+  const isBetlGame = args.declaredGame === 'Betl' || args.declaredGame === 'Igra-Betl';
+  if (sameSuit.length > 0 && !isDeclarer && !isBetlGame && declarer != null) {
+    const pick = followAfterPartner({ hand, legal, currentTrick, trump, declarer, tricks });
+    if (pick) return pick;
+  }
   if (sameSuit.length > 0) {
     const highestInTrick = currentTrick
       .filter(tc => tc.card.suit === leadSuit || (trump && tc.card.suit === trump))
@@ -567,7 +581,8 @@ export function choosePlayCard(args: {
   // kasnije, dok god imam bar jednu kartu koja NIJE as/kralj da bacim
   // umesto toga).
   const nonHonor = legal.filter(c => c.rank !== 'A' && c.rank !== 'K');
-  const pool = nonHonor.length > 0 ? nonHonor : legal;
+  const basePool = nonHonor.length > 0 ? nonHonor : legal;
+  const pool = isDeclarer ? basePool : withoutKingGuards(hand, basePool);
   // Visak duge boje sa A,K (korisnik 2026-10-24, #13 ruka 32: Milan ♣A,K,10,9
   // ♠K,J,8 ♦K,10 bacio 8 pik — "Ako ima A, K i jos 2 u trefu ... velika je
   // sansa da nosilac nema toliko trefova ... bas dobar primjer sta je lako

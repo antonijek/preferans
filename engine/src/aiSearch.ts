@@ -16,6 +16,7 @@ import {
   sansDefenderLead, partnerSuitLead, defenderSuitLead, defenderTrumpPull, waitsForDeclarer, type LeadContext,
 } from './aiLeads.js';
 import { activePlayerCount, nextActivePlayer } from './turnOrder.js';
+import { followAfterPartner, withoutKingGuards } from './aiDefenderFollow.js';
 import { chooseKontra, chooseFollow, chooseCallOrAlone } from './aiFollowKontra.js';
 import { chooseDeclareGame, chooseBidAction, igraAllowed } from './aiBidding.js';
 import { STANDARD_GAMES, IGRA_GAMES } from './constants.js';
@@ -257,6 +258,9 @@ export function scoreCandidate(args: {
 //  - Partije #9/#10 (2026-10-21): protiv Sansa korisnik otvara najduzu boju
 //    sa vrha (K iz K,D, A iz A,D,J,8) i nastavlja je — pravila (aiLeads.ts)
 //    se sa njim slazu, pretraga je otvarala nasumicne male karte.
+//  - Partija #14 (2026-10-24): kad stih drzi partner, ne preticem ga; kad posle
+//    mene igra nosilac, igram najjacu preostalu kartu boje; skart ne ostavlja
+//    kralja samog — vidi aiDefenderFollow.ts.
 //  - Partije #12/#13 (2026-10-24): otvaranje po korisnikovim pravilima
 //    (partnerova boja, A,K, K,D, as najduze boje; ne otvara K,x / D,x ni
 //    makaze) — vidi aiLeads.ts.
@@ -293,8 +297,14 @@ function defenderPlayFilter(state: GameState, seat: Position, legal: Card[]): Ca
     return legal;
   }
   const led = state.currentTrick[0]!.card.suit;
-  if (legal.some((c) => c.suit === led)) return legal;
-  return keep(legal.filter((c) => c.suit === state.trump || (c.rank !== 'A' && c.rank !== 'K')));
+  const hand = state.players[seat]!.hand;
+  if (legal.some((c) => c.suit === led)) {
+    const pick = followAfterPartner({
+      hand, legal, currentTrick: state.currentTrick, trump: state.trump, declarer: state.winner!, tricks: state.tricks,
+    });
+    return pick ? [pick] : legal;
+  }
+  return withoutKingGuards(hand, keep(legal.filter((c) => c.suit === state.trump || (c.rank !== 'A' && c.rank !== 'K'))));
 }
 
 /**

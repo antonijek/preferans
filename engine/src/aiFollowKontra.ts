@@ -4,7 +4,7 @@
 import { BID_LEVEL_SUIT, RANK_VALUE, SUITS } from './constants.js';
 import type { Card, Game, Suit, Position, ContraLevel } from './types.js';
 import {
-  trumpOnlySafeTricks, countSafeTricks, getTrumpSuitFromGame, sequentialRunFromAce, countDeclarerTricks, countSansTricks,
+  trumpOnlySafeTricks, countSafeTricks, defenderComes, getTrumpSuitFromGame, sequentialRunFromAce, countDeclarerTricks, countSansTricks,
 } from './aiHandEval.js';
 
 // === FOLLOW STRATEGIJA (Dodjem / Ne dodjem) ===
@@ -56,7 +56,7 @@ export function chooseFollow(ctx: FollowContext): FollowAction {
   // Adutska igra: 3 rezona, ne 2 (korisnik 2026-10-21: "treba 3 rezona da bi
   // dosao ... jer vecinom jedan rezon sece nosilac"). Pik i Sans gore imaju
   // svoja pravila i ostaju kakvi su.
-  return countSafeTricks(ctx.hand, trump) >= 3 ? 'DODJEM' : 'NE_DODJEM';
+  return defenderComes(ctx.hand, trump) ? 'DODJEM' : 'NE_DODJEM';
 }
 
 // Pratilac protiv Sansa: niz od asa (A, A,K...) kao ranije, a bez asa i
@@ -157,8 +157,8 @@ export interface CallOrAloneContext {
   declaredGame: Game;
 }
 
-// Jak pratilac zove i bez partnerove licitacije: 4+ rezona, od toga bar
-// jedan u adutu (korisnik 2026-10-24: #13 ruka 5, Bora ♣K,J,10,8 kao adut
+// Jak pratilac zove i bez partnerove licitacije: 4+ procenjena stiha
+// (countSafeTricks), od toga bar jedan u adutu (korisnik 2026-10-24: #13 ruka 5, Bora ♣K,J,10,8 kao adut
 // ♥A,K,D ♠K,8 ♦7 — "morao je da me zove"; ruka 13, Milan ♥K,D,10 kao adut
 // ♣K,9 ♦A,9,7 — "moze da zove komotno"). Sa slabim adutima i dalje sam
 // (2026-10-21, A,K,D pik A,K,8 tref A,9 karo i 9,8 adut: "sve mi isto").

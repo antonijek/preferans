@@ -205,6 +205,21 @@ export function sansDefenderLead(ctx: LeadContext): Card | null {
   return topOfSequence(suit) ?? suit[suit.length - 1]!;
 }
 
+/**
+ * Nosilac koji ne vuce adute prvo igra K iz K,D sporedne boje (as je kod
+ * protivnika): izbija asa, a svoje keceve cuva za ulaz (korisnik 2026-10-24,
+ * #14 ruka 8, Bora sa A,D pik i K,D karo: "trebalo je K karo").
+ */
+export function declarerKingQueenLead(ctx: LeadContext): Card | null {
+  if (!ctx.trump) return null;
+  const defenders = ([0, 1, 2] as Position[]).filter((p) => p !== ctx.myPosition);
+  const risky = new Set<Suit>(defenders.flatMap((p) => [...voidsOf(ctx, p)]));
+  const suits = SUITS.filter((s) => s !== ctx.trump && !risky.has(s))
+    .map((s) => cardsIn(ctx.legal, s))
+    .filter((c) => c.length >= 2 && c[0]!.rank === 'K' && c[1]!.rank === 'Q' && unseenRanks(ctx, c[0]!.suit).includes('A'));
+  return suits.sort(longerFirst)[0]?.[0] ?? null;
+}
+
 export function declarerLead(ctx: LeadContext): Card | null {
   if (!ctx.trump) return null;
   // boje u kojima je neki pratilac pokazao da je prazan — tamo bi mi as bio isecen

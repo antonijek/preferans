@@ -81,8 +81,10 @@ test('pratnja u adutu: 2 rezona = ne dođem (ruke 17 i 83), 3 rezona = dođem', 
   assert.equal(chooseFollow({ hand: hand('K♣ 7♣ 8♣ K♦ 7♦ A♠ 9♠ 7♠ 8♥ 7♥'), declaredGame: 'Herc' }), 'DODJEM');
   // A,K u kratkoj boji je jedan rezon: "ovdje su samo 2 rezona, pik i tref"
   assert.equal(chooseFollow({ hand: hand('A♠ K♠ 7♠ A♣ 9♣ 8♣ 10♥ 9♥ 8♥ 8♦'), declaredGame: 'Karo' }), 'NE_DODJEM');
-  // A,K,D u kratkoj boji = 2
-  assert.equal(chooseFollow({ hand: hand('A♠ K♠ Q♠ A♣ 9♣ 8♣ 10♥ 9♥ 8♥ 8♦'), declaredGame: 'Karo' }), 'DODJEM');
+  // A,K,D je jedan rezon sa 2 stiha — uz A tref to su 2 rezona, a samo jedan
+  // sa 2 stiha (korisnik 2026-10-24: "na 2 rezona ne dolazis osim ako u oba
+  // imas po 2 stiha")
+  assert.equal(chooseFollow({ hand: hand('A♠ K♠ Q♠ A♣ 9♣ 8♣ 10♥ 9♥ 8♥ 8♦'), declaredGame: 'Karo' }), 'NE_DODJEM');
 });
 
 test('pratnja: Pik i Sans ostaju po starom pravilu (korisnik 2026-10-21)', () => {
