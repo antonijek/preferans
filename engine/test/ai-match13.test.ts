@@ -124,3 +124,13 @@ test('brojanje: nosilac prvo K adut, pa D pik (#13 ruka 25, 6. stih)', () => {
   ];
   assert.equal(lead('Q♠ 10♥ 7♥ K♦ 9♠', 'Karo', 1, 1, { tricks: t, isDeclarer: true }), 'K♦');
 });
+
+test('nosilac nastavlja zapocetu boju: posle K,D pik 7 pik, ne J herc (#13 ruka 12, 4. stih)', () => {
+  const t = [trick([2, 'A♦'], [1, '9♦']), trick([2, 'K♠'], [1, '10♠']), trick([2, 'Q♠'], [1, 'J♠'])];
+  assert.equal(lead('J♥ 8♥ A♣ 7♠ 8♦ 10♦ K♦', 'Igra-Karo', 2, 2, { tricks: t, isDeclarer: true }), '7♠');
+});
+
+test('nosilac prvo jaca boja: A,K,D karo pre A,8,7 pik (#12 ruka 7, 2. stih)', () => {
+  const t = [trick([1, 'A♥'], [2, '8♥'])];
+  assert.equal(lead('A♠ A♦ K♦ 8♠ 9♥ 7♠ Q♦ Q♥ J♥', 'Herc', 1, 1, { tricks: t, isDeclarer: true }), 'A♦');
+});

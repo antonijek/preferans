@@ -256,10 +256,11 @@ export function choosePlayCard(args: {
         // nikad nije povukao adut (korisnik: "mogao je jednom adut").
         const iLedTrump = tricks.some(t => t[0]?.player === myPosition && t[0].card.suit === trump);
         const firstRoundOfExtended = extendedDraw && !iLedTrump;
-        // Najduza sporedna boja; kod iste duzine nastavi boju koju sam vec
-        // vodio, ne otvaraj novu — partija #11 ruka 10: Milan posle A,K pik
-        // otvorio K,J karo i dao stih asu (korisnik: "nek nastavi sa pikom,
-        // zasto je stao?").
+        // Sporedna boja: prvo nastavi onu koju sam vec vodio, pa najduza, pa
+        // ona sa vise najjacih karata — partija #11 ruka 10: Milan posle A,K
+        // pik otvorio K,J karo ("nek nastavi sa pikom, zasto je stao?");
+        // #13 ruka 12: posle K,D pik Bora otvorio J,8 herc ("trebalo je da
+        // nastavi sa 7 pik"); #12 ruka 7: A,8,7 pik pre A,K,D karo.
         const bySuit = new Map<Suit, Card[]>();
         for (const c of legal) {
           if (c.suit === trump) continue;
@@ -267,11 +268,13 @@ export function choosePlayCard(args: {
           bySuit.get(c.suit)!.push(c);
         }
         const lastLed = [...tricks].reverse().find(t => t[0]?.player === myPosition)?.[0]?.card.suit;
+        const masterCount = (cards: Card[]) => (leadCtx ? cards.filter(c => isMaster(leadCtx, c)).length : 0);
         const sideSuit = [...bySuit.values()].sort((a, b) => {
-          if (b.length !== a.length) return b.length - a.length;
           const contA = a[0]!.suit === lastLed ? 1 : 0;
           const contB = b[0]!.suit === lastLed ? 1 : 0;
           if (contA !== contB) return contB - contA;
+          if (b.length !== a.length) return b.length - a.length;
+          if (masterCount(a) !== masterCount(b)) return masterCount(b) - masterCount(a);
           const topA = Math.max(...a.map(c => RANK_VALUE[c.rank]));
           const topB = Math.max(...b.map(c => RANK_VALUE[c.rank]));
           return topB - topA;
