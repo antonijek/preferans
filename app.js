@@ -973,6 +973,8 @@ function renderStatusBar() {
   // (isti "back.svg" bez obzira koje su karte stvarno u pitanju).
   const showTalonFaceDown = s.phase === 'BIDDING';
   const talonCenter = $('talonCenter');
+  // na telefonu se okrenut talon (licitacija) ne prikazuje, otvoren da (preferans.css)
+  talonCenter.classList.toggle('face-down', !showTalonRevealed && showTalonFaceDown);
   if (showTalonRevealed) {
     const cardsEl = $('talonCenterCards');
     cardsEl.innerHTML = '';

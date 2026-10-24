@@ -2233,13 +2233,17 @@
        pola uskog stola). Znatno manje ovde, cim se telefon-portret uslov
        ionako vec drugacije stesnjava. */
     .talon-center-cards .card.small { width: 40px; height: 56px; }
+    .talon-center-cards .card.small:not(.talon-back) { width: 46px; height: 64px; }
     .talon-center-cards .card.small .rank { font-size: 1em; }
     .talon-center-cards .card.small .suit { font-size: 1.15em; }
     .talon-center-label { font-size: 0.6em; }
     /* Korisnikov zahtev (2026-10-03): i dalje smeta na uskom stolu i kad je
        smanjen — na telefonu talon na stolu uopste ne mora da se vidi (ionako
-       postoji status-bar tekst baner za to), radije ostavi prostor stolu. */
-    .talon-center { display: none !important; }
+       postoji status-bar tekst baner za to), radije ostavi prostor stolu.
+       Korisnik 2026-10-24: otvoren talon ipak da se vidi i na telefonu, dok
+       pratioci ne kazu dodjem/ne dodjem — sakriven ostaje samo okrenut talon
+       tokom licitacije. */
+    .talon-center.face-down { display: none !important; }
 
     /* Korisnikov zahtev (2026-10-03, uzivo prijavljeno): "kartice sa
        imenima... prevelike, ne vidi se sto dovoljno" — .player-seat ima
