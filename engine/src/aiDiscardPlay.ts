@@ -7,7 +7,7 @@ import type { Card, Game, Suit, Position, ContraLevel } from './types.js';
 import { CARD_POINTS, sequentialRunFromAce } from './aiHandEval.js';
 import {
   sansDefenderLead, declarerLead, sansDefenderDiscard, defenderSafeExit, partnerSuitLead, defenderSuitLead,
-  defenderTrumpPull, masterTrump, isMaster, declarerKingQueenLead,
+  defenderTrumpPull, masterTrump, isMaster, declarerKingQueenLead, isWeakFour,
 } from './aiLeads.js';
 import { followAfterPartner, withoutKingGuards } from './aiDefenderFollow.js';
 
@@ -234,13 +234,12 @@ export function choosePlayCard(args: {
       // Prvi krug ide uvek; dalje vazi isto zaustavljanje kao gore. Proba
       // protiv starog AI-ja (40.000 deljenja): oko 4,5 poena po ruci bolje.
       const honorCount = (['A', 'K', 'Q', 'J'] as const).filter(r => originalTrumps.some(c => c.rank === r)).length;
-      // 4 aduta: ne bez K i D (korisnik 2026-10-24, #14 ruka 8,
-      // Bora A,J,10,8 herc vukao adut: "ako ima samo 4 aduta i to bez K i D, ne
-      // treba da krece adutom. Nema ih dovoljno i plus nisu najjaci").
-      const hasTrumpRank = (r: string) => originalTrumps.some(c => c.rank === r);
-      const solidFour = hasTrumpRank('K') || hasTrumpRank('Q');
-      const extendedDraw = honorCount >= 2
-        && ((originalTrumps.length === 4 && solidFour) || (originalTrumps.length >= 5 && !hasAce));
+      const extendedDraw = honorCount >= 2 && (originalTrumps.length === 4 || (originalTrumps.length >= 5 && !hasAce));
+      // 4 aduta bez K i D: ne krece se iz aduta (korisnik 2026-10-24, #14 ruka
+      // 8, Bora A,J,10,8 herc: "ne treba da krece adutom. Nema ih dovoljno i plus
+      // nisu najjaci"), ali adut se igra kasnije: "kad vidis da je ostao jedan
+      // adut a ti mozes da ga uzmes, naravno da ces igrati adut".
+      const weakFour = leadCtx ? isWeakFour(leadCtx) : false;
       const qualifies =
         (originalTrumps.length >= 5 && hasAce) || (originalTrumps.length === 4 && hasAllFourHonors) || extendedDraw;
       if (qualifies) {
@@ -262,7 +261,7 @@ export function choosePlayCard(args: {
         // racuna — partija #11 ruka 10: Milan je isekao prvi tref i zato
         // nikad nije povukao adut (korisnik: "mogao je jednom adut").
         const iLedTrump = tricks.some(t => t[0]?.player === myPosition && t[0].card.suit === trump);
-        const firstRoundOfExtended = extendedDraw && !iLedTrump;
+        const firstRoundOfExtended = extendedDraw && !iLedTrump && !weakFour;
         // Sporedna boja: prvo nastavi onu koju sam vec vodio, pa najduza, pa
         // ona sa vise najjacih karata — partija #11 ruka 10: Milan posle A,K
         // pik otvorio K,J karo ("nek nastavi sa pikom, zasto je stao?");
@@ -313,9 +312,18 @@ export function choosePlayCard(args: {
         // su ostali samo aduti (K karo obara poslednju Damu). Sporedna boja
         // koju tek treba izbiti ide pre aduta (#11 ruka 10: "nek nastavi sa
         // pikom" J,10 pik, K herc ostaje).
+        // Sa 4 slaba aduta samo kad najjaci pokrivaju sve preostale.
         const master = leadCtx ? masterTrump(leadCtx) : null;
-        if (master && undiscoveredDefenderTrumps > 0 && (!sideSuit || isMaster(leadCtx!, highestSide()))) {
+        const masterTrumps = leadCtx ? myTrumpsNow.filter(c => isMaster(leadCtx, c)).length : 0;
+        if (master && undiscoveredDefenderTrumps > 0 && (!sideSuit || isMaster(leadCtx!, highestSide()))
+          && (!weakFour || undiscoveredDefenderTrumps <= masterTrumps)) {
           return master;
+        }
+        // Bez vucenja aduta prvo boja sa K,D — kecevi se cuvaju (#14 ruka 8:
+        // "trebalo je K karo").
+        if (weakFour && leadCtx) {
+          const kingQueen = declarerKingQueenLead(leadCtx);
+          if (kingQueen) return kingQueen;
         }
         // Adut je iscrpljen u mojoj ruci, ili bi neki pratilac mogao da
         // drzi isto ili vise aduta od mene — vreme je za sporednu boju.

@@ -205,6 +205,36 @@ export function sansDefenderLead(ctx: LeadContext): Card | null {
   return topOfSequence(suit) ?? suit[suit.length - 1]!;
 }
 
+/** Nosilac je poceo sa tacno 4 aduta bez K i D. */
+export function isWeakFour(ctx: LeadContext): boolean {
+  const trump = ctx.trump;
+  if (!trump) return false;
+  const played = ctx.tricks.flatMap((t) => t.filter((p) => p.player === ctx.myPosition && p.card.suit === trump));
+  const original = [...ctx.hand.filter((c) => c.suit === trump), ...played.map((p) => p.card)];
+  return original.length === 4 && !original.some((c) => c.rank === 'K' || c.rank === 'Q');
+}
+
+/**
+ * Sa 4 aduta bez K i D nosilac ne krece iz aduta (#14 ruka 8: "ne treba da
+ * krece adutom"); adut vodi tek kad ih ima vise od protivnika ili kad mu
+ * najjaci pokrivaju preostale ("kad vidis da je ostao jedan adut a ti mozes da
+ * ga uzmes, naravno da ces igrati adut").
+ */
+export function weakTrumpLeadAllowed(ctx: LeadContext): boolean {
+  if (!ctx.trump || !isWeakFour(ctx)) return true;
+  const outstanding = unseenRanks(ctx, ctx.trump).length;
+  return outstanding < cardsIn(ctx.legal, ctx.trump).length || outstanding <= masters(ctx, ctx.trump).length;
+}
+
+// Boje u kojima je neki pratilac pokazao da je prazan — tamo bi nosiocu karta
+// bila isecena, ali samo dok neko jos ima adut (#15 ruka 11: aduta vise nije
+// bilo, a Milan nije odigrao svoju sigurnu D herc jer Bora nema herc).
+function riskySuits(ctx: LeadContext): Set<Suit> {
+  if (!ctx.trump || unseenRanks(ctx, ctx.trump).length === 0) return new Set();
+  const defenders = ([0, 1, 2] as Position[]).filter((p) => p !== ctx.myPosition);
+  return new Set<Suit>(defenders.flatMap((p) => [...voidsOf(ctx, p)]));
+}
+
 /**
  * Nosilac koji ne vuce adute prvo igra K iz K,D sporedne boje (as je kod
  * protivnika): izbija asa, a svoje keceve cuva za ulaz (korisnik 2026-10-24,
@@ -212,8 +242,7 @@ export function sansDefenderLead(ctx: LeadContext): Card | null {
  */
 export function declarerKingQueenLead(ctx: LeadContext): Card | null {
   if (!ctx.trump) return null;
-  const defenders = ([0, 1, 2] as Position[]).filter((p) => p !== ctx.myPosition);
-  const risky = new Set<Suit>(defenders.flatMap((p) => [...voidsOf(ctx, p)]));
+  const risky = riskySuits(ctx);
   const suits = SUITS.filter((s) => s !== ctx.trump && !risky.has(s))
     .map((s) => cardsIn(ctx.legal, s))
     .filter((c) => c.length >= 2 && c[0]!.rank === 'K' && c[1]!.rank === 'Q' && unseenRanks(ctx, c[0]!.suit).includes('A'));
@@ -222,9 +251,7 @@ export function declarerKingQueenLead(ctx: LeadContext): Card | null {
 
 export function declarerLead(ctx: LeadContext): Card | null {
   if (!ctx.trump) return null;
-  // boje u kojima je neki pratilac pokazao da je prazan — tamo bi mi as bio isecen
-  const defenders = ([0, 1, 2] as Position[]).filter((p) => p !== ctx.myPosition);
-  const risky = new Set<Suit>(defenders.flatMap((p) => [...voidsOf(ctx, p)]));
+  const risky = riskySuits(ctx);
   let best: Card[] | null = null;
   for (const s of SUITS) {
     if (s === ctx.trump || risky.has(s)) continue;

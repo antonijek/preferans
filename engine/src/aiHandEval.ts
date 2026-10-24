@@ -209,11 +209,16 @@ export function countDeclarerTricks(hand: Card[], trump: Suit | null): number {
 // "mogao je da igra karo, posto prvi baca kartu, potpuno je siguran prolaz.
 // Jako je vazno ko prvi baca kartu u ruci"): aduti od asa nadole pokrivaju
 // sve tudje adute i kad su svi kod jednog pratioca, pa nosi svaki moj adut i
-// niz od asa u svakoj sporednoj boji. Kad prvi igra pratilac, nosilac moze
-// morati da sece pre nego sto izvuce adute — tad nista nije sigurno.
+// niz od asa u svakoj sporednoj boji. Kad prvi igra pratilac, nosilac mozda
+// mora da sece pre nego sto izvuce adute: sigurno je i tad ako ima jos jedan
+// mali adut za to secenje (#15 ruka 11: A,K,D,J,8 herc — "treba herc jer je
+// vrednija a i jaci je tu", Milan je proglasio karo A,J,10,7).
 export function certainTricks(hand: Card[], trump: Suit, declarerLeads: boolean): number {
   const trumps = hand.filter((c) => c.suit === trump).length;
-  if (!declarerLeads || sequentialRunFromAce(hand, trump) < 8 - trumps) return 0;
+  const run = sequentialRunFromAce(hand, trump);
+  const outstanding = 8 - trumps;
+  const canDraw = declarerLeads ? run >= outstanding : run >= outstanding && (trumps > run || run - 1 >= outstanding);
+  if (!canDraw) return 0;
   return trumps + SUITS.filter((s) => s !== trump).reduce((n, s) => n + sequentialRunFromAce(hand, s), 0);
 }
 
@@ -377,7 +382,7 @@ export function trumpOnlySafeTricks(hand: Card[], trump: Suit | null): number {
 //    (A,K,7 pik i A,9,8 tref: "ovdje su samo 2 rezona, pik i tref"); A,K,D,
 //    K,D,J i makaze A,D bez K vrede 2 stiha (#13 ruka 24, A,D,9 pik i A,K,D,7
 //    karo: "ima u oba po 2 stiha"); D,J,10 bez asa i kralja = 1 ("dodjem");
-//  - duga boja (4+): as bez kralja = 1 (A,9,8,7: "dodjem"), K,D bez asa = 1,
+//  - duga boja (4+): as bez kralja = 1 (A,9,8,7: "dodjem"), K,D ili K,J,10 = 1,
 //    A,K,x,x = 1 (#12 ruka 9, ♣K,10,7 ♠A,K,8,7 ♦K,9: "ima 3 rezona"), A,K,D,x
 //    vredi 2 stiha;
 //  - D,10,9 (tacno te tri karte) = 1 (#13 ruka 17: "Milan je morao da
@@ -394,7 +399,8 @@ function sideSuitValue(cards: Card[]): number {
   }
   if (cards.length >= 4) {
     if (has('A') && has('K')) return has('Q') ? 2 : 1;
-    return has('A') || (has('K') && has('Q')) ? 1 : 0;
+    // K,J,10,x = 1 (#15 ruka 13, Milan K,J,10,9 karo: "ima dolaz, 3 rezona")
+    return has('A') || (has('K') && has('Q')) || (has('K') && has('J') && has('10')) ? 1 : 0;
   }
   if (!has('A') && !(has('K') && cards.length >= 2)) return 0;
   const threeHonours = has('K') && has('Q') && (has('A') || has('J'));

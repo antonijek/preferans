@@ -13,7 +13,8 @@ import { applyHeuristicTurn } from './aiAutoplay.js';
 import { estimatedMaxLevel } from './aiHandEval.js';
 import { choosePlayCard } from './aiDiscardPlay.js';
 import {
-  sansDefenderLead, partnerSuitLead, defenderSuitLead, defenderTrumpPull, waitsForDeclarer, type LeadContext,
+  sansDefenderLead, partnerSuitLead, defenderSuitLead, defenderTrumpPull, waitsForDeclarer, weakTrumpLeadAllowed,
+  type LeadContext,
 } from './aiLeads.js';
 import { activePlayerCount, nextActivePlayer } from './turnOrder.js';
 import { followAfterPartner, withoutKingGuards } from './aiDefenderFollow.js';
@@ -307,6 +308,18 @@ function defenderPlayFilter(state: GameState, seat: Position, legal: Card[]): Ca
   return withoutKingGuards(hand, keep(legal.filter((c) => c.suit === state.trump || (c.rank !== 'A' && c.rank !== 'K'))));
 }
 
+// Nosilac: sa 4 aduta bez K i D ne krece iz aduta (aiLeads weakTrumpLeadAllowed,
+// partija #14 ruka 8) — pretraga je i posle ispravke pravila vodila J herc.
+function declarerPlayFilter(state: GameState, seat: Position, legal: Card[]): Card[] {
+  if (seat !== state.winner || state.currentTrick.length > 0 || !state.trump) return legal;
+  const ctx: LeadContext = {
+    legal, hand: state.players[seat]!.hand, trump: state.trump, myPosition: seat, declarer: seat, tricks: state.tricks,
+  };
+  if (weakTrumpLeadAllowed(ctx)) return legal;
+  const side = legal.filter((c) => c.suit !== state.trump);
+  return side.length > 0 ? side : legal;
+}
+
 /**
  * Faza 1: bira koju kartu da odigra `seat` pretragom umesto fiksne
  * heuristike. Ako postoji samo 1 legalna karta (cest slucaj kasnije u
@@ -324,7 +337,7 @@ export function searchChoosePlayCard(
   if (allLegal.length === 0) {
     throw new Error('aiSearch.searchChoosePlayCard: nema legalnih karata za dato sedište');
   }
-  const legal = defenderPlayFilter(state, seat, allLegal);
+  const legal = declarerPlayFilter(state, seat, defenderPlayFilter(state, seat, allLegal));
   if (legal.length === 1) return legal[0]!;
 
   // Uzivo prijavljen bag (2026-09-22, korisnik: "sve pravilo koje smo

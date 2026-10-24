@@ -84,7 +84,11 @@ export function chooseDeclareGame(
       // Korisnik 2026-10-20: "ne moze da se igra ni bez jedne [boje]" — Sans
       // nikad sa praznom bojom (racunari su ga igrali i bez dve, i padali).
       if (hasVoidSuit(hand)) continue;
-      score = countSansTricks(hand);
+      // Sans broji samo sigurne stihove (niz od asa), pa je 6+ siguran prolaz
+      // i vredniji od svake boje (#15 ruka 12: "Milan ima sans iz ruke, sigurnih
+      // 6, a mozda i 8" — proglasio je Igra-Herc).
+      const sans = countSansTricks(hand);
+      score = sans >= REQUIRED_TRICKS[g] ? CERTAIN_GAME_SCORE : sans;
     } else {
       const trump = SUIT_FOR_GAME[g] ?? null;
       const certain = trump !== null && certainTricks(hand, trump, declarerLeads) >= REQUIRED_TRICKS[g];
