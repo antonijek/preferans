@@ -164,6 +164,25 @@ export function defenderSuitLead(ctx: LeadContext): Card | null {
   return master ? master[0]! : null;
 }
 
+/**
+ * Brojanje (korisnik 2026-10-24: "mora da se broji uvek"): pratilac koji drzi
+ * najjace preostale adute — bar onoliko koliko ih jos ima van njegove ruke —
+ * prvo njima izvlaci poslednje adute, pa mu se ostale karte vise ne seku.
+ * #13 ruka 5: Bora K herc i K tref, napolju jos samo D tref — odigrao K herc
+ * i nosilac ga je isekao Damom; K tref bi Damu oborio.
+ */
+export function defenderTrumpPull(ctx: LeadContext): Card | null {
+  if (!ctx.trump || !ctx.legal.some((c) => c.suit !== ctx.trump)) return null;
+  const outstanding = unseenRanks(ctx, ctx.trump).length;
+  const top = masters(ctx, ctx.trump);
+  return outstanding > 0 && top.length >= outstanding ? top[0]! : null;
+}
+
+/** Moj najjaci adut je jaci od svih jos neodigranih tudjih (null kad nemam adut ili nije). */
+export function masterTrump(ctx: LeadContext): Card | null {
+  return ctx.trump ? (masters(ctx, ctx.trump)[0] ?? null) : null;
+}
+
 export function sansDefenderLead(ctx: LeadContext): Card | null {
   const started = lastSuitILed(ctx);
   if (started) {

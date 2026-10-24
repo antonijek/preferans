@@ -12,7 +12,9 @@ import { makeDeck, shuffle } from './deck.js';
 import { applyHeuristicTurn } from './aiAutoplay.js';
 import { estimatedMaxLevel, isIgraWorthy } from './aiHandEval.js';
 import { choosePlayCard } from './aiDiscardPlay.js';
-import { sansDefenderLead, partnerSuitLead, defenderSuitLead, waitsForDeclarer, type LeadContext } from './aiLeads.js';
+import {
+  sansDefenderLead, partnerSuitLead, defenderSuitLead, defenderTrumpPull, waitsForDeclarer, type LeadContext,
+} from './aiLeads.js';
 import { activePlayerCount, nextActivePlayer } from './turnOrder.js';
 import { chooseKontra, chooseFollow, chooseCallOrAlone } from './aiFollowKontra.js';
 import { chooseDeclareGame, chooseBidAction } from './aiBidding.js';
@@ -278,7 +280,7 @@ function defenderPlayFilter(state: GameState, seat: Position, legal: Card[]): Ca
       partnerKontra: state.kontraPlayer === partner,
     };
     if (state.trump) {
-      const lead = partnerSuitLead(ctx) ?? defenderSuitLead(ctx);
+      const lead = defenderTrumpPull(ctx) ?? partnerSuitLead(ctx) ?? defenderSuitLead(ctx);
       if (lead) return [lead];
       const sideSuits = legal.filter((c) => c.suit !== state.trump);
       const open = sideSuits.filter((c) => !waitsForDeclarer(sideSuits.filter((x) => x.suit === c.suit)));

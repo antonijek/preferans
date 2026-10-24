@@ -43,12 +43,12 @@ test('betl: nesigurne boje po korisnikovom pravilu', () => {
 type T = { player: Position; card: Card }[][];
 const trick = (...plays: [number, string][]): T[number] => plays.map(([p, c]) => ({ player: p as Position, card: hand(c)[0]! }));
 function lead(h: string, game: string, me: number, declarer: number, opts: {
-  tricks?: T; twoHanded?: boolean; bidLevels?: [number, number, number]; kontraPlayer?: number;
+  tricks?: T; twoHanded?: boolean; bidLevels?: [number, number, number]; kontraPlayer?: number; isDeclarer?: boolean;
 } = {}) {
   const trump = ({ Pik: '♠', Karo: '♦', Herc: '♥', Tref: '♣' } as Record<string, Card['suit']>)[game.replace('Igra-', '')] ?? null;
   return choosePlayCard({
     hand: hand(h), currentTrick: [], trump, declaredGame: game as never, winnerTricks: 0,
-    isDeclarer: false, myPosition: me as Position, declarer: declarer as Position, tricks: opts.tricks ?? [],
+    isDeclarer: opts.isDeclarer ?? false, myPosition: me as Position, declarer: declarer as Position, tricks: opts.tricks ?? [],
     twoHanded: opts.twoHanded ?? true, bidLevels: opts.bidLevels ?? [0, 0, 0],
     kontraPlayer: (opts.kontraPlayer ?? null) as Position | null,
   })!.id;
@@ -99,4 +99,28 @@ test('Sans: partner nije licitirao → tref, partner dao kontru → pik', () => 
   assert.equal(lead(h, 'Sans', 2, 0, { twoHanded: false, kontraPlayer: 1 }), '8♠');
   // partner licitirao do 4 → herc (licit pre kontre)
   assert.equal(lead(h, 'Sans', 2, 0, { twoHanded: false, bidLevels: [7, 4, 0], kontraPlayer: 1 }), 'J♥');
+});
+
+test('brojanje: pratilac K adut vuce poslednju Damu pre K herc (#13 ruka 5, 9. stih)', () => {
+  const t = [
+    trick([1, 'A♣'], [2, '8♣']), trick([1, 'A♠'], [2, '8♠']), trick([1, 'Q♠'], [2, 'K♠']), trick([2, 'A♥'], [1, '7♣']),
+    trick([1, '10♠'], [2, '10♣']), trick([2, 'Q♥'], [1, '9♣']), trick([1, 'A♦'], [2, '7♦']), trick([1, 'K♦'], [2, 'J♣']),
+  ];
+  assert.equal(lead('K♥ K♣', 'Tref', 2, 1, { tricks: t }), 'K♣');
+});
+
+test('brojanje: nosilac K karo hvata poslednju Damu (#13 ruka 12, 9. stih)', () => {
+  const t = [
+    trick([2, 'A♦'], [1, '9♦']), trick([2, 'K♠'], [1, '10♠']), trick([2, 'Q♠'], [1, 'J♠']), trick([2, 'J♥'], [1, 'K♥']),
+    trick([1, 'A♥'], [2, '8♥']), trick([1, 'K♣'], [2, 'A♣']), trick([2, '7♠'], [1, 'J♦']), trick([1, '8♣'], [2, '8♦']),
+  ];
+  assert.equal(lead('10♦ K♦', 'Igra-Karo', 2, 2, { tricks: t, isDeclarer: true }), 'K♦');
+});
+
+test('brojanje: nosilac prvo K adut, pa D pik (#13 ruka 25, 6. stih)', () => {
+  const t = [
+    trick([1, 'A♦'], [2, 'Q♦']), trick([1, 'K♥'], [2, 'A♥']), trick([2, 'A♣'], [1, '9♦']),
+    trick([1, 'K♠'], [2, 'A♠']), trick([2, '8♣'], [1, '10♦']),
+  ];
+  assert.equal(lead('Q♠ 10♥ 7♥ K♦ 9♠', 'Karo', 1, 1, { tricks: t, isDeclarer: true }), 'K♦');
 });
