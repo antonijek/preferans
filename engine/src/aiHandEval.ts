@@ -3,7 +3,7 @@
 // stanja.
 
 import { RANK_VALUE, SUITS, GAME_VALUES } from './constants.js';
-import type { Card, Game, Suit } from './types.js';
+import type { Card, Game, Rank, Suit } from './types.js';
 
 // Bodovi karata (high card points) — za procenu snage ruke
 export const CARD_POINTS: Record<string, number> = {
@@ -251,51 +251,28 @@ export function isIgraWorthy(hand: Card[]): boolean {
   return !hasVoidSuit(hand) && countSansTricks(hand) >= 6;
 }
 
-// Betl (RULES 8 — cilj je NE uzeti nijedan stih, suprotno od svega ostalog
-// ovde) — NIJE JOS kalibrisano uzivo sa korisnikom kao ostatak ove datoteke
-// (korisnikov zahtev 2026-09-06: "nismo pomenuli bet uopste"). Namerno
-// KONZERVATIVNO dok se ne uradi prava kalibracija: zahteva skoro savrsenu
-// nisku ruku (najvise 1 karta J ili visa u CELOJ ruci) — radije propusti
-// dobru Betl priliku nego da lose izracuna i preporuci siguran pad.
-// Da li je JEDNA boja bezbedna za Betl — korisnikova kalibracija uzivo
-// (2026-09-06, konkretni primeri): 7,8,9 / 7,8,10 / 7,9,10 / 7,9,J / suva 8 /
-// 7,8,9,K,A / 7,9,10,D su SVI 0 stihova. Dva odvojena mehanizma:
-//   (a) BEZ Asa te boje — neko drugi UVEK drzi nesto jace od moje najvise
-//       karte (K,D,J i nize su sve "pokrivene" Asom/vecim kod protivnika),
-//       ALI mi treba BAR JEDNA niska karta (7-10) da ne budem primoran da
-//       odmah uzmem stih na prvi vodjeni nizak potez — K,D,J,10 bez ijedne
-//       niske NIJE bezbedno (korisnikov zahtev: "naravno da ne moze da se
-//       igra sa K,D,J,10, to je suludo").
-//   (b) SA Asom te boje — Asa nema ko da "pokrije", pa niske karte (7-10)
-//       moraju biti dovoljno brojne da apsorbuju SVAKI moguci vodjeni potez
-//       protivnika u toj boji pre nego sto meni ponestane niskih (korisnikov
-//       primer: 7,8,9,K,A — 3 niske >= 3 preostale kod protivnika [8-5],
-//       pa K i As nikad ne moraju da izadju).
+// Betl (RULES 8 — cilj je NE uzeti nijedan stih). Da li je JEDNA boja
+// bezbedna — korisnikovo pravilo (2026-10-24, posle partije #13 ruka 32, gde
+// je Bora licitirao Betl sa D,10,9,8 herc jer je staro pravilo "ima 7 ili 8 i
+// vise niskih nego visokih" to propustalo): "sigurno je samo 7,8,9 kao i
+// 7,9,J ili 7,8,J, a pored ovoga moze da ima i jos karata ... Sve ostalo je
+// rizik. Neki rizik se podnosi kao sto je suva 8. Ali nikako 8 i 9 u jednoj
+// boji ili vise od toga." Isti dan potvrdio i kratke boje (suva 7, 7-8, 7-9)
+// i da 7,10,J NIJE sigurno (na vodjenu 8 bacim 7, na 9 moram 10 ili J).
+// 7,8,10 i 7,9,10 su nize od 7,8,J i 7,9,J (potvrdjene i 2026-09-06).
+const BETL_SAFE_SHORT: Rank[][] = [['7'], ['8'], ['7', '8'], ['7', '9']];
+const BETL_SAFE_BASES: Rank[][] = [
+  ['7', '8', '9'], ['7', '8', '10'], ['7', '8', 'J'], ['7', '9', '10'], ['7', '9', 'J'],
+];
+
 function isSuitBetlSafe(hand: Card[], suit: Suit): boolean {
-  const cards = hand.filter(c => c.suit === suit);
-  if (cards.length === 0) return true;
-  const lowCount = cards.filter(c => RANK_VALUE[c.rank] <= RANK_VALUE['10']).length;
-  if (cards.some(c => c.rank === 'A')) {
-    const opponentsRemaining = 8 - cards.length;
-    return lowCount >= opponentsRemaining;
+  const ranks = hand.filter((c) => c.suit === suit).map((c) => c.rank);
+  if (ranks.length === 0) return true;
+  const contains = (combo: Rank[]): boolean => combo.every((r) => ranks.includes(r));
+  if (ranks.length <= 2) {
+    return BETL_SAFE_SHORT.some((combo) => combo.length === ranks.length && contains(combo));
   }
-  // ISPRAVKA (2026-10-03, uzivo prijavljeno — ruka 10,9♠ / D,7♥ / 8,7♦ /
-  // 8,J,10,K♣, igrana Igra Betl, pala): "niske>=visoke" (staro pravilo) je
-  // ovde JOS UVEK pogresno proglasavalo SVAKU od tri opasne boje bezbednom —
-  // pik (10,9: 2 niske/0 visoke) nema NI JEDNU pravu dnovnu kartu (7 ili 8),
-  // pa 9/10 nemaju iza cega da se sakriju ako su bas sedmica/osmica te boje
-  // kod protivnika; herc (D,7: 1/1) samo IZJEDNACUJE nisku i visoku, ne
-  // pokriva je; tref (8,J,10,K: 2/2) isto samo izjednacuje. Dva pooštrenja,
-  // oba potvrdjena da i dalje prolaze ranije uzivo potvrdjene primere
-  // (7,9,J i 7,9,10,D):
-  //   1) MORA postojati bar jedna 7 ili 8 te boje (bez "dna" nema sigurnog
-  //      bacanja kad boja dodje na red vise puta) — pik gore pada ovde.
-  //   2) niske MORAJU biti STROGO vise od visokih, ne samo jednake — herc i
-  //      tref gore padaju ovde (1>1 i 2>2 oboje false).
-  const hasBottomAnchor = cards.some(c => c.rank === '7' || c.rank === '8');
-  if (!hasBottomAnchor) return false;
-  const highCount = cards.length - lowCount;
-  return lowCount > highCount;
+  return BETL_SAFE_BASES.some(contains);
 }
 
 export function isBetlSafe(hand: Card[]): boolean {
