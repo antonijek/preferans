@@ -51,8 +51,14 @@
 .rp-empty { opacity: 0.6; font-size: 0.9em; padding: 8px 0; }
 
 .rp-trick { display: flex; justify-content: center; gap: 14px; min-height: 108px; align-items: center; }
-.rp-trick-card { text-align: center; padding: 4px; border-radius: 8px; }
+.rp-trick-card { flex: 0 0 90px; text-align: center; padding: 4px; border-radius: 8px; }
 .rp-trick-card .rp-card { width: 56px; margin: 0 auto; }
+.rp-trick-card.absent { visibility: hidden; }
+/* igrac jos nije bacio: prazno mesto iste velicine, da karte ostanu na svojoj strani */
+.rp-trick-card.waiting::before {
+  content: ""; display: block; width: 56px; aspect-ratio: 60 / 84; margin: 0 auto; border-radius: 4px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+}
 .rp-trick-card.winner { box-shadow: 0 0 0 3px var(--gold-bright); }
 .rp-trick-who { font-size: 0.78em; margin-top: 4px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -73,5 +79,6 @@
   .rp-seat-a, .rp-seat-b { grid-column: 1; }
   .rp-card { width: 40px; }
   .rp-hand .rp-card { margin-right: -10px; }
-  .rp-trick-card .rp-card { width: 50px; }
+  .rp-trick-card .rp-card, .rp-trick-card.waiting::before { width: 50px; }
+  .rp-trick-card { flex-basis: 80px; }
 }

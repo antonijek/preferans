@@ -141,15 +141,34 @@ function renderTrick(h, played) {
   const t = last.trick;
   const cards = played.filter((p) => p.trick === t);
   const complete = cards.length === trickSize(h);
-  for (const p of cards) {
+  // karta stoji na strani onoga ko ju je bacio, kao na stolu (korisnik
+  // 2026-10-24: "ovaj levi baca kartu skroz desno"); ko ne igra, mesto mu je prazno
+  const playing = new Set(h.tricks[0].cards.map((c) => c.player));
+  for (const p of seatOrder()) {
     const slot = el('div', 'rp-trick-card');
-    if (complete && h.tricks[t].winner === p.player) slot.classList.add('winner');
-    slot.appendChild(cardImg(p.card));
+    if (!playing.has(p)) {
+      slot.classList.add('absent');
+      box.appendChild(slot);
+      continue;
+    }
+    const play = cards.find((c) => c.player === p);
+    if (play) {
+      if (complete && h.tricks[t].winner === p) slot.classList.add('winner');
+      slot.appendChild(cardImg(play.card));
+    } else {
+      slot.classList.add('waiting');
+    }
     const who = el('div', 'rp-trick-who');
-    who.textContent = nameOf(p.player);
+    who.textContent = nameOf(p);
     slot.appendChild(who);
     box.appendChild(slot);
   }
+}
+
+// [levo, ja, desno] kao za stolom: igrac posle mene (ja+1) sedi desno, (ja+2) levo
+function seatOrder() {
+  const m = me();
+  return [(m + 2) % 3, m, (m + 1) % 3];
 }
 
 // ruka bez ijednog stiha: svi rekli dalje, ili nijedan pratilac nije dosao
@@ -180,9 +199,9 @@ function render() {
   renderInfo(h);
   const { hands, played } = handsAt(h, step);
   const won = tricksWonAt(h, played);
-  const m = me();
-  renderSeat('rpSeatA', h, (m + 1) % 3, hands[(m + 1) % 3], won);
-  renderSeat('rpSeatB', h, (m + 2) % 3, hands[(m + 2) % 3], won);
+  const [left, m, right] = seatOrder();
+  renderSeat('rpSeatA', h, left, hands[left], won);
+  renderSeat('rpSeatB', h, right, hands[right], won);
   renderSeat('rpSeatMe', h, m, hands[m], won);
   renderTrick(h, played);
   $('rpStepText').textContent = `${stepText(h, step)}  (korak ${step + 1}/${total})`;
