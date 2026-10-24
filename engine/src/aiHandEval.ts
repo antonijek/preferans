@@ -378,8 +378,12 @@ export function trumpOnlySafeTricks(hand: Card[], trump: Suit | null): number {
 //    rezona, pik i tref"), drugi krug nosilac obicno sece; 2 tek A,K,D ili
 //    K,D,J; D,J,10 bez asa i kralja = 1 ("dodjem");
 //  - duga boja (4+): as bez kralja = 1 (A,9,8,7: "dodjem"), K,D bez asa = 1;
-//    A,K,x,x = 0 — "najverovatnije on pika nema ili ga je skartao, sto znaci
-//    da ja tu nemam stih" (isto rekao i 2026-09-06 za A,K,D,8);
+//    A,K,x,x je bio 0 ("najverovatnije on pika nema ili ga je skartao"), ali
+//    2026-10-24 (#12 ruka 9, ♣K,10,7 ♠A,K,8,7 ♦K,9: "ima 3 rezona") = 1, a
+//    A,K,D,x = 2 (#13 ruka 24, A,K,D,7 karo: "po 2 stiha");
+//  - D,10,9 (tacno te tri karte) = 1 (#13 ruka 17: ♠D,10,9 je treci rezon
+//    uz adutskog i karo asa — "Milan je morao da dodje"); D,J,9 nije — u
+//    partiji #10 je sa ♠D,J,9 i dva K,7 rekao "ne dodjem";
 //  - 3+ aduta i prazna boja ili singl = pola rezona: J,9,7 adut i bez herca
 //    je "na granici", "da je Dama umesto J ... dosao bih sigurno".
 export function countSafeTricks(hand: Card[], trump: Suit | null): number {
@@ -392,14 +396,16 @@ export function countSafeTricks(hand: Card[], trump: Suit | null): number {
     const has = (r: string) => cards.some((c) => c.rank === r);
     if (cards.length <= 1) short = true;
     if (cards.length >= 4) {
-      const aceWithoutKing = has('A') && !has('K');
-      const kingQueen = has('K') && has('Q') && !has('A');
-      if (aceWithoutKing || kingQueen) rezoni += 1;
+      if (has('A') && has('K')) rezoni += has('Q') ? 2 : 1;
+      else if (has('A') || (has('K') && has('Q'))) rezoni += 1;
     } else if (has('A') || (has('K') && cards.length >= 2)) {
       const threeHonours = has('K') && has('Q') && (has('A') || has('J'));
       rezoni += threeHonours ? 2 : 1;
     }
-    if (!has('A') && !has('K') && has('Q') && has('J') && has('10')) rezoni += 1;
+    if (!has('A') && !has('K') && has('Q')) {
+      const queenTenNine = cards.length === 3 && has('10') && has('9');
+      if ((has('J') && has('10')) || queenTenNine) rezoni += 1;
+    }
   }
   if (trumps >= 3 && short) rezoni += 0.5;
   return rezoni;

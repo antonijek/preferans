@@ -7,6 +7,7 @@ import { estimatedMaxLevel, isBetlSafe } from '../src/aiHandEval.ts';
 import { chooseBidAction, chooseDeclareGame } from '../src/aiBidding.ts';
 import { IGRA_GAMES } from '../src/constants.ts';
 import { choosePlayCard } from '../src/aiDiscardPlay.ts';
+import { chooseFollow } from '../src/aiFollowKontra.ts';
 import type { Card, Position } from '../src/types.ts';
 
 const hand = (s: string): Card[] => s.split(' ').map((x) => ({ id: x, rank: x.slice(0, -1), suit: x.slice(-1) } as Card));
@@ -167,4 +168,15 @@ test('Igra sa K,D,J,9,7 herc i A karo, sa praznom bojom i bez nje (#13 ruka 16)'
     assert.equal(chooseBidAction(bidCtx(h)).type, 'IGRA', h);
     assert.equal(chooseDeclareGame(hand(h), 0, IGRA_GAMES), game, h);
   }
+});
+
+test('dolazak: dugi A,K = 1 rezon, A,K,D = 2, D,10,9 = 1 (#12 r9, #13 r17, #13 r24)', () => {
+  assert.equal(chooseFollow({ hand: hand('K♣ 10♣ 7♣ Q♥ A♠ K♠ 8♠ 7♠ K♦ 9♦'), declaredGame: 'Herc' }), 'DODJEM');
+  assert.equal(chooseFollow({ hand: hand('10♣ 8♣ A♥ 9♥ 7♥ Q♠ 10♠ 9♠ A♦ 9♦'), declaredGame: 'Herc' }), 'DODJEM');
+  // i protiv obicnog Trefa (korisnik: "dosao bih")
+  for (const g of ['Igra-Tref', 'Tref'] as const) {
+    assert.equal(chooseFollow({ hand: hand('9♣ J♥ 7♥ A♠ Q♠ 9♠ A♦ K♦ Q♦ 7♦'), declaredGame: g }), 'DODJEM', g);
+  }
+  // A,K,8,7 + A,9 = i dalje 2 (2026-10-21)
+  assert.equal(chooseFollow({ hand: hand('A♠ K♠ 8♠ 7♠ A♣ 9♣ 10♥ 9♥ 8♦ 7♦'), declaredGame: 'Herc' }), 'NE_DODJEM');
 });
