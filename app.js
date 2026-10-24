@@ -960,10 +960,12 @@ function renderStatusBar() {
   // NAPOMENA: uzi prozor vidljivosti nego status-bar tekst baner iznad —
   // korisnikov zahtev: prave karte NA STOLU smetaju vizuelno tokom igranja
   // prvog stiha ("2 karte talona koje stoje na stolu smetaju dok se igra
-  // prvi stih") — ostaju SAMO dok nosilac ne proglasi igru (DISCARDING +
-  // DECLARING), nestaju cim krene FOLLOW_DECLARING.
+  // prvi stih"). Korisnik 2026-10-24: talon da se vidi "do pocetka prve
+  // ruke, odnosno dok pratilac ne klikne dodjem ili ne dodjem" — ostaje i
+  // kroz pratnju i kontru, nestaje kad krene prvi stih.
   const showTalonRevealed = s.lastTalon.length > 0 && (
-    s.phase === 'DISCARDING' || s.phase === 'DECLARING'
+    s.phase === 'DISCARDING' || s.phase === 'DECLARING' ||
+    s.phase === 'FOLLOW_DECLARING' || s.phase === 'KONTRA_DECLARING'
   );
   // Korisnikov zahtev (2026-09-27, RULES: talon lezi na stolu OD DELJENJA,
   // tokom cele licitacije, dok ga pobednik ne uzme — nismo ga uopste
