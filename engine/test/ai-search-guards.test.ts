@@ -37,10 +37,13 @@ function playing(declared: GameT, p1: string, p2: string, p0: string): Game {
   return game;
 }
 
-test('pratilac protiv Sansa otvara najdužu boju sa vrha (server i pregledač)', () => {
+test('pratilac protiv Sansa otvara po pravilima (server i pregledač)', () => {
   const g = playing('Sans', 'A♠ K♠ Q♠ A♦ K♦ Q♦ A♣ K♣ 7♥ 8♥', 'K♥ Q♥ J♥ 9♥ 7♠ 8♠ 7♦ 8♦ 7♣ 8♣', 'A♥ 10♥ 9♠ 10♠ 9♦ 10♦ 9♣ 10♣ J♣ Q♣');
+  // partner (0) je rekao dalje i igra posle mene: tref, najveca (korisnik 2026-10-24)
   const a = searchChooseAction(g.state, 2 as Position, 20);
-  assert.equal(a.type === 'playCard' ? a.cardId : a.type, 'K♥');
+  assert.equal(a.type === 'playCard' ? a.cardId : a.type, '8♣');
+  // kad partner ne igra: K,D herc pre svega ostalog
+  g.state.followChoices[0] = 'NE_DODJEM';
   assert.equal(searchChoosePlayCard(g.state, 2 as Position, 20).id, 'K♥');
 });
 

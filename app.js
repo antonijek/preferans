@@ -2228,6 +2228,7 @@ function aiPlayCard(player) {
     nextActivePosition: game.nextActivePlayer ? game.nextActivePlayer(player) : null,
     bidLevels: [s.players[0].bidLevel, s.players[1].bidLevel, s.players[2].bidLevel],
     twoHanded: [0, 1, 2].filter((p) => game.isPlayerActive(p)).length === 2,
+    kontraPlayer: s.kontraPlayer,
   });
   return card ? card.id : legal[0].id;
 }

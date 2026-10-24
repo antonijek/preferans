@@ -1,7 +1,7 @@
 // AI heuristike za Preferans — Dodjem/Ne dodjem (follow), Kontra, i
 // Zovem/Sam (call-or-alone). Koriste se iz app.js za AI igrače.
 
-import { RANK_VALUE, SUITS } from './constants.js';
+import { BID_LEVEL_SUIT, RANK_VALUE, SUITS } from './constants.js';
 import type { Card, Game, Suit, Position, ContraLevel } from './types.js';
 import {
   trumpOnlySafeTricks, countSafeTricks, getTrumpSuitFromGame, sequentialRunFromAce, countDeclarerTricks, countSansTricks,
@@ -151,11 +151,9 @@ export interface CallOrAloneContext {
   declaredGame: Game;
 }
 
-const BID_SUIT: Partial<Record<number, Suit>> = { 2: '♠', 3: '♦', 4: '♥', 5: '♣' };
-
 export function chooseCallOrAlone(ctx: CallOrAloneContext): CallOrAloneAction {
   const trump = getTrumpSuitFromGame(ctx.declaredGame);
-  const partnerSuit = BID_SUIT[ctx.partnerBidLevel];
+  const partnerSuit = BID_LEVEL_SUIT[ctx.partnerBidLevel];
   if (!partnerSuit || partnerSuit === trump) return 'ALONE';
   const mine = ctx.callerHand.filter((c) => c.suit === partnerSuit).length;
   return mine <= 2 ? 'CALL' : 'ALONE';

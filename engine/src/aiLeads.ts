@@ -9,7 +9,7 @@
 // naplate asa — bez merljive koristi. Svaka funkcija vraca null kad pravilo
 // ne odlucuje (choosePlayCard tada nastavlja sa svojim ostalim konvencijama).
 
-import { RANK_VALUE, RANKS } from './constants.js';
+import { BID_LEVEL_SUIT, RANK_VALUE, RANKS } from './constants.js';
 import type { Card, Position, Suit } from './types.js';
 
 export interface LeadContext {
@@ -21,6 +21,11 @@ export interface LeadContext {
   tricks: { player: Position; card: Card }[][];
   // igra se udvoje: drugi pratilac nije dosao (ni pozvan)
   twoHanded?: boolean;
+  // ko igra odmah posle mene (nosilac ili partner)
+  nextToAct?: Position;
+  // dokle je licitirao drugi pratilac (0 = rekao dalje) i da li je dao kontru
+  partnerBidLevel?: number;
+  partnerKontra?: boolean;
 }
 
 const SUITS: Suit[] = ['♠', '♥', '♦', '♣'];
@@ -101,12 +106,76 @@ function longestSuit(ctx: LeadContext, exclude: Set<Suit>): Card[] | null {
   return best;
 }
 
+const longerFirst = (a: Card[], b: Card[]) => b.length - a.length;
+
+/**
+ * Prvo otvaranje odbrane kad igraju oba pratioca: boja dokle je partner
+ * licitirao (korisnik 2026-10-24: "ako je dosao do 4, mora herca da igra ...
+ * Mora se pratiti dokle je ko licitovao", za sve igre). Protiv Sansa, ako
+ * partner nije licitirao: tref, a ako je dao kontru: pik ("prvo licit, ako
+ * ga nema onda se krece Trefom, ako je kontra onda Pik"). Karta: kad posle
+ * mene igra nosilac najmanja, kad igra partner najveca ("kad god imas treceg
+ * K ili trecu D, drugog K i sl, uvek igras ovako"); as se uvek naplati.
+ */
+export function partnerSuitLead(ctx: LeadContext): Card | null {
+  if (ctx.twoHanded || ctx.partnerBidLevel === undefined) return null;
+  if (ctx.tricks.some((t) => t[0] !== undefined && t[0].player !== ctx.declarer)) return null;
+  let suit = BID_LEVEL_SUIT[ctx.partnerBidLevel] ?? null;
+  if (!suit && ctx.trump === null && ctx.partnerBidLevel === 0) suit = ctx.partnerKontra ? '♠' : '♣';
+  if (!suit || suit === ctx.trump) return null;
+  const cards = cardsIn(ctx.legal, suit);
+  if (cards.length === 0) return null;
+  if (cards[0]!.rank === 'A' || ctx.nextToAct !== ctx.declarer) return cards[0]!;
+  return cards[cards.length - 1]!;
+}
+
+/**
+ * A,K pre svega ("jedino je bolji A,K"; i K,D kad je as vec pao), pa K,D
+ * ("K,D su uvek solidan polaz") — korisnik 2026-10-24, partije #12/#13.
+ * Kod vise takvih boja ide duza.
+ */
+function topSequenceLead(ctx: LeadContext, suits: Card[][]): Card | null {
+  const twoMasters = suits.filter((c) => masters(ctx, c[0]!.suit).length >= 2).sort(longerFirst)[0];
+  if (twoMasters) return twoMasters[0]!;
+  const kingQueen = suits.filter((c) => c[0]!.rank === 'K' && c[1]?.rank === 'Q').sort(longerFirst)[0];
+  return kingQueen ? kingQueen[0]! : null;
+}
+
+// As,D bez K ("makaze") se ne otvara osim sa 5+ karata — korisnik 2026-10-24:
+// "ako nosilac odigra bilo koju kartu makaze uzimaju 2 stiha".
+const isTenace = (cards: Card[]) =>
+  cards.length < 5 && cards.some((c) => c.rank === 'A') && cards.some((c) => c.rank === 'Q') && !cards.some((c) => c.rank === 'K');
+
+/**
+ * Pratilac protiv adutske igre otvara: A,K, pa K,D, pa najjacu kartu (as)
+ * NAJDUZE boje — ne suvog ili drugog asa (korisnik 2026-10-24: #13 ruka 3
+ * suvi A tref umesto A,J,9,7 pik; ruka 9 A,J karo umesto A,9,8,7 herc).
+ * Preskace boje u kojima je nosilac pokazao da je prazan i makaze.
+ */
+export function defenderSuitLead(ctx: LeadContext): Card | null {
+  if (!ctx.trump) return null;
+  const declarerVoid = voidsOf(ctx, ctx.declarer);
+  const suits = SUITS.filter((s) => s !== ctx.trump && !declarerVoid.has(s) && unseenRanks(ctx, s).length > 0)
+    .map((s) => cardsIn(ctx.legal, s))
+    .filter((c) => c.length > 0);
+  const top = topSequenceLead(ctx, suits);
+  if (top) return top;
+  const master = suits.filter((c) => masters(ctx, c[0]!.suit).length === 1 && !isTenace(c)).sort(longerFirst)[0];
+  return master ? master[0]! : null;
+}
+
 export function sansDefenderLead(ctx: LeadContext): Card | null {
   const started = lastSuitILed(ctx);
   if (started) {
     const mine = cardsIn(ctx.legal, started);
     if (mine.length > 0) return mine[0]!;
   }
+  const partner = partnerSuitLead(ctx);
+  if (partner) return partner;
+  // #13 ruka 8: Bora D,J,10,9,8 pik i K,D herc — "bolje je otvoriti K herc
+  // jer izlaz iz K,D je dobar"
+  const top = topSequenceLead(ctx, SUITS.map((s) => cardsIn(ctx.legal, s)).filter((c) => c.length > 0));
+  if (top) return top;
   const suit = longestSuit(ctx, new Set());
   if (!suit) return null;
   return topOfSequence(suit) ?? suit[suit.length - 1]!;
@@ -155,17 +224,22 @@ export function sansDefenderDiscard(ctx: LeadContext): Card | null {
  * otvore i ima stihove". Vraca najnizu kartu iz bezbedne boje, ili null.
  * Udvoje se boja otvara najjacom kartom ("udvoje se igra uvek jacom u
  * boji"; K,8 pik koji mora da otvori: "K pik") — i kad bezbedne boje nema.
+ * Isto ceka i makaze (isTenace).
  */
+export function waitsForDeclarer(cards: Card[]): boolean {
+  const has = (r: string) => cards.some((c) => c.rank === r);
+  const bareKing = has('K') && !has('A') && !has('Q');
+  const bareQueen = has('Q') && !has('A') && !has('K') && !has('J');
+  return bareKing || bareQueen || isTenace(cards);
+}
+
 export function defenderSafeExit(ctx: LeadContext): Card | null {
   if (!ctx.trump) return null;
   const safe: Card[] = [];
   for (const s of SUITS) {
     if (s === ctx.trump) continue;
     const cards = cardsIn(ctx.legal, s);
-    const has = (r: string) => cards.some((c) => c.rank === r);
-    const bareKing = has('K') && !has('A') && !has('Q');
-    const bareQueen = has('Q') && !has('A') && !has('K') && !has('J');
-    if (!bareKing && !bareQueen) safe.push(...cards);
+    if (!waitsForDeclarer(cards)) safe.push(...cards);
   }
   const lowest = safe.sort(desc)[safe.length - 1];
   if (!ctx.twoHanded) return lowest ?? null;

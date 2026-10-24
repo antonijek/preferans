@@ -10,6 +10,9 @@ export const SUIT_NAMES: Record<Suit, string> = {
   '♣': 'Tref',
 };
 
+// Boja koju licitacija pokazuje: ko stane na 2/3/4/5 ima pik/karo/herc/tref
+export const BID_LEVEL_SUIT: Partial<Record<number, Suit>> = { 2: '♠', 3: '♦', 4: '♥', 5: '♣' };
+
 export const RANKS = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'] as const;
 export const ALL_RANKS = RANKS;
 export const RANK_VALUE: Record<string, number> = {

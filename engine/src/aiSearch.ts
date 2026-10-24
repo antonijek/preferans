@@ -12,7 +12,8 @@ import { makeDeck, shuffle } from './deck.js';
 import { applyHeuristicTurn } from './aiAutoplay.js';
 import { estimatedMaxLevel, isIgraWorthy } from './aiHandEval.js';
 import { choosePlayCard } from './aiDiscardPlay.js';
-import { sansDefenderLead } from './aiLeads.js';
+import { sansDefenderLead, partnerSuitLead, defenderSuitLead, waitsForDeclarer, type LeadContext } from './aiLeads.js';
+import { activePlayerCount, nextActivePlayer } from './turnOrder.js';
 import { chooseKontra, chooseFollow, chooseCallOrAlone } from './aiFollowKontra.js';
 import { chooseDeclareGame, chooseBidAction } from './aiBidding.js';
 import { STANDARD_GAMES, IGRA_GAMES } from './constants.js';
@@ -254,22 +255,37 @@ export function scoreCandidate(args: {
 //  - Partije #9/#10 (2026-10-21): protiv Sansa korisnik otvara najduzu boju
 //    sa vrha (K iz K,D, A iz A,D,J,8) i nastavlja je — pravila (aiLeads.ts)
 //    se sa njim slazu, pretraga je otvarala nasumicne male karte.
+//  - Partije #12/#13 (2026-10-24): otvaranje po korisnikovim pravilima
+//    (partnerova boja, A,K, K,D, as najduze boje; ne otvara K,x / D,x ni
+//    makaze) — vidi aiLeads.ts.
 function defenderPlayFilter(state: GameState, seat: Position, legal: Card[]): Card[] {
   // u Betlu pratiocu jake karte ne trebaju (a skart je signal partneru)
   const betl = state.declaredGame === 'Betl' || state.declaredGame === 'Igra-Betl';
   if (seat === state.winner || betl) return legal;
   const keep = (cards: Card[]) => (cards.length > 0 ? cards : legal);
   if (state.currentTrick.length === 0) {
-    if (state.trump) return keep(legal.filter((c) => c.suit !== state.trump));
+    const partner = ([0, 1, 2] as Position[]).find((p) => p !== seat && p !== state.winner)!;
+    const ctx: LeadContext = {
+      legal,
+      hand: state.players[seat]!.hand,
+      trump: state.trump,
+      myPosition: seat,
+      declarer: state.winner!,
+      tricks: state.tricks,
+      twoHanded: activePlayerCount(state) === 2,
+      nextToAct: nextActivePlayer(state, seat),
+      partnerBidLevel: state.players[partner]!.bidLevel,
+      partnerKontra: state.kontraPlayer === partner,
+    };
+    if (state.trump) {
+      const lead = partnerSuitLead(ctx) ?? defenderSuitLead(ctx);
+      if (lead) return [lead];
+      const sideSuits = legal.filter((c) => c.suit !== state.trump);
+      const open = sideSuits.filter((c) => !waitsForDeclarer(sideSuits.filter((x) => x.suit === c.suit)));
+      return open.length > 0 ? open : keep(sideSuits);
+    }
     if (state.declaredGame === 'Sans' || state.declaredGame === 'Igra-Sans') {
-      const lead = sansDefenderLead({
-        legal,
-        hand: state.players[seat]!.hand,
-        trump: null,
-        myPosition: seat,
-        declarer: state.winner!,
-        tricks: state.tricks,
-      });
+      const lead = sansDefenderLead(ctx);
       return lead ? [lead] : legal;
     }
     return legal;
@@ -330,6 +346,8 @@ export function searchChoosePlayCard(
       tricks: state.tricks,
       nextActivePosition: probe.nextActivePlayer(seat),
       twoHanded: [0, 1, 2].filter((p) => probe.isPlayerActive(p as Position)).length === 2,
+      bidLevels: [state.players[0]!.bidLevel, state.players[1]!.bidLevel, state.players[2]!.bidLevel],
+      kontraPlayer: state.kontraPlayer,
     });
     heuristicPick = heuristicCard?.id ?? null;
   } catch {

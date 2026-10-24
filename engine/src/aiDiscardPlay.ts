@@ -5,7 +5,9 @@ import { RANK_VALUE, RANKS } from './constants.js';
 import { isCardLegal } from './trick.js';
 import type { Card, Game, Suit, Position, ContraLevel } from './types.js';
 import { CARD_POINTS, sequentialRunFromAce } from './aiHandEval.js';
-import { sansDefenderLead, declarerLead, sansDefenderDiscard, defenderSafeExit } from './aiLeads.js';
+import {
+  sansDefenderLead, declarerLead, sansDefenderDiscard, defenderSafeExit, partnerSuitLead, defenderSuitLead,
+} from './aiLeads.js';
 
 // === DISCARD STRATEGIJA ===
 //
@@ -99,12 +101,14 @@ export function choosePlayCard(args: {
   bidLevels?: [number, number, number];
   // igra se udvoje (drugi pratilac ne igra) — vidi defenderSafeExit
   twoHanded?: boolean;
+  // ko je dao kontru (partnerova kontra na Sans odredjuje izlaz, aiLeads.ts)
+  kontraPlayer?: Position | null;
 }): Card | null {
   const {
     hand, currentTrick, trump, avoidTricks = false,
     isDeclarer = false, kontraLevel = null, trickCount = 0,
     myPosition, declarer, tricks = [], nextActivePosition = null,
-    bidLevels, twoHanded = false,
+    bidLevels, twoHanded = false, kontraPlayer = null,
   } = args;
   const legal = hand.filter(c => isCardLegal(c, hand, currentTrick, trump));
   if (legal.length === 0) return null;
@@ -112,8 +116,14 @@ export function choosePlayCard(args: {
   // Vodim prvi — igraj najslabiju kartu (dobro i za osvajanje kasnije i za
   // izbegavanje štiha sad)
   if (currentTrick.length === 0) {
+    const partner = ([0, 1, 2] as Position[]).find(p => p !== myPosition && p !== declarer);
     const leadCtx = myPosition != null && declarer != null
-      ? { legal, hand, trump, myPosition, declarer, tricks, twoHanded }
+      ? {
+        legal, hand, trump, myPosition, declarer, tricks, twoHanded,
+        nextToAct: nextActivePosition ?? (((myPosition + 1) % 3) as Position),
+        partnerBidLevel: partner !== undefined && bidLevels ? bidLevels[partner] : undefined,
+        partnerKontra: partner !== undefined && kontraPlayer === partner,
+      }
       : null;
     // Pratilac protiv Sansa/Igra-Sansa: najduza boja, vrh niza, i nastavlja je
     // (aiLeads.ts; zamenilo raniju konvenciju "prvi stih iz trefa, uz kontru iz
@@ -123,38 +133,12 @@ export function choosePlayCard(args: {
       const lead = sansDefenderLead(leadCtx);
       if (lead) return lead;
     }
-    // Pratilac protiv adutske igre prvo NAPLACUJE sigurne visoke karte (as,
-    // pa kralj kad je as vec pao...) u boji u kojoj nosilac jos nije pokazao
-    // da je prazan. Analiza korisnikove partije #9 (2026-10-20): korisnik je
-    // kao pratilac redovno prvo igrao A pik (A,K,10,9 / A,J / A,J,8,7 /
-    // A,K,D,7), a pravila su vodila najnizu kartu; simulacija (pretraga) se
-    // slagala sa korisnikom — kad nosilac izvuce adute, gubitnike u toj boji
-    // ionako odbaci ili isece.
-    if (!isDeclarer && trump && declarer != null) {
-      const seen = new Set<string>(hand.map(c => c.id));
-      const declarerVoid = new Set<Suit>();
-      for (const trick of tricks) {
-        for (const tc of trick) seen.add(tc.card.id);
-        const ledSuit = trick[0]?.card.suit;
-        const declarerPlay = trick.find(tc => tc.player === declarer);
-        if (ledSuit && declarerPlay && declarerPlay.card.suit !== ledSuit) declarerVoid.add(ledSuit);
-      }
-      let cash: Card[] | null = null;
-      let cashRun = 0;
-      for (const suit of ['♠', '♥', '♦', '♣'] as Suit[]) {
-        if (suit === trump || declarerVoid.has(suit)) continue;
-        const mine = legal.filter(c => c.suit === suit).sort((a, b) => RANK_VALUE[b.rank] - RANK_VALUE[a.rank]);
-        const unseen = RANKS.filter(r => !seen.has(`${r}${suit}`));
-        // niko drugi vise nema tu boju — nosilac bi je presekao
-        if (mine.length === 0 || unseen.length === 0) continue;
-        const topUnseen = Math.max(...unseen.map(r => RANK_VALUE[r]));
-        const run = mine.filter(c => RANK_VALUE[c.rank] > topUnseen).length;
-        if (run > cashRun || (run === cashRun && run > 0 && mine.length < cash!.length)) {
-          cash = mine;
-          cashRun = run;
-        }
-      }
-      if (cash && cashRun > 0) return cash[0]!;
+    // Pratilac protiv adutske igre: partnerova boja, pa A,K, K,D i as najduze
+    // boje (aiLeads.ts, korisnik posle partija #12/#13). Ranije (partija #9)
+    // se naplacivao najkraci as — korisnik je tad igrao asa pre niske karte.
+    if (!isDeclarer && trump && leadCtx) {
+      const lead = partnerSuitLead(leadCtx) ?? defenderSuitLead(leadCtx);
+      if (lead) return lead;
     }
     // Napad na adute nosioca (korisnikova ispravka uzivo, 2026-09-20, iz
     // analize stvarne partije — runda 13, Edge vodi Pik dva puta zaredom
@@ -193,6 +177,8 @@ export function choosePlayCard(args: {
     // svakom vodjenju. Vraceno bez zamene dok se ne nadje pouzdaniji signal
     // (npr. stvarna sekvenca licitacije, ne samo finalni bidLevel) — vidi
     // [[project_preferans_bid_signal_heuristic_2026_09_22]] u memoriji.
+    // Od 2026-10-24 partnerova licitacija odredjuje SAMO prvo otvaranje
+    // odbrane, po korisnikovom izricitom pravilu (partnerSuitLead gore).
     // Odbrambena konvencija (korisnikova, zabelezena uzivo 2026-09-06/07,
     // JOS NIJE potvrdjena uzivo protiv AI-ja): pratilac koji drzi tacno
     // JEDNU kartu neke vanadutske boje je vodi PRVI ("suva" boja) da bi se
