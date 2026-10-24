@@ -10,14 +10,14 @@
 import { Game } from './game.js';
 import { makeDeck, shuffle } from './deck.js';
 import { applyHeuristicTurn } from './aiAutoplay.js';
-import { estimatedMaxLevel, isIgraWorthy } from './aiHandEval.js';
+import { estimatedMaxLevel } from './aiHandEval.js';
 import { choosePlayCard } from './aiDiscardPlay.js';
 import {
   sansDefenderLead, partnerSuitLead, defenderSuitLead, defenderTrumpPull, waitsForDeclarer, type LeadContext,
 } from './aiLeads.js';
 import { activePlayerCount, nextActivePlayer } from './turnOrder.js';
 import { chooseKontra, chooseFollow, chooseCallOrAlone } from './aiFollowKontra.js';
-import { chooseDeclareGame, chooseBidAction } from './aiBidding.js';
+import { chooseDeclareGame, chooseBidAction, igraAllowed } from './aiBidding.js';
 import { STANDARD_GAMES, IGRA_GAMES } from './constants.js';
 import type { Card, GameState, LegalAction, Position, Suit } from './types.js';
 
@@ -476,7 +476,9 @@ export function searchChooseAction(
     // search ovo nikad nije koristio, pa je mogao da "kaze Igra" (obavezujuca
     // deklaracija BEZ talona, RULES 3.4) na osnovu same simulacije, bez ikakvog
     // proverenog praga.
-    if (!isIgraWorthy(hand)) {
+    const others = ([0, 1, 2] as Position[]).filter((p) => p !== seat);
+    const othersPassed = others.every((p) => state.players[p]!.hasPassedBid);
+    if (!igraAllowed(hand, othersPassed)) {
       const filteredIgra = candidates.filter((a) => a.type !== 'igra');
       if (filteredIgra.length > 0) candidates = filteredIgra;
     }
@@ -610,7 +612,7 @@ export function searchChooseAction(
     const hand = state.players[seat]!.hand;
     const isIgra = state.igraPlayer !== null || state.igraCompetitors !== null;
     const games = isIgra ? IGRA_GAMES : STANDARD_GAMES;
-    const recommended = chooseDeclareGame(hand, state.currentBid, games);
+    const recommended = chooseDeclareGame(hand, state.currentBid, games, state.bidStartPlayer === seat);
     const pick = candidates.find((a) => a.type === 'declare' && a.game === recommended);
     if (pick) return pick;
   }

@@ -43,12 +43,12 @@ function isBetlGame(g: string | null): boolean {
   return g === 'Betl' || g === 'Igra-Betl';
 }
 
-function chooseStandardGame(hand: { suit: string }[], currentBid: number): string {
-  return chooseDeclareGame(hand as never, currentBid, STANDARD_GAMES as never) as never;
+function chooseStandardGame(hand: { suit: string }[], currentBid: number, declarerLeads: boolean): string {
+  return chooseDeclareGame(hand as never, currentBid, STANDARD_GAMES as never, declarerLeads) as never;
 }
 
-function chooseIgraGame(hand: { suit: string }[], currentBid: number): string {
-  return chooseDeclareGame(hand as never, currentBid, IGRA_GAMES as never) as never;
+function chooseIgraGame(hand: { suit: string }[], currentBid: number, declarerLeads: boolean): string {
+  return chooseDeclareGame(hand as never, currentBid, IGRA_GAMES as never, declarerLeads) as never;
 }
 
 /**
@@ -107,17 +107,19 @@ export function computeAiAction(game: Game, seat: Position): GameAction | null {
       if (s.igraCompetitors !== null) {
         // RULES 3.4.1 tiebreak — declarer is s.currentBidder, always Igra-suit.
         const hand = s.players[seat]!.hand;
-        return { type: 'declareIgra', player: seat, game: chooseIgraGame(hand as never, s.currentBid) as never };
+        const game = chooseIgraGame(hand as never, s.currentBid, s.bidStartPlayer === seat);
+        return { type: 'declareIgra', player: seat, game: game as never };
       }
       const isIgra = s.igraPlayer === seat;
       const hand = s.players[seat]!.hand;
       if (isIgra) {
-        return { type: 'declareIgra', player: seat, game: chooseIgraGame(hand as never, s.currentBid) as never };
+        const game = chooseIgraGame(hand as never, s.currentBid, s.bidStartPlayer === seat);
+        return { type: 'declareIgra', player: seat, game: game as never };
       }
       return {
         type: 'declareGame',
         player: seat,
-        game: chooseStandardGame(hand as never, s.currentBid) as never,
+        game: chooseStandardGame(hand as never, s.currentBid, s.bidStartPlayer === seat) as never,
       };
     }
 

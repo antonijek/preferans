@@ -204,6 +204,19 @@ export function countDeclarerTricks(hand: Card[], trump: Suit | null): number {
   return safe;
 }
 
+// Siguran prolaz kad nosilac prvi baca kartu (korisnik 2026-10-24, #12 ruka
+// 5: Milan sa A,K,D,J karo, A,10,9,8,7 pik i A herc proglasio Igra-Pik —
+// "mogao je da igra karo, posto prvi baca kartu, potpuno je siguran prolaz.
+// Jako je vazno ko prvi baca kartu u ruci"): aduti od asa nadole pokrivaju
+// sve tudje adute i kad su svi kod jednog pratioca, pa nosi svaki moj adut i
+// niz od asa u svakoj sporednoj boji. Kad prvi igra pratilac, nosilac moze
+// morati da sece pre nego sto izvuce adute — tad nista nije sigurno.
+export function certainTricks(hand: Card[], trump: Suit, declarerLeads: boolean): number {
+  const trumps = hand.filter((c) => c.suit === trump).length;
+  if (!declarerLeads || sequentialRunFromAce(hand, trump) < 8 - trumps) return 0;
+  return trumps + SUITS.filter((s) => s !== trump).reduce((n, s) => n + sequentialRunFromAce(hand, s), 0);
+}
+
 // Potrebno stihova U RUCI (pre talona) da bi se licitiralo — korisnikova
 // kalibracija uzivo (2026-09-06): nosiocu treba 6 stihova ukupno, a JEDAN
 // se racuna kao "besplatan" iz talona (2 uzete karte, 2 se odbacuju — u
@@ -244,11 +257,26 @@ export function estimatedMaxLevel(hand: Card[]): number {
 // koristi se SAMO za IGRA odluku (vidi poziv u chooseBidAction), razlicito
 // od estimatedMaxLevel-ovog MIN_TRICKS_TO_BID(5) koji racuna na +1 iz
 // talona za OBICNU licitaciju.
+//
+// Korisnik 2026-10-24 (#13 ruka 16, ♥K,D,J,9,7 ♦A,9,8,7 i jos dve karte):
+// Igra "uvek", i bez prazne boje — 5+ aduta sa K,D,J (ili A,D,J) gube
+// najvise jedan stih, pa je 5 procenjenih stihova dovoljno i bez talona.
+function hasSolidLongTrumps(hand: Card[], suit: Suit): boolean {
+  const ranks = new Set(hand.filter((c) => c.suit === suit).map((c) => c.rank));
+  return ranks.size >= 5 && ranks.has('Q') && ranks.has('J') && (ranks.has('K') || ranks.has('A'));
+}
+
 export function isIgraWorthy(hand: Card[]): boolean {
   for (const s of SUITS) {
-    if (countDeclarerTricks(hand, s) >= 6) return true;
+    const tricks = countDeclarerTricks(hand, s);
+    if (tricks >= 6 || (tricks >= 5 && hasSolidLongTrumps(hand, s))) return true;
   }
   return !hasVoidSuit(hand) && countSansTricks(hand) >= 6;
+}
+
+// Igra bez ikakvog rizika: neka boja daje siguran prolaz (certainTricks).
+export function isIgraCertain(hand: Card[]): boolean {
+  return SUITS.some((s) => certainTricks(hand, s, true) >= 6);
 }
 
 // Betl (RULES 8 — cilj je NE uzeti nijedan stih). Da li je JEDNA boja

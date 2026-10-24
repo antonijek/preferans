@@ -2118,13 +2118,13 @@ function aiBidTurn(player) {
 function aiChooseGame(player) {
   const s = game.state;
   const hand = s.players[player].hand;
-  return aiChooseDeclareGame(hand, s.currentBid, STANDARD_GAMES);
+  return aiChooseDeclareGame(hand, s.currentBid, STANDARD_GAMES, s.bidStartPlayer === player);
 }
 
 function aiChooseIgraGame(player) {
   const s = game.state;
   const hand = s.players[player].hand;
-  return aiChooseDeclareGame(hand, s.currentBid, IGRA_GAMES);
+  return aiChooseDeclareGame(hand, s.currentBid, IGRA_GAMES, s.bidStartPlayer === player);
 }
 
 function aiDiscard(player) {

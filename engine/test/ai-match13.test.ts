@@ -3,8 +3,9 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isBetlSafe } from '../src/aiHandEval.ts';
-import { chooseBidAction } from '../src/aiBidding.ts';
+import { estimatedMaxLevel, isBetlSafe } from '../src/aiHandEval.ts';
+import { chooseBidAction, chooseDeclareGame } from '../src/aiBidding.ts';
+import { IGRA_GAMES } from '../src/constants.ts';
 import { choosePlayCard } from '../src/aiDiscardPlay.ts';
 import type { Card, Position } from '../src/types.ts';
 
@@ -133,4 +134,37 @@ test('nosilac nastavlja zapocetu boju: posle K,D pik 7 pik, ne J herc (#13 ruka 
 test('nosilac prvo jaca boja: A,K,D karo pre A,8,7 pik (#12 ruka 7, 2. stih)', () => {
   const t = [trick([1, 'A♥'], [2, '8♥'])];
   assert.equal(lead('A♠ A♦ K♦ 8♠ 9♥ 7♠ Q♦ Q♥ J♥', 'Herc', 1, 1, { tricks: t, isDeclarer: true }), 'A♦');
+});
+
+const bidCtx = (h: string, passed: number[] = [], me = 0) => ({
+  hand: hand(h), currentBid: 0, bidStartPlayer: 0 as Position, currentBidder: me as Position,
+  passedPlayers: new Set(passed as Position[]), playerBidLevel: 0, bids: [],
+});
+
+test('siguran prolaz kad nosilac prvi igra: Igra-Karo, ne Igra-Pik (#12 ruka 5)', () => {
+  const milan = hand('A♦ K♦ Q♦ J♦ A♠ 10♠ 9♠ 8♠ 7♠ A♥');
+  assert.equal(chooseDeclareGame(milan, 0, IGRA_GAMES, true), 'Igra-Karo');
+});
+
+test('svi pre mene rekli dalje: 2 umesto nesigurne Igre (#12 ruka 12)', () => {
+  const h = 'A♣ K♣ 10♣ 9♣ 7♣ 9♥ 7♥ A♠ 7♠ Q♦';
+  assert.deepEqual(chooseBidAction(bidCtx(h, [1, 2], 0)), { type: 'BID', value: 2 });
+  // prvi na potezu — Igra kao i ranije
+  assert.equal(chooseBidAction(bidCtx(h)).type, 'IGRA');
+  // potpuno sigurna igra — Igra i kad su svi rekli dalje
+  assert.equal(chooseBidAction(bidCtx('A♣ K♣ Q♣ J♣ 9♣ A♥ K♥ A♦ 8♦ 7♠', [1, 2], 0)).type, 'IGRA');
+});
+
+test('Bora sa A,10,9,8,7 tref i K,9,7 karo nema 5 stihova (#12 ruka 10)', () => {
+  assert.equal(estimatedMaxLevel(hand('A♣ 10♣ 9♣ 8♣ 7♣ 10♥ 7♥ K♦ 9♦ 7♦')), 0);
+});
+
+test('Igra sa K,D,J,9,7 herc i A karo, sa praznom bojom i bez nje (#13 ruka 16)', () => {
+  // Borina ruka je po korisnikovom Betl pravilu i sigurna za Betl (herc 7,9,J;
+  // karo 7,8,9; suva 8), pa je proglasena igra Igra-Betl; bez sedmice karo — Igra-Herc
+  const cases: [string, string][] = [['K♥ Q♥ J♥ 9♥ 7♥ A♦ 9♦ 8♦ 7♦ 8♠', 'Igra-Betl'], ['K♥ Q♥ J♥ 9♥ 7♥ A♦ 9♦ 8♦ 8♣ 7♠', 'Igra-Herc']];
+  for (const [h, game] of cases) {
+    assert.equal(chooseBidAction(bidCtx(h)).type, 'IGRA', h);
+    assert.equal(chooseDeclareGame(hand(h), 0, IGRA_GAMES), game, h);
+  }
 });

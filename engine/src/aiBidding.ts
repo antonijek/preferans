@@ -1,7 +1,7 @@
 // AI heuristike za Preferans — licitacija, proglašavanje igre, Igra-confirm,
 // refe. Koriste se iz app.js za AI igrače.
 
-import { RANK_VALUE, GAME_VALUES, STANDARD_GAMES } from './constants.js';
+import { RANK_VALUE, GAME_VALUES, STANDARD_GAMES, REQUIRED_TRICKS } from './constants.js';
 import type { Card, Game, Position, Suit } from './types.js';
 import {
   evaluateHand,
@@ -11,6 +11,8 @@ import {
   countSansTricks,
   countDeclarerTricks,
   hasVoidSuit,
+  certainTricks,
+  isIgraCertain,
 } from './aiHandEval.js';
 
 // === BIDDING STRATEGIJA ===
@@ -63,7 +65,14 @@ const SUIT_FOR_GAME: Partial<Record<Game, Suit>> = {
 // (duzi) umesto Igra-Herc (jedini koji stvarno opravdava poziv) — garantovan
 // pad. Ista funkcija ovde sad pokriva OBA slucaja jednom, konzistentnom
 // logikom.
-export function chooseDeclareGame(hand: Card[], contractValue: number, games: readonly Game[] = STANDARD_GAMES): Game {
+//
+// Siguran prolaz (certainTricks, #12 ruka 5) ide pre svake procene stihova: Igra-Karo
+// sa A,K,D,J karo kad nosilac prvi igra, ne Igra-Pik sa A,10,9,8,7 pik.
+const CERTAIN_GAME_SCORE = 11; // vise od bilo kog broja stihova, manje od sigurnog Betla (100)
+
+export function chooseDeclareGame(
+  hand: Card[], contractValue: number, games: readonly Game[] = STANDARD_GAMES, declarerLeads = false,
+): Game {
   let best: Game | null = null;
   let bestScore = -Infinity;
   for (const g of games) {
@@ -77,7 +86,9 @@ export function chooseDeclareGame(hand: Card[], contractValue: number, games: re
       if (hasVoidSuit(hand)) continue;
       score = countSansTricks(hand);
     } else {
-      score = countDeclarerTricks(hand, SUIT_FOR_GAME[g] ?? null);
+      const trump = SUIT_FOR_GAME[g] ?? null;
+      const certain = trump !== null && certainTricks(hand, trump, declarerLeads) >= REQUIRED_TRICKS[g];
+      score = certain ? CERTAIN_GAME_SCORE : countDeclarerTricks(hand, trump);
     }
     // Izjednaceno: vrednija igra (korisnik u partiji #9, 2026-10-20: Herc pre
     // Kara, Tref pre Kara kod iste procene) — isti rizik, vise bula. Ranije
@@ -88,6 +99,14 @@ export function chooseDeclareGame(hand: Card[], contractValue: number, games: re
     }
   }
   return best ?? games[0] ?? 'Pik';
+}
+
+// Kad su svi pre mene rekli dalje, igra mi pripada i za 2 — Igra samo ako je
+// potpuno sigurna (korisnik 2026-10-24, #12 ruka 12, Milan A,K,10,9,7 tref i
+// A pik rekao Igra: "bolje je bilo da je rekao 2, pa uzeo talon jer mu ovo
+// nije skroz sigurna igra").
+export function igraAllowed(hand: Card[], othersPassed: boolean): boolean {
+  return isIgraWorthy(hand) && (!othersPassed || isIgraCertain(hand));
 }
 
 export function chooseBidAction(ctx: BidContext): BidAction {
@@ -138,7 +157,8 @@ export function chooseBidAction(ctx: BidContext): BidAction {
   // uzivo potvrdjeno 2026-09-07: "Ako je ukupno 6 zasto ne kazes igru karo,
   // ako ti ne treba talon?". Stara provera (duzina>=6 karata) je bila
   // nekalibrisana i nije pogadjala ovaj slucaj (Karo K,D,9,8,7 = 5 karata).
-  if (ctx.playerBidLevel === 0 && isIgraWorthy(ctx.hand)) {
+  const othersPassed = ctx.passedPlayers.size >= 2 && !ctx.passedPlayers.has(ctx.currentBidder);
+  if (ctx.playerBidLevel === 0 && igraAllowed(ctx.hand, othersPassed)) {
     return { type: 'IGRA' };
   }
 

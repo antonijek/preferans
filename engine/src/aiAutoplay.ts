@@ -38,8 +38,8 @@ function isBetlGame(g: GameT | null): boolean {
   return g === 'Betl' || g === 'Igra-Betl';
 }
 
-function chooseStandardGame(hand: Card[], currentBid: number): GameT {
-  return chooseDeclareGame(hand, currentBid);
+function chooseStandardGame(hand: Card[], currentBid: number, declarerLeads: boolean): GameT {
+  return chooseDeclareGame(hand, currentBid, undefined, declarerLeads);
 }
 
 // Uzivo prijavljen bag (2026-09-22): ranija verzija je birala PROSTO
@@ -48,8 +48,8 @@ function chooseStandardGame(hand: Card[], currentBid: number): GameT {
 // razmatrala Igra-Betl/Igra-Sans — vidi chooseDeclareGame() u aiBidding.ts
 // za pun kontekst. Sad ista, jedinstvena logika kao standardno
 // proglasavanje, samo nad IGRA_GAMES.
-function chooseIgraGame(hand: Card[], currentBid: number): GameT {
-  return chooseDeclareGame(hand, currentBid, IGRA_GAMES);
+function chooseIgraGame(hand: Card[], currentBid: number, declarerLeads: boolean): GameT {
+  return chooseDeclareGame(hand, currentBid, IGRA_GAMES, declarerLeads);
 }
 
 export type AutoplayStepResult = 'acted' | 'no_actor';
@@ -127,15 +127,15 @@ export function applyHeuristicTurn(game: Game): AutoplayStepResult {
         // RULES 3.4.1 tiebreak — deklarant je s.currentBidder, uvek Igra boja.
         const seat = s.currentBidder;
         const hand = s.players[seat]!.hand;
-        game.declareIgra(seat, chooseIgraGame(hand, s.currentBid));
+        game.declareIgra(seat, chooseIgraGame(hand, s.currentBid, s.bidStartPlayer === seat));
         return 'acted';
       }
       const seat = s.winner!;
       const hand = s.players[seat]!.hand;
       if (s.igraPlayer === seat) {
-        game.declareIgra(seat, chooseIgraGame(hand, s.currentBid));
+        game.declareIgra(seat, chooseIgraGame(hand, s.currentBid, s.bidStartPlayer === seat));
       } else {
-        game.declareGame(seat, chooseStandardGame(hand, s.currentBid));
+        game.declareGame(seat, chooseStandardGame(hand, s.currentBid, s.bidStartPlayer === seat));
       }
       return 'acted';
     }
