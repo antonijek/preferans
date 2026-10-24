@@ -7,7 +7,7 @@ import type { Card, Game, Suit, Position, ContraLevel } from './types.js';
 import { CARD_POINTS, sequentialRunFromAce } from './aiHandEval.js';
 import {
   sansDefenderLead, declarerLead, sansDefenderDiscard, defenderSafeExit, partnerSuitLead, defenderSuitLead,
-  defenderTrumpPull, masterTrump,
+  defenderTrumpPull, masterTrump, isMaster,
 } from './aiLeads.js';
 
 // === DISCARD STRATEGIJA ===
@@ -299,9 +299,14 @@ export function choosePlayCard(args: {
         }
         // Brojanje (korisnik 2026-10-24, #13 ruke 12 i 25): dok pratioci mozda
         // jos imaju adut, a moj najjaci adut je najjaci preostali, igra se on
-        // (K karo obara poslednju Damu) — ne mala karta ili sporedna boja.
+        // pre sporedne karte koja je i sama najjaca (D pik bi bio isecen) i kad
+        // su ostali samo aduti (K karo obara poslednju Damu). Sporedna boja
+        // koju tek treba izbiti ide pre aduta (#11 ruka 10: "nek nastavi sa
+        // pikom" J,10 pik, K herc ostaje).
         const master = leadCtx ? masterTrump(leadCtx) : null;
-        if (master && undiscoveredDefenderTrumps > 0) return master;
+        if (master && undiscoveredDefenderTrumps > 0 && (!sideSuit || isMaster(leadCtx!, highestSide()))) {
+          return master;
+        }
         // Adut je iscrpljen u mojoj ruci, ili bi neki pratilac mogao da
         // drzi isto ili vise aduta od mene — vreme je za sporednu boju.
         if (sideSuit) return highestSide();

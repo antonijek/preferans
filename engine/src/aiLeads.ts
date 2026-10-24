@@ -183,6 +183,11 @@ export function masterTrump(ctx: LeadContext): Card | null {
   return ctx.trump ? (masters(ctx, ctx.trump)[0] ?? null) : null;
 }
 
+/** Karta je jaca od svih jos neodigranih tudjih karata svoje boje. */
+export function isMaster(ctx: LeadContext, card: Card): boolean {
+  return masters(ctx, card.suit).some((c) => c.id === card.id);
+}
+
 export function sansDefenderLead(ctx: LeadContext): Card | null {
   const started = lastSuitILed(ctx);
   if (started) {
