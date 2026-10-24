@@ -1,6 +1,16 @@
 /* Pregled partije (replay.html) — boje iz theme.css, tekst/okvir iz page.css. */
 
-.replay-wrap { max-width: 900px; }
+/* Korisnik 2026-10-24: "analiza partije je na lap topu mala ... treba da bude preko
+   celog ekrana rekonstrukcija da mogu karte da se fino vide" — sto odmah ispod
+   izbora ruke, preko cele sirine, karte rastu sa ekranom; podaci o ruci ispod. */
+.replay-wrap {
+  max-width: 1500px; padding: 12px 16px 60px;
+  --rp-card: clamp(46px, min(5.2vw, 8vh), 96px);
+  --rp-trick: clamp(56px, min(6.5vw, 10vh), 116px);
+}
+.replay-wrap h1.page-title { font-size: clamp(1.3em, 3vw, 1.7em); margin: 4px 0 2px; }
+.replay-wrap .subtitle { margin-bottom: 8px; font-size: 0.85em; }
+.replay-wrap .rp-hand-nav .rp-btn { white-space: nowrap; }
 .rp-error { color: var(--gold-bright); text-align: center; margin: 12px 0; }
 .rp-error:empty { display: none; }
 
@@ -21,8 +31,13 @@
   background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.25);
 }
 .rp-hand-pick select option { color: initial; }
+@media (min-width: 900px) {
+  .rp-hand-pick { flex-direction: row; align-items: stretch; }
+  .rp-hand-pick select { flex: 1 1 auto; width: auto; }
+  .rp-hand-pick .rp-hand-nav { flex: 0 0 auto; }
+}
 
-.rp-info { font-size: 0.92em; margin: 0 0 12px; }
+.rp-info { font-size: 0.92em; margin: 14px 0 0; }
 .rp-info-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 3px 0; overflow-wrap: anywhere; }
 .rp-info-label { color: var(--gold-bright); font-weight: 600; min-width: 92px; }
 .rp-mini-cards { display: inline-flex; gap: 3px; }
@@ -43,26 +58,31 @@
 .rp-seat-name { font-weight: 700; overflow-wrap: anywhere; }
 .rp-seat-tags { font-size: 0.8em; opacity: 0.8; }
 
-.rp-hand { display: flex; min-height: 64px; align-items: flex-end; }
-.rp-card { display: block; width: 46px; height: auto; border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); }
-.rp-hand .rp-card { margin-right: -12px; }
+.rp-hand { display: flex; min-height: calc(var(--rp-card) * 1.4); align-items: flex-end; }
+.rp-card { display: block; width: var(--rp-card); height: auto; border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); }
+.rp-hand .rp-card { margin-right: calc(var(--rp-card) * -0.3); }
 .rp-hand .rp-card:last-child { margin-right: 0; }
 .rp-card.mini { width: 28px; box-shadow: none; }
 .rp-empty { opacity: 0.6; font-size: 0.9em; padding: 8px 0; }
 
-.rp-trick { display: flex; justify-content: center; gap: 14px; min-height: 108px; align-items: center; }
-.rp-trick-card { flex: 0 0 90px; text-align: center; padding: 4px; border-radius: 8px; }
-.rp-trick-card .rp-card { width: 56px; margin: 0 auto; }
+.rp-trick { display: flex; justify-content: center; gap: 14px; min-height: calc(var(--rp-trick) * 1.4 + 30px); align-items: center; }
+.rp-trick-card { flex: 0 0 calc(var(--rp-trick) + 34px); text-align: center; padding: 4px; border-radius: 8px; }
+.rp-trick-card .rp-card { width: var(--rp-trick); margin: 0 auto; }
 .rp-trick-card.absent { visibility: hidden; }
 /* igrac jos nije bacio: prazno mesto iste velicine, da karte ostanu na svojoj strani */
 .rp-trick-card.waiting::before {
-  content: ""; display: block; width: 56px; aspect-ratio: 60 / 84; margin: 0 auto; border-radius: 4px;
+  content: ""; display: block; width: var(--rp-trick); aspect-ratio: 60 / 84; margin: 0 auto; border-radius: 4px;
   border: 1px dashed rgba(255, 255, 255, 0.2);
 }
 .rp-trick-card.winner { box-shadow: 0 0 0 3px var(--gold-bright); }
-.rp-trick-who { font-size: 0.78em; margin-top: 4px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp-trick-who { font-size: 0.78em; margin-top: 4px; max-width: calc(var(--rp-trick) + 30px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.rp-step { text-align: center; margin: 12px 0 8px; font-weight: 600; min-height: 1.4em; }
+/* koraci uvek vidljivi i kad je sto visi od ekrana */
+.rp-sticky {
+  position: sticky; bottom: 0; z-index: 5; margin: 0 -16px; padding: 4px 16px 8px;
+  background: rgba(0, 0, 0, 0.82); border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.rp-step { text-align: center; margin: 4px 0 6px; font-weight: 600; min-height: 1.4em; }
 .rp-controls { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
 .rp-play { min-width: 104px; }
 .rp-link { text-align: center; margin: 14px 0 0; }
@@ -77,8 +97,7 @@
 @media (max-width: 640px) {
   .rp-table { grid-template-columns: 1fr; padding: 8px; }
   .rp-seat-a, .rp-seat-b { grid-column: 1; }
-  .rp-card { width: 40px; }
-  .rp-hand .rp-card { margin-right: -10px; }
-  .rp-trick-card .rp-card, .rp-trick-card.waiting::before { width: 50px; }
-  .rp-trick-card { flex-basis: 80px; }
+  .replay-wrap { padding: 8px 8px 60px; --rp-card: 46px; --rp-trick: 56px; }
+  .rp-sticky { margin: 0 -8px; padding: 4px 8px 8px; }
+  .rp-hand .rp-card { margin-right: calc(var(--rp-card) * -0.45); }
 }
