@@ -26,10 +26,14 @@ export function isMailConfigured(): boolean {
   return getTransporter() !== null;
 }
 
-export async function sendMail(to: string, subject: string, text: string): Promise<void> {
+export async function sendMail(
+  to: string,
+  subject: string,
+  text: string,
+  fromName = process.env.SMTP_FROM_NAME ?? 'Preferans online'
+): Promise<void> {
   const t = getTransporter();
   if (!t) throw new Error('SMTP nije podesen (SMTP_HOST/SMTP_USER/SMTP_PASS u .env)');
-  const fromName = process.env.SMTP_FROM_NAME ?? 'Preferans online';
   try {
     // kod servisa za slanje (Brevo, od 25.10.2026) prijava nije adresa posiljaoca, pa SMTP_FROM
     const info = await t.sendMail({

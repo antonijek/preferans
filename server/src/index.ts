@@ -6,6 +6,7 @@ import compression from 'compression';
 import { Server as SocketIOServer } from 'socket.io';
 import { initDb, flushPersist } from './db.js';
 import { authRouter } from './auth/routes.js';
+import { initPasswordResets, passwordResetRouter } from './auth/passwordReset.js';
 import { adminRouter } from './admin/routes.js';
 import { registerSocketHandlers } from './socket/index.js';
 import { removeAbandonedWaitingRooms, removeStuckRooms, loadPersistedRooms, forEachRoom } from './rooms/RoomManager.js';
@@ -24,6 +25,7 @@ const PROJECT_ROOT = path.resolve(import.meta.dirname, '../..');
 
 async function main(): Promise<void> {
   await initDb();
+  initPasswordResets();
   // Push obaveštenja adminu (korisnikov zahtev 2026-10-12) — generiše/učitava
   // VAPID ključeve iz baze. Mora posle initDb() (settings tabela).
   initPush();
@@ -79,6 +81,7 @@ async function main(): Promise<void> {
   });
 
   app.use('/api', authRouter);
+  app.use('/api', passwordResetRouter);
   app.use('/api/admin', adminRouter);
   app.use('/api/leagues', leaguesRouter);
   app.use('/api/replay', replayRouter);
