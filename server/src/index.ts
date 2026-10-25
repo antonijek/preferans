@@ -16,6 +16,7 @@ import { replayRouter } from './replay.js';
 import { statsRouter } from './stats.js';
 import { seoRouter } from './seo.js';
 import { initPush } from './push.js';
+import { isPublicPath } from './publicPaths.js';
 
 // dist/index.js -> server/dist -> server -> project root, where
 // preferans.html/app.js/engine/dist all live. Serving them same-origin
@@ -56,6 +57,11 @@ async function main(): Promise<void> {
   // express.static ispod (inace bi staticki robots.txt/sitemap.xml, ako bi
   // ih neko vratio, senčili dinamicke verzije).
   app.use(seoRouter(PROJECT_ROOT));
+  // samo fajlovi koji trebaju pregledacu — nikad server/ (baza), tools/, docs/ (publicPaths.ts)
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/') || isPublicPath(req.path)) return next();
+    res.status(404).end();
+  });
   // BAG (uzivo prijavljen, veceras VISE PUTA: "popravio si ali i dalje isto"
   // — poprvke SU stvarno bile na serveru, ali browser je i dalje ucitavao
   // STARI app.js iz keša). express.static bez opcija ne salje Cache-Control
