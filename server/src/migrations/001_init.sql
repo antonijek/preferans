@@ -7,6 +7,7 @@ CREATE TABLE users (
   banned INTEGER NOT NULL DEFAULT 0,
   credits INTEGER NOT NULL DEFAULT 0,
   rating INTEGER NOT NULL DEFAULT 1000,
+  avatar_v INTEGER,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

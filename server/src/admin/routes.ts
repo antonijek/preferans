@@ -7,6 +7,7 @@ import { adminKickSeat, adminCloseRoom } from '../socket/roomAdmin.js';
 import { forceDisconnectUser } from '../socket/index.js';
 import { listOnlineUsers, listOnlineUsersDetailed } from '../presence.js';
 import { sendMail, isMailConfigured } from '../mail.js';
+import { avatarUrl, removeAvatar } from '../avatars.js';
 import { pushPublicKey, pushCount, savePushSub, removePushSub, notifyOwner, dryRunLog } from '../push.js';
 
 interface UserRow {
@@ -27,7 +28,7 @@ adminRouter.get('/users', (_req, res) => {
   const users = all<UserRow>(
     'SELECT id, email, name, is_admin, banned, credits, rating, created_at FROM users ORDER BY id DESC'
   );
-  res.json({ users });
+  res.json({ users: users.map((u) => ({ ...u, avatar: avatarUrl(u.id) })) });
 });
 
 // Slanje email-a jednom korisniku ili svima (korisnikov zahtev 2026-09-20).
@@ -76,7 +77,19 @@ adminRouter.delete('/users/:id', (req: AuthedRequest, res) => {
     res.status(404).json({ error: 'User not found' });
     return;
   }
+  removeAvatar(targetId);
   run('DELETE FROM users WHERE id = ?', [targetId]);
+  res.json({ ok: true });
+});
+
+// slika igraca koja ne prilici (avatars.ts) — igrac moze da postavi novu
+adminRouter.delete('/users/:id/avatar', (req, res) => {
+  const targetId = Number(req.params.id);
+  if (!Number.isInteger(targetId)) {
+    res.status(400).json({ error: 'Invalid user id' });
+    return;
+  }
+  removeAvatar(targetId);
   res.json({ ok: true });
 });
 

@@ -9,6 +9,8 @@ server/dist/
 # Server secrets / local data
 server/.env
 server/data.db
+# slike igraca (server/src/avatars.ts) — pored baze, ne u git
+server/avatars/
 
 # IDE / Editor
 .vscode/

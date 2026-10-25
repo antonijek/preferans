@@ -138,14 +138,24 @@
   /* Levo/desno supe odnos oko bula (korisnikov format: [levi sused] [bule]
      [desni sused]) — pozitivno = sused MENI duguje, negativno = JA dugujem
      susedu, kumulativno kroz celu partiju. */
-  .bula-row { display: flex; align-items: baseline; justify-content: center; gap: 3px; margin-top: 2px; }
+  /* mreza 3 kolone: gore supe | bule | supe, ispod (samo posle ruke) promena svakog broja
+     tacno ispod njega (seat-delta.js) */
+  .bula-row {
+    display: grid; grid-template-columns: repeat(3, auto); justify-content: center;
+    align-items: baseline; column-gap: 3px; margin-top: 2px;
+  }
   .supe-side { font-size: 0.65em; font-weight: 700; min-width: 1.2em; opacity: 0.65; }
-  .supe-side.positive { color: #a5d6a7; opacity: 1; }
-  .supe-side.negative { color: #ff8a80; opacity: 1; }
-  /* rezultat da se partija sad zavrsi (zbir 0) — iste boje kao supe */
-  .player-result { font-size: 0.65em; font-weight: 700; opacity: 0.8; white-space: nowrap; margin-top: 1px; }
-  .player-result.positive { color: #a5d6a7; opacity: 1; }
-  .player-result.negative { color: #ff8a80; opacity: 1; }
+  .supe-side.positive { color: var(--good); opacity: 1; }
+  .supe-side.negative { color: var(--bad); opacity: 1; }
+  /* promena posle ruke, red ispod brojeva — postoji samo dok ima sta da pokaze */
+  .seat-delta { grid-row: 2; justify-self: center; font-size: 0.65em; font-weight: 800; white-space: nowrap; }
+  .seat-delta.d-left { grid-column: 1; }
+  .seat-delta.d-bule { grid-column: 2; }
+  .seat-delta.d-right { grid-column: 3; }
+  .seat-delta:empty { display: none; }
+  .seat-delta.good { color: var(--good); }
+  .seat-delta.bad { color: var(--bad); }
+  .seat-delta.fading { opacity: 0; transition: opacity 2.5s ease-in; }
   /* vreme za potez (online) — traka na plocici igraca koji je na potezu */
   .turn-timer { display: none; height: 4px; margin-top: 3px; border-radius: 2px; background: rgba(255,255,255,0.12); overflow: hidden; }
   .turn-timer.active { display: block; }
@@ -394,7 +404,9 @@
   .player-name { font-weight: 700; font-size: 0.68em; white-space: nowrap; }
   .player-seat.active .player-name { color: #ffeb3b; }
   .player-bule { font-family: 'Oswald', sans-serif; font-size: 1.2em; font-weight: 800; letter-spacing: 0.3px; color: var(--gold-bright); text-shadow: 0 1px 4px rgba(0,0,0,0.6); margin-top: 1px; }
-  .player-tricks { font-size: 0.65em; opacity: 0.85; white-space: nowrap; margin-top: 2px; }
+  /* refe (🔁 potrošene, ⏳ na raspolaganju) — red postoji samo dok ih ima */
+  .player-refe { font-size: 0.65em; opacity: 0.85; white-space: nowrap; margin-top: 2px; }
+  .player-refe:empty { display: none; }
   .player-hand-count { font-size: 0.75em; opacity: 0.7; }
 
   /* Pozicije sedenja — korisnikov zahtev: klasican trougao (2 igraca na
@@ -1945,11 +1957,10 @@
     #seat-south { width: 230px; display: flex; align-items: center; gap: 10px; padding: 6px 14px; }
     #seat-south .player-name-row { background: none; border-bottom: none; padding: 0; margin-bottom: 0; flex-shrink: 0; }
     #seat-south .bula-row { margin-top: 0; }
-    #seat-south .player-tricks { margin-top: 0; white-space: nowrap; }
-    /* "rez." je cetvrti element u istom redu — sirina se prilagodi (min
-       ostaje 230px), inace bi ispao van fiksne kartice */
+    #seat-south .player-refe { margin-top: 0; }
+    /* refe su treci element u istom redu — sirina se prilagodi (min ostaje
+       230px), inace bi ispale van fiksne kartice */
     #seat-south { width: auto; min-width: 230px; flex-wrap: wrap; }
-    #seat-south .player-result { margin-top: 0; }
   }
 
   /* Siri raspored: sto + bocni paneli jedan pored drugog (korisnikov
@@ -2041,7 +2052,7 @@
     .player-seat { padding: 2px 5px; min-width: 60px; }
     .player-name { font-size: 0.7em; }
     .player-bule { font-size: 0.9em; }
-    .player-tricks, .player-result { font-size: 0.58em; }
+    .player-refe { font-size: 0.58em; }
     .bottom-panel { padding: 4px 8px; }
     /* Korisnikov zahtev (telefon landscape): posle uzimanja talona (12
        karata umesto uobicajenih 10) poslednja karta u ruci zavrsavala je
@@ -2257,7 +2268,7 @@
     .seat-avatar { width: 15px; height: 15px; font-size: 0.55em; }
     .player-name { font-size: 0.6em; letter-spacing: 0.1px; }
     .player-bule { font-size: 0.85em; }
-    .player-tricks, .player-result { font-size: 0.52em; }
+    .player-refe { font-size: 0.52em; }
     #seat-west { left: 4px; }
     #seat-east { right: 4px; }
   }

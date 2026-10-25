@@ -5,6 +5,7 @@ import { signToken, requireAuth } from './middleware.js';
 import { pushPublicKey, pushCount, savePushSub, removePushSub } from '../push.js';
 import type { AuthedRequest } from './middleware.js';
 import { rateLimit } from '../rateLimit.js';
+import { avatarUrl } from '../avatars.js';
 
 // Uzivo prijavljen bag KROZ AUDIT (2026-09-26, pred lansiranje): nista nije
 // sprecavalo brute-force login pokusaje ili masovnu automatsku registraciju
@@ -94,7 +95,7 @@ authRouter.get('/me', requireAuth, (req: AuthedRequest, res) => {
     [req.userId!]
   );
   res.json({
-    user: user ? { ...user, name: user.name || user.email, is_admin: !!user.is_admin } : null,
+    user: user ? { ...user, name: user.name || user.email, is_admin: !!user.is_admin, avatar: avatarUrl(user.id) } : null,
   });
 });
 

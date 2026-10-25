@@ -37,6 +37,7 @@
 <link rel="stylesheet" href="./preferans.css?v=9">
 <link rel="stylesheet" href="./league.css?v=1">
 <link rel="stylesheet" href="./dialog.css?v=1">
+<link rel="stylesheet" href="./avatar.css?v=1">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -136,9 +137,11 @@
         <span class="supe-side" id="supe-left-west"></span>
         <span class="player-bule" id="bule-west">100</span>
         <span class="supe-side" id="supe-right-west"></span>
+        <span class="seat-delta d-left" id="delta-left-west"></span>
+        <span class="seat-delta d-bule" id="delta-bule-west"></span>
+        <span class="seat-delta d-right" id="delta-right-west"></span>
       </div>
-      <div class="player-tricks">🎴 <span id="tricks-west">0</span> <span id="refe-west"></span></div>
-      <div class="player-result" id="result-west" title="Rezultat da se partija sad završi (zbir za sve troje je 0)"></div>
+      <div class="player-refe" id="refe-west"></div>
       <div class="turn-timer" id="timer-west"><span></span></div>
     </div>
 
@@ -153,9 +156,11 @@
         <span class="supe-side" id="supe-left-east"></span>
         <span class="player-bule" id="bule-east">100</span>
         <span class="supe-side" id="supe-right-east"></span>
+        <span class="seat-delta d-left" id="delta-left-east"></span>
+        <span class="seat-delta d-bule" id="delta-bule-east"></span>
+        <span class="seat-delta d-right" id="delta-right-east"></span>
       </div>
-      <div class="player-tricks">🎴 <span id="tricks-east">0</span> <span id="refe-east"></span></div>
-      <div class="player-result" id="result-east" title="Rezultat da se partija sad završi (zbir za sve troje je 0)"></div>
+      <div class="player-refe" id="refe-east"></div>
       <div class="turn-timer" id="timer-east"><span></span></div>
     </div>
 
@@ -170,9 +175,11 @@
         <span class="supe-side" id="supe-left-south"></span>
         <span class="player-bule" id="bule-south">100</span>
         <span class="supe-side" id="supe-right-south"></span>
+        <span class="seat-delta d-left" id="delta-left-south"></span>
+        <span class="seat-delta d-bule" id="delta-bule-south"></span>
+        <span class="seat-delta d-right" id="delta-right-south"></span>
       </div>
-      <div class="player-tricks">🎴 <span id="tricks-south">0</span> <span id="refe-south"></span></div>
-      <div class="player-result" id="result-south" title="Rezultat da se partija sad završi (zbir za sve troje je 0)"></div>
+      <div class="player-refe" id="refe-south"></div>
       <div class="turn-timer" id="timer-south"><span></span></div>
     </div>
 
@@ -273,7 +280,12 @@
        na Sobi (#onlineUsersList), bilo bi duplirano u uzoj kartici. -->
   <div class="box setup-box home-panel">
     <div class="setup-suits"><span class="red">♥</span><span class="black">♠</span><span class="red">♦</span><span class="black">♣</span></div>
-    <h1 class="home-greeting" id="homeGreeting">Zdravo!</h1>
+    <div class="home-greeting-row">
+      <button type="button" class="home-avatar" id="homeAvatarBtn" title="Tvoja slika" aria-label="Tvoja slika" hidden>
+        <span class="avatar-circle home-avatar-face"></span><span class="home-avatar-cam"></span>
+      </button>
+      <h1 class="home-greeting" id="homeGreeting">Zdravo!</h1>
+    </div>
     <p class="home-tagline">Preferans online — igraj preferans uživo (poznat i kao balkanski preferans ili preferanc) sa pravim igračima, besplatno u browseru.</p>
     <button class="mode-btn primary home-cta" onclick="goToRoomScreen()">🎮 Sobe — napravi ili se pridruži</button>
     <button class="mode-btn home-cta" id="leaguesBtn" style="margin-top:10px" onclick="goToLeagues()">🏆 Lige — tabela, norma, pozivni link</button>

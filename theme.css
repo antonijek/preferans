@@ -23,4 +23,7 @@
   --felt-dark: #0e4d2e;
   --wood: #6b4424;
   --wood-dark: #4a2e17;
+  /* dobro / loše za igrača (supe na pločici, promena posle ruke) */
+  --good: #a5d6a7;
+  --bad: #ff8a80;
 }

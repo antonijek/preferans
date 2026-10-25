@@ -22,6 +22,8 @@ import { watchSessionReplaced } from './session-replaced.js';
 import { shareResult } from './share.js';
 import { isRed, sortHand, cardImageSrc } from './card-order.js';
 import { renderClaim } from './claim-ui.js';
+import { showSeatDeltas, fadeSeatDeltas, clearSeatDeltas } from './seat-delta.js';
+import { initAvatarUi, setMyAvatar, paintAvatar, firstLetter } from './avatar-ui.js';
 import { claimIsCertain } from './engine/dist/claim.js';
 
 // Feature-flag za search-bazirani AI (Monte Carlo determinizacija, vidi
@@ -446,6 +448,9 @@ let debtMatrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
 let lastRecordedRound = null;
 let lastRefeSum = 0;
 let lastRefePendingSum = 0;
+// bule dok ruka jos traje — za promenu na plocici kad se ruka zavrsi (seat-delta.js);
+// null posle ulaska usred zavrsene ruke, pa se tada promena ne prikazuje
+let bulasBeforeHandEnd = null;
 
 // BAG (uzivo prijavljen 2026-09-08/09): tabela je prikazivala "duh" red iz
 // PRETHODNE partije (npr. "Krug 2" na tabli iako je odigrana samo 1 ruka).
@@ -514,6 +519,8 @@ function resetHandHistoryForNewRoom() {
   lastRefePendingSum = 0;
   lastMatchRankingResult = null;
   endMatchProposerSeat = null;
+  bulasBeforeHandEnd = null;
+  clearSeatDeltas();
 }
 
 // Kumulativni neto odnos izmedju DVA igraca: pozitivno = "other" duguje
@@ -623,6 +630,7 @@ function recordHandIfNew() {
     // wasPlayed razlikuje ova dva slucaja za prikaz (vidi renderScoreContent).
     wasPlayed: game.state.tricks.length > 0,
   });
+  const supeBefore = [0, 1, 2].map(seatSupe);
   if (result.winner !== null) {
     for (let p = 0; p < 3; p++) {
       if (p !== result.winner && result.supeDelta[p] > 0) {
@@ -630,6 +638,23 @@ function recordHandIfNew() {
       }
     }
   }
+  if (bulasBeforeHandEnd) {
+    const before = bulasBeforeHandEnd;
+    showSeatDeltas([0, 1, 2].map((p) => {
+      const after = seatSupe(p);
+      return {
+        seat: seatOf(p),
+        bule: game.state.bulas[p] - before[p],
+        left: after.left - supeBefore[p].left,
+        right: after.right - supeBefore[p].right,
+      };
+    }));
+  }
+}
+
+// supe na plocici igraca p: [levi sused] [bule] [desni sused]
+function seatSupe(p) {
+  return { left: netSupeBetween(p, leftNeighborOf(p)), right: netSupeBetween(p, rightNeighborOf(p)) };
 }
 
 function checkRefeToast() {
@@ -829,9 +854,10 @@ function renderSeats() {
     // online-users listu (charAt(0), ne prvo slovo "nije tu" placeholdera).
     const avatarEl = $(`avatar-${seatOf(pos)}`);
     if (avatarEl) {
-      avatarEl.textContent = disconnectedSeats.has(pos) ? '?'
-        : isBotSeat(pos) ? '🤖'
-        : (displayName || '?').trim().charAt(0).toUpperCase();
+      const gone = disconnectedSeats.has(pos) || isBotSeat(pos);
+      // slika igraca (avatar-ui.js) — server je salje samo za ljude, ne za racunar
+      paintAvatar(avatarEl, gone ? null : game.state.players[pos]?.avatar ?? null,
+        disconnectedSeats.has(pos) ? '?' : isBotSeat(pos) ? '🤖' : firstLetter(displayName));
     }
     $(`seat-${seatOf(pos)}`).classList.toggle('disconnected', disconnectedSeats.has(pos));
   }
@@ -905,7 +931,6 @@ function renderState() {
   $(`bule-${seatOf(0)}`).textContent = s.bulas[0];
   $(`bule-${seatOf(1)}`).textContent = s.bulas[1];
   $(`bule-${seatOf(2)}`).textContent = s.bulas[2];
-  for (const p of [0, 1, 2]) $(`tricks-${seatOf(p)}`).textContent = shownTricks(s, p);
 }
 
 // === STATUS BAR: ugovor + talon + odbrana + poslednji štih (uvek vidljivo
@@ -1206,23 +1231,14 @@ const signed = n => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
 
 function renderSeatExtras() {
   const s = game.state;
-  const { results } = matchStanding(s);
   for (let p = 0; p < 3; p++) {
     const seat = seatOf(p);
-    const resEl = $(`result-${seat}`);
-    if (resEl) {
-      resEl.textContent = `rez. ${signed(results[p])}`;
-      resEl.classList.toggle('positive', results[p] > 0);
-      resEl.classList.toggle('negative', results[p] < 0);
-    }
-
-    const leftNet = netSupeBetween(p, leftNeighborOf(p));
+    const { left: leftNet, right: rightNet } = seatSupe(p);
     const leftEl = $(`supe-left-${seat}`);
     leftEl.textContent = leftNet > 0 ? `+${leftNet}` : `${leftNet}`;
     leftEl.classList.toggle('positive', leftNet > 0);
     leftEl.classList.toggle('negative', leftNet < 0);
 
-    const rightNet = netSupeBetween(p, rightNeighborOf(p));
     const rightEl = $(`supe-right-${seat}`);
     rightEl.textContent = rightNet > 0 ? `+${rightNet}` : `${rightNet}`;
     rightEl.classList.toggle('positive', rightNet > 0);
@@ -1954,14 +1970,19 @@ function render() {
   // side, roomEvents.ts) — bez ovoga bi ekran rezultata ostao trajno
   // prikazan i posle sto je nova ruka vec pocela, jer ga jedino lokalni-mod
   // dugmici (nextRound/restart/resultAction) ikad uklanjaju.
-  if (!TERMINAL_PHASES.includes(game.state.phase)) $('resultScreen').classList.remove('active');
+  if (!TERMINAL_PHASES.includes(game.state.phase)) {
+    $('resultScreen').classList.remove('active');
+    bulasBeforeHandEnd = [...game.state.bulas];
+    fadeSeatDeltas();
+  }
   renderState();
   renderStatusBar();
+  // pre renderSeatExtras(), da supe na pločici budu već preračunate za upravo završenu ruku
+  recordHandIfNew();
   renderSeatExtras();
   renderTurnTimer();
   renderTrick();
   renderBiddingPanel();
-  recordHandIfNew();
   checkRefeToast();
   updateSoundEffects();
   if ($('scoreScreen').classList.contains('active')) renderScoreContent();
@@ -2639,6 +2660,8 @@ function startGame() {
   lastRecordedRound = null;
   lastRefeSum = 0;
   lastRefePendingSum = 0;
+  bulasBeforeHandEnd = null;
+  clearSeatDeltas();
 
   discardSelected = new Set();
   game.newHand(0);
@@ -2984,6 +3007,7 @@ async function connectOnlineSocket() {
       .then((data) => {
         if (!data.user) return;
         $('homeGreeting').textContent = `Zdravo, ${data.user.name}!`;
+        setMyAvatar(data.user.avatar, data.user.name);
         $('homeAdminBtn').style.display = data.user.is_admin ? '' : 'none';
       })
       .catch(() => {});
@@ -3436,9 +3460,13 @@ function renderOnlineUsers(users) {
         // (isti razlog kao chat/kibic baneri: XSS).
         const row = document.createElement('div');
         row.className = 'room-list-row';
-        const span = document.createElement('span');
+        const who = el('span', 'online-who');
+        const avatar = el('span', 'avatar-circle');
+        paintAvatar(avatar, u.avatar ?? null, firstLetter(u.name));
+        const span = el('span', 'uname');
         span.textContent = typeof u.rating === 'number' ? `${u.name} (${u.rating})` : u.name;
-        row.appendChild(span);
+        who.append(avatar, span);
+        row.appendChild(who);
         // Korisnikov zahtev: "mogucnost poziva odredjenog igraca" — salje
         // pozivnicu preko servera (server vec zna MOJU trenutnu sobu, ne
         // treba je slati odavde) na SVE njegove otvorene tabove/uredjaje.
@@ -4098,6 +4126,7 @@ window.sendChatOnline = sendChatOnline;
 window.leaveMatch = leaveMatch;
 window.goToLeagues = goToLeagues;
 
+initAvatarUi({ getToken: () => onlineToken });
 initLeagueUi({
   getToken: () => onlineToken,
   getSocket: () => onlineSocket,

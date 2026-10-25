@@ -30,6 +30,7 @@
   tr:last-child td { border-bottom: none; }
   .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75em; background: rgba(212,169,79,0.2); color: #d4a94f; }
   .badge.danger { background: rgba(211,90,90,0.2); color: #ff8a80; }
+  .user-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 6px; }
   .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
   .tabs button { padding: 8px 14px; }
   .tabs button.active { background: rgba(212,169,79,0.25); border-color: rgba(212,169,79,0.5); color: #f0c870; }
@@ -279,7 +280,13 @@
       const tr = document.createElement('tr');
 
       const tdId = document.createElement('td'); tdId.textContent = u.id;
-      const tdName = document.createElement('td'); tdName.textContent = u.name || '(bez imena)';
+      const tdName = document.createElement('td');
+      if (u.avatar) {
+        const img = document.createElement('img');
+        img.src = u.avatar; img.alt = ''; img.className = 'user-avatar';
+        tdName.appendChild(img);
+      }
+      tdName.appendChild(document.createTextNode(u.name || '(bez imena)'));
       const tdEmail = document.createElement('td'); tdEmail.textContent = u.email;
       const tdCredits = document.createElement('td'); tdCredits.textContent = u.credits;
       const tdRating = document.createElement('td'); tdRating.textContent = u.rating;
@@ -325,6 +332,13 @@
       actions.appendChild(banBtn);
       actions.appendChild(delBtn);
       actions.appendChild(emailBtn);
+      if (u.avatar) {
+        const avatarBtn = document.createElement('button');
+        avatarBtn.textContent = 'Ukloni sliku';
+        avatarBtn.className = 'danger';
+        avatarBtn.onclick = () => removeUserAvatar(u.id, u.email);
+        actions.appendChild(avatarBtn);
+      }
       tdActions.appendChild(actions);
 
       tr.append(tdId, tdName, tdEmail, tdCredits, tdRating, tdStatus, tdCreated, tdActions);
@@ -346,6 +360,14 @@
     if (!confirm('Obrisati nalog ' + email + '? Ovo je nepovratno.')) return;
     try {
       await api('/api/admin/users/' + id, { method: 'DELETE' });
+      await loadUsers();
+    } catch (e) { alert('Greška: ' + e.message); }
+  }
+
+  async function removeUserAvatar(id, email) {
+    if (!confirm('Ukloniti sliku igrača ' + email + '? Može da postavi novu.')) return;
+    try {
+      await api('/api/admin/users/' + id + '/avatar', { method: 'DELETE' });
       await loadUsers();
     } catch (e) { alert('Greška: ' + e.message); }
   }

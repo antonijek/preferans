@@ -1,0 +1,28 @@
+/* Slika igrača (avatar-ui.js): fotografija u postojećem zelenom kružiću (.avatar-circle). */
+.avatar-circle.has-photo { background: none; overflow: hidden; }
+.avatar-circle img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+
+/* kružić sa foto-aparatom pored pozdrava na početnom ekranu */
+.home-greeting-row { display: flex; align-items: center; justify-content: center; gap: 12px; }
+/* .screen .home-avatar (ne samo .home-avatar) — mora da nadjaca ".screen button { width: 100% }" */
+.screen .home-avatar {
+  position: relative; width: auto; margin: 0; padding: 0; border: none; background: none; cursor: pointer; flex-shrink: 0;
+}
+.screen .home-avatar[hidden] { display: none; }
+.home-avatar-face { width: 48px; height: 48px; font-size: 1.2em; border: 2px solid var(--gold); }
+.home-avatar-cam {
+  position: absolute; right: -4px; bottom: -2px; width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gold-dark); border: 1px solid var(--gold);
+}
+.home-avatar-cam svg { width: 14px; height: 14px; fill: none; stroke: var(--gold-bright); stroke-width: 2; }
+
+/* prozor "Tvoja slika" */
+.avatar-preview { display: flex; justify-content: center; margin: 4px 0 8px; }
+.avatar-preview .avatar-circle { width: 96px; height: 96px; font-size: 2.2em; border: 2px solid var(--gold); }
+.avatar-msg { min-height: 1.3em; margin: 0; font-size: 0.9em; opacity: 0.9; overflow-wrap: anywhere; }
+
+/* spisak ko je online (ekran Sobe) */
+.online-who { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.online-who .avatar-circle { width: 26px; height: 26px; font-size: 0.75em; }
+.online-who .uname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

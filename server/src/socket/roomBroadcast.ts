@@ -9,6 +9,7 @@ import type { HandSnapshot, ChatMessage } from '../rooms/RoomState.js';
 import { CHAT_LOG_LIMIT } from '../rooms/RoomState.js';
 import { persistRoom } from '../rooms/RoomManager.js';
 import { notifyUser } from '../push.js';
+import { avatarUrl } from '../avatars.js';
 import { countsForLeague, MIN_HANDS_FOR_EARLY_END } from '../leagueStandings.js';
 import { initialHands } from '../handRecord.js';
 
@@ -39,6 +40,8 @@ export function buildClientState(room: RoomState, viewer: Viewer) {
     // partije), ubacen ovde da klijent moze da prikaze "Ime (rejting)".
     // racunar nema rejting (partija sa njim se i ne racuna za rejting)
     rating: room.botSeats.has(i as Position) ? null : room.seatRatings[i]!,
+    // slika igraca (avatars.ts) — racunar je nema
+    avatar: room.botSeats.has(i as Position) ? null : avatarUrl(room.seatUserIds[i] ?? null),
   }));
   return {
     ...redacted,

@@ -17,6 +17,7 @@ import { statsRouter } from './stats.js';
 import { seoRouter } from './seo.js';
 import { initPush } from './push.js';
 import { isPublicPath } from './publicPaths.js';
+import { avatarRouter } from './avatars.js';
 
 // dist/index.js -> server/dist -> server -> project root, where
 // preferans.html/app.js/engine/dist all live. Serving them same-origin
@@ -92,6 +93,7 @@ async function main(): Promise<void> {
   app.use('/api/leagues', leaguesRouter);
   app.use('/api/replay', replayRouter);
   app.use('/api/stats', statsRouter);
+  app.use('/api/avatar', avatarRouter);
 
   const httpServer = http.createServer(app);
   const io = new SocketIOServer(httpServer, { cors: { origin: true } });

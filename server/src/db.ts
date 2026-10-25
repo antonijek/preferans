@@ -37,6 +37,8 @@ export async function initDb(): Promise<void> {
     // Ranking sistem (korisnikov zahtev 2026-09-10) — ELO-stil bodovi,
     // default 1000 za nove/postojece igrace (isti obrazac kao credits).
     if (!existingCols.has('rating')) db.run('ALTER TABLE users ADD COLUMN rating INTEGER NOT NULL DEFAULT 1000');
+    // slika igraca (avatars.ts): verzija = vreme slanja, NULL = nema slike
+    if (!existingCols.has('avatar_v')) db.run('ALTER TABLE users ADD COLUMN avatar_v INTEGER');
 
     const creditLogTable = db.exec(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='credit_log'"
