@@ -31,8 +31,9 @@ export async function sendMail(to: string, subject: string, text: string): Promi
   if (!t) throw new Error('SMTP nije podesen (SMTP_HOST/SMTP_USER/SMTP_PASS u .env)');
   const fromName = process.env.SMTP_FROM_NAME ?? 'Preferans online';
   try {
+    // kod servisa za slanje (Brevo, od 25.10.2026) prijava nije adresa posiljaoca, pa SMTP_FROM
     const info = await t.sendMail({
-      from: `"${fromName}" <${process.env.SMTP_USER}>`,
+      from: `"${fromName}" <${process.env.SMTP_FROM ?? process.env.SMTP_USER}>`,
       to,
       subject,
       text,
