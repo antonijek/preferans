@@ -213,13 +213,27 @@ export function autoPlayToHandEnd(game: Game, rng: Rng, maxSteps = 60): boolean 
   return false; // maxSteps probijen — bezbednosna kocnica, ne veruj rezultatu
 }
 
+// Nagrada za ruku = promena rezultata partije (calculateMatchScores): bula
+// vredi 10, pratilac upisuje svoje supe, a nosilac ih duguje — i kad prodje.
+// Ranije je bula vredela 1, a nosilac nije marilo koliko stihova da
+// pratiocima (partija #15, ruka 11: posle sigurnog prolaza dao D herc).
+const BULA_POINTS = 10;
+// Prednost potezu iz pravila: ista tezina u bulama kao ranije (3 bule), da
+// pretraga i dalje ne pregazi pravila kad razlika nije jasna (korisnikovi
+// potezi iz partija #12-#15 ostaju isti).
+const RULES_BONUS = 3 * BULA_POINTS;
+
+function handScore(r: NonNullable<GameState['lastHandResult']>, perspective: Position, preHandBula: number): number {
+  const bula = -BULA_POINTS * (r.bulas[perspective] - preHandBula);
+  const supe = ([0, 1, 2] as Position[]).map((p) => Math.max(0, r.supeDelta[p]));
+  if (perspective !== r.winner) return bula + supe[perspective]!;
+  return bula - supe.reduce((sum, v, p) => (p === perspective ? sum : sum + v), 0);
+}
+
 /**
  * Jezgro pretrage: za DATOG kandidata (primenjuje se preko `applyCandidate`
  * na svaki uzorak), pokreni `samples` determinizovanih rollout-a i vrati
- * prosecnu nagradu za `perspective` (vise je bolje). Nagrada = stvarna
- * promena bule (negirana, jer manje/negativnije bule = uspesnija partija po
- * RULES 9.1) + supe zaradjene ovom rukom — ista formula kao postojeci
- * match-ranking racun u app.js, ne izmisljena nova metrika.
+ * prosecnu nagradu za `perspective` (vise je bolje) — vidi handScore.
  */
 export function scoreCandidate(args: {
   realState: GameState;
@@ -241,7 +255,7 @@ export function scoreCandidate(args: {
     const ended = autoPlayToHandEnd(g, rng);
     if (ended && g.state.lastHandResult) {
       const r = g.state.lastHandResult;
-      total += -(r.bulas[perspective] - preHandBula) + r.supeDelta[perspective];
+      total += handScore(r, perspective, preHandBula);
     }
     // else: ponistena/neobracunata ruka -> doprinos 0, ali JOS UVEK broji se
     // u `counted` (uzorak je "ispitan", samo je ishod bio neutralan).
@@ -382,7 +396,7 @@ export function searchChoosePlayCard(
   // (pojedinacne ruke cesto vrede desetine poena) — dovoljno da nadjaca
   // sum od par uzoraka koji slucajno padnu drugacije, ali NE dovoljno da
   // preglasa search kad stvarno nadje jasno bolju alternativu.
-  const HEURISTIC_BONUS = 3;
+  const HEURISTIC_BONUS = RULES_BONUS;
 
   let best = legal[0]!;
   let bestScore = -Infinity;
@@ -554,7 +568,7 @@ export function searchChooseAction(
       return false;
     };
   }
-  const BID_HEURISTIC_BONUS = 3;
+  const BID_HEURISTIC_BONUS = RULES_BONUS;
   // Uzivo prijavljen bag (2026-09-22, isti dan, isti uzrok): search AI je
   // eskalirao KONTRU sve do MORTKONTRE (16x!) drzeci samo 2 najslabija aduta
   // (9,10 — bez ijedne casne karte), protiv nosioca koji je ispao da drzi
