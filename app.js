@@ -2094,7 +2094,7 @@ function aiBidTurn(player) {
     // evaluateHand) — razlicit i od isIgraWorthy() (koju koristi
     // aiChooseBidAction za PRVI Igra-poziv) i od search-ove verzije ove
     // iste odluke (aiSearch.ts). Sad ista provera svuda.
-    const canIgra = s.players[player].igraEligible && isIgraWorthy(hand);
+    const canIgra = s.players[player].igraEligible && isIgraWorthy(hand, s.bidStartPlayer === player);
     if (canIgra) {
       game.sayIgra(player);
     } else {

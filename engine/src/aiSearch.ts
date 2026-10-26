@@ -515,7 +515,7 @@ export function searchChooseAction(
     // proverenog praga.
     const others = ([0, 1, 2] as Position[]).filter((p) => p !== seat);
     const othersPassed = others.every((p) => state.players[p]!.hasPassedBid);
-    if (!igraAllowed(hand, othersPassed)) {
+    if (!igraAllowed(hand, othersPassed, state.bidStartPlayer === seat)) {
       const filteredIgra = candidates.filter((a) => a.type !== 'igra');
       if (filteredIgra.length > 0) candidates = filteredIgra;
     }

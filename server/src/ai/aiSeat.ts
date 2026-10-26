@@ -64,7 +64,7 @@ export function computeAiAction(game: Game, seat: Position): GameAction | null {
       const hand = s.players[seat]!.hand;
       // Igra frozen — mirrors app.js aiBidTurn's igraPlayer tiebreak branch.
       if (s.igraPlayer !== null && s.igraPlayer !== seat) {
-        const canIgra = s.players[seat]!.igraEligible && isIgraWorthy(hand as never);
+        const canIgra = s.players[seat]!.igraEligible && isIgraWorthy(hand as never, s.bidStartPlayer === seat);
         return canIgra ? { type: 'sayIgra', player: seat } : { type: 'pass', player: seat };
       }
       const passedPlayers = new Set(

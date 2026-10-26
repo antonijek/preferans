@@ -271,8 +271,22 @@ function hasSolidLongTrumps(hand: Card[], suit: Suit): boolean {
   return ranks.size >= 5 && ranks.has('Q') && ranks.has('J') && (ranks.has('K') || ranks.has('A'));
 }
 
-export function isIgraWorthy(hand: Card[]): boolean {
+// "Igra" sa tacno 4 aduta (korisnik 2026-10-26, partija #17 ruka 5: Milan rekao igra sa
+// karo K,D,10,8 i pik A,K,D — "preslabo"): A,K u adutu je sigurna igra; K,D,J samo kad
+// nosilac prvi baca kartu ("krenuce adutom; ako ne podigrava, odmah ga mogu pronaci da
+// sece i skratice ga za adute — ako je kod nekog pratioca 3 male, on pada"); A,D ne ("ne
+// moze da se igra adut, los je polaz"). Pet aduta (K,D,10,8,7) je sigurna igra.
+export function igraTrumpsOk(hand: Card[], suit: Suit, declarerLeads: boolean): boolean {
+  const ranks = new Set(hand.filter((c) => c.suit === suit).map((c) => c.rank));
+  if (ranks.size !== 4) return true;
+  if (ranks.has('A') && ranks.has('K')) return true;
+  return declarerLeads && ranks.has('K') && ranks.has('Q') && ranks.has('J');
+}
+
+/** declarerLeads: nosilac bi prvi bacao kartu (prvi licitant u ovoj ruci). */
+export function isIgraWorthy(hand: Card[], declarerLeads = false): boolean {
   for (const s of SUITS) {
+    if (!igraTrumpsOk(hand, s, declarerLeads)) continue;
     const tricks = countDeclarerTricks(hand, s);
     if (tricks >= 6 || (tricks >= 5 && hasSolidLongTrumps(hand, s))) return true;
   }

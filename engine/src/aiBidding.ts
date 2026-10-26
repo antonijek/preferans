@@ -13,6 +13,7 @@ import {
   hasVoidSuit,
   certainTricks,
   isIgraCertain,
+  igraTrumpsOk,
 } from './aiHandEval.js';
 
 // === BIDDING STRATEGIJA ===
@@ -92,6 +93,8 @@ export function chooseDeclareGame(
     } else {
       const trump = SUIT_FOR_GAME[g] ?? null;
       const certain = trump !== null && certainTricks(hand, trump, declarerLeads) >= REQUIRED_TRICKS[g];
+      // posle "igra" ne bira se boja koju bi isto pravilo odbilo za sam poziv (igraTrumpsOk)
+      if (g.startsWith('Igra-') && trump !== null && !certain && !igraTrumpsOk(hand, trump, declarerLeads)) continue;
       score = certain ? CERTAIN_GAME_SCORE : countDeclarerTricks(hand, trump);
     }
     // Izjednaceno: vrednija igra (korisnik u partiji #9, 2026-10-20: Herc pre
@@ -109,8 +112,8 @@ export function chooseDeclareGame(
 // potpuno sigurna (korisnik 2026-10-24, #12 ruka 12, Milan A,K,10,9,7 tref i
 // A pik rekao Igra: "bolje je bilo da je rekao 2, pa uzeo talon jer mu ovo
 // nije skroz sigurna igra").
-export function igraAllowed(hand: Card[], othersPassed: boolean): boolean {
-  return isIgraWorthy(hand) && (!othersPassed || isIgraCertain(hand));
+export function igraAllowed(hand: Card[], othersPassed: boolean, declarerLeads: boolean): boolean {
+  return isIgraWorthy(hand, declarerLeads) && (!othersPassed || isIgraCertain(hand));
 }
 
 export function chooseBidAction(ctx: BidContext): BidAction {
@@ -162,7 +165,7 @@ export function chooseBidAction(ctx: BidContext): BidAction {
   // ako ti ne treba talon?". Stara provera (duzina>=6 karata) je bila
   // nekalibrisana i nije pogadjala ovaj slucaj (Karo K,D,9,8,7 = 5 karata).
   const othersPassed = ctx.passedPlayers.size >= 2 && !ctx.passedPlayers.has(ctx.currentBidder);
-  if (ctx.playerBidLevel === 0 && igraAllowed(ctx.hand, othersPassed)) {
+  if (ctx.playerBidLevel === 0 && igraAllowed(ctx.hand, othersPassed, ctx.bidStartPlayer === ctx.currentBidder)) {
     return { type: 'IGRA' };
   }
 
