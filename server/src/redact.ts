@@ -24,6 +24,8 @@ function canSeeSeat(viewer: Viewer, seat: Position): boolean {
   return viewer.type === 'player' ? viewer.seat === seat : viewer.kibicSeats.has(seat);
 }
 
+const TALON_PUBLIC_PHASES = new Set<GameState['phase']>(['DISCARDING', 'DECLARING', 'FOLLOW_DECLARING', 'KONTRA_DECLARING']);
+
 /**
  * Redacts a full engine GameState down to what one specific viewer
  * (a seated player, or a spectator with 0+ kibic grants) is allowed to see.
@@ -36,10 +38,12 @@ export function redactStateFor(state: GameState, viewer: Viewer): RedactedGameSt
   // since kibic grants visibility into a player's *hand*, not their discard).
   const isDeclarer = viewer.type === 'player' && state.winner !== null && viewer.seat === state.winner;
 
-  // RULES: the taken talon (lastTalon) is publicly visible to the whole
-  // table from the moment it's taken until the declarer declares the game —
-  // after that it goes back to being private to the declarer only.
-  const talonIsPublic = state.declaredGame === null;
+  // The taken talon (lastTalon) was shown to the whole table when it was
+  // taken, so it stays visible until the first trick is done: the followers
+  // need it for Dođem/Ne dođem and kontra (user 2026-10-24/26 — before this
+  // it vanished for them the moment the game was declared). After that it is
+  // private to the declarer again.
+  const talonIsPublic = TALON_PUBLIC_PHASES.has(state.phase) || (state.phase === 'PLAYING' && state.trickCount === 0);
 
   const players = state.players.map((p, i) => {
     const seat = i as Position;
