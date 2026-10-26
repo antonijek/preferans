@@ -165,6 +165,19 @@ export function defenderSuitLead(ctx: LeadContext): Card | null {
 }
 
 /**
+ * Nastavak boje (korisnik 2026-10-26, #17 ruka 6: Bora uzeo A karo pa otvorio A pik — "uzasan
+ * potez; ako Milan ima drugog K pik, otvara mu stih. Morao je da nastavi karo, da bi Milan krenuo
+ * da sece"): pratilac koji je krenuo asom i uzeo stih (sad opet on vodi) nastavlja tu boju
+ * najjacom preostalom kartom (prebrojano), umesto da otvara novu boju asom.
+ */
+export function continueAceSuit(ctx: LeadContext): Card | null {
+  if (!ctx.trump) return null;
+  const lead = ctx.tricks[ctx.tricks.length - 1]?.[0];
+  if (!lead || lead.player !== ctx.myPosition || lead.card.rank !== 'A' || lead.card.suit === ctx.trump) return null;
+  return masters(ctx, lead.card.suit)[0] ?? null;
+}
+
+/**
  * Brojanje (korisnik 2026-10-24: "mora da se broji uvek"): pratilac koji drzi
  * najjace preostale adute — bar onoliko koliko ih jos ima van njegove ruke —
  * prvo njima izvlaci poslednje adute, pa mu se ostale karte vise ne seku.

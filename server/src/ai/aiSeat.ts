@@ -11,6 +11,7 @@ import {
   choosePlayCard,
   chooseDeclareGame,
   isIgraWorthy,
+  otherIgraOf,
 } from '../../../engine/dist/ai.js';
 import type { GameAction } from '../socket/gameEvents.js';
 
@@ -47,8 +48,8 @@ function chooseStandardGame(hand: { suit: string }[], currentBid: number, declar
   return chooseDeclareGame(hand as never, currentBid, STANDARD_GAMES as never, declarerLeads) as never;
 }
 
-function chooseIgraGame(hand: { suit: string }[], currentBid: number, declarerLeads: boolean): string {
-  return chooseDeclareGame(hand as never, currentBid, IGRA_GAMES as never, declarerLeads) as never;
+function chooseIgraGame(hand: { suit: string }[], currentBid: number, declarerLeads: boolean, otherIgra: ReturnType<typeof otherIgraOf>): string {
+  return chooseDeclareGame(hand as never, currentBid, IGRA_GAMES as never, declarerLeads, otherIgra) as never;
 }
 
 /**
@@ -64,7 +65,7 @@ export function computeAiAction(game: Game, seat: Position): GameAction | null {
       const hand = s.players[seat]!.hand;
       // Igra frozen — mirrors app.js aiBidTurn's igraPlayer tiebreak branch.
       if (s.igraPlayer !== null && s.igraPlayer !== seat) {
-        const canIgra = s.players[seat]!.igraEligible && isIgraWorthy(hand as never, s.bidStartPlayer === seat);
+        const canIgra = s.players[seat]!.igraEligible && isIgraWorthy(hand as never, s.bidStartPlayer === seat, otherIgraOf(s, seat));
         return canIgra ? { type: 'sayIgra', player: seat } : { type: 'pass', player: seat };
       }
       const passedPlayers = new Set(
@@ -107,13 +108,13 @@ export function computeAiAction(game: Game, seat: Position): GameAction | null {
       if (s.igraCompetitors !== null) {
         // RULES 3.4.1 tiebreak — declarer is s.currentBidder, always Igra-suit.
         const hand = s.players[seat]!.hand;
-        const game = chooseIgraGame(hand as never, s.currentBid, s.bidStartPlayer === seat);
+        const game = chooseIgraGame(hand as never, s.currentBid, s.bidStartPlayer === seat, otherIgraOf(s, seat));
         return { type: 'declareIgra', player: seat, game: game as never };
       }
       const isIgra = s.igraPlayer === seat;
       const hand = s.players[seat]!.hand;
       if (isIgra) {
-        const game = chooseIgraGame(hand as never, s.currentBid, s.bidStartPlayer === seat);
+        const game = chooseIgraGame(hand as never, s.currentBid, s.bidStartPlayer === seat, otherIgraOf(s, seat));
         return { type: 'declareIgra', player: seat, game: game as never };
       }
       return {

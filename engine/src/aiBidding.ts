@@ -14,7 +14,9 @@ import {
   certainTricks,
   isIgraCertain,
   igraTrumpsOk,
+  sansGuardedAfterIgra,
 } from './aiHandEval.js';
+import type { OtherIgra } from './aiHandEval.js';
 
 // === BIDDING STRATEGIJA ===
 //
@@ -71,8 +73,15 @@ const SUIT_FOR_GAME: Partial<Record<Game, Suit>> = {
 // sa A,K,D,J karo kad nosilac prvi igra, ne Igra-Pik sa A,10,9,8,7 pik.
 const CERTAIN_GAME_SCORE = 11; // vise od bilo kog broja stihova, manje od sigurnog Betla (100)
 
+/** Da li je neko drugi u ovoj ruci vec rekao "igra" (i da li on prvi baca kartu). */
+export function otherIgraOf(s: { bids: { player: Position; type: string }[]; bidStartPlayer: Position }, seat: Position): OtherIgra {
+  const sayers = s.bids.filter((b) => b.type.toUpperCase() === 'IGRA' && b.player !== seat).map((b) => b.player);
+  return sayers.length > 0 ? { sayerLeads: sayers.includes(s.bidStartPlayer) } : null;
+}
+
 export function chooseDeclareGame(
   hand: Card[], contractValue: number, games: readonly Game[] = STANDARD_GAMES, declarerLeads = false,
+  otherIgra: OtherIgra = null,
 ): Game {
   let best: Game | null = null;
   let bestScore = -Infinity;
@@ -85,6 +94,7 @@ export function chooseDeclareGame(
       // Korisnik 2026-10-20: "ne moze da se igra ni bez jedne [boje]" — Sans
       // nikad sa praznom bojom (racunari su ga igrali i bez dve, i padali).
       if (hasVoidSuit(hand)) continue;
+      if (otherIgra && !sansGuardedAfterIgra(hand, otherIgra.sayerLeads)) continue;
       // Sans broji samo sigurne stihove (niz od asa), pa je 6+ siguran prolaz
       // i vredniji od svake boje (#15 ruka 12: "Milan ima sans iz ruke, sigurnih
       // 6, a mozda i 8" — proglasio je Igra-Herc).
@@ -112,8 +122,8 @@ export function chooseDeclareGame(
 // potpuno sigurna (korisnik 2026-10-24, #12 ruka 12, Milan A,K,10,9,7 tref i
 // A pik rekao Igra: "bolje je bilo da je rekao 2, pa uzeo talon jer mu ovo
 // nije skroz sigurna igra").
-export function igraAllowed(hand: Card[], othersPassed: boolean, declarerLeads: boolean): boolean {
-  return isIgraWorthy(hand, declarerLeads) && (!othersPassed || isIgraCertain(hand));
+export function igraAllowed(hand: Card[], othersPassed: boolean, declarerLeads: boolean, otherIgra: OtherIgra = null): boolean {
+  return isIgraWorthy(hand, declarerLeads, otherIgra) && (!othersPassed || isIgraCertain(hand));
 }
 
 export function chooseBidAction(ctx: BidContext): BidAction {
@@ -165,7 +175,8 @@ export function chooseBidAction(ctx: BidContext): BidAction {
   // ako ti ne treba talon?". Stara provera (duzina>=6 karata) je bila
   // nekalibrisana i nije pogadjala ovaj slucaj (Karo K,D,9,8,7 = 5 karata).
   const othersPassed = ctx.passedPlayers.size >= 2 && !ctx.passedPlayers.has(ctx.currentBidder);
-  if (ctx.playerBidLevel === 0 && igraAllowed(ctx.hand, othersPassed, ctx.bidStartPlayer === ctx.currentBidder)) {
+  const leads = ctx.bidStartPlayer === ctx.currentBidder;
+  if (ctx.playerBidLevel === 0 && igraAllowed(ctx.hand, othersPassed, leads, otherIgraOf(ctx, ctx.currentBidder))) {
     return { type: 'IGRA' };
   }
 

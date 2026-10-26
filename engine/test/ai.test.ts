@@ -82,6 +82,7 @@ test('ai: chooseBidAction — IGRA kad ima 6+ jakih', () => {
     currentBidder: 0 as any,
     passedPlayers: new Set(),
     playerBidLevel: 0,
+    bids: [],
   });
   // IGRA je samo reč (konkretna igra se proglašava posle Moze/dalje)
   assert.equal(action.type, 'IGRA');
@@ -101,6 +102,7 @@ test('ai: chooseBidAction — BID kad ima 5+ u boji', () => {
     currentBidder: 0 as any,
     passedPlayers: new Set(),
     playerBidLevel: 0,
+    bids: [],
   });
   assert.equal(action.type, 'BID');
   if (action.type === 'BID') {
@@ -128,6 +130,7 @@ test('ai: chooseBidAction — PASS kad ruka slaba', () => {
     currentBidder: 0 as any,
     passedPlayers: new Set(),
     playerBidLevel: 0,
+    bids: [],
   });
   assert.equal(action.type, 'PASS');
 });
@@ -145,6 +148,7 @@ test('ai: chooseBidAction — ne biduje niže od currentBid', () => {
     currentBidder: 0 as any,
     passedPlayers: new Set(),
     playerBidLevel: 0,
+    bids: [],
   });
   // Tref count=5 highCards=2 → BID 5 (>= currentBid+1)
   // Ili PASS ako count<5 negde

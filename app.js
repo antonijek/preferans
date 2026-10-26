@@ -12,6 +12,7 @@ import {
   choosePlayCard as aiChoosePlayCard,
   chooseDeclareGame as aiChooseDeclareGame,
   isIgraWorthy,
+  otherIgraOf,
 } from './engine/dist/ai.js';
 import { searchChoosePlayCard, searchChooseAction, applyLegalAction } from './engine/dist/aiSearch.js';
 import { sfx } from './sfx.js';
@@ -2094,7 +2095,7 @@ function aiBidTurn(player) {
     // evaluateHand) — razlicit i od isIgraWorthy() (koju koristi
     // aiChooseBidAction za PRVI Igra-poziv) i od search-ove verzije ove
     // iste odluke (aiSearch.ts). Sad ista provera svuda.
-    const canIgra = s.players[player].igraEligible && isIgraWorthy(hand, s.bidStartPlayer === player);
+    const canIgra = s.players[player].igraEligible && isIgraWorthy(hand, s.bidStartPlayer === player, otherIgraOf(s, player));
     if (canIgra) {
       game.sayIgra(player);
     } else {
@@ -2150,7 +2151,7 @@ function aiChooseGame(player) {
 function aiChooseIgraGame(player) {
   const s = game.state;
   const hand = s.players[player].hand;
-  return aiChooseDeclareGame(hand, s.currentBid, IGRA_GAMES, s.bidStartPlayer === player);
+  return aiChooseDeclareGame(hand, s.currentBid, IGRA_GAMES, s.bidStartPlayer === player, otherIgraOf(s, player));
 }
 
 function aiDiscard(player) {

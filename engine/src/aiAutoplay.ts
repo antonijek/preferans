@@ -20,7 +20,9 @@ import {
   chooseKontra,
   choosePlayCard,
   chooseDeclareGame,
+  otherIgraOf,
 } from './ai.js';
+import type { OtherIgra } from './aiHandEval.js';
 import { IGRA_GAMES } from './constants.js';
 import type { Card, Game as GameT } from './types.js';
 
@@ -48,8 +50,8 @@ function chooseStandardGame(hand: Card[], currentBid: number, declarerLeads: boo
 // razmatrala Igra-Betl/Igra-Sans — vidi chooseDeclareGame() u aiBidding.ts
 // za pun kontekst. Sad ista, jedinstvena logika kao standardno
 // proglasavanje, samo nad IGRA_GAMES.
-function chooseIgraGame(hand: Card[], currentBid: number, declarerLeads: boolean): GameT {
-  return chooseDeclareGame(hand, currentBid, IGRA_GAMES, declarerLeads);
+function chooseIgraGame(hand: Card[], currentBid: number, declarerLeads: boolean, otherIgra: OtherIgra): GameT {
+  return chooseDeclareGame(hand, currentBid, IGRA_GAMES, declarerLeads, otherIgra);
 }
 
 export type AutoplayStepResult = 'acted' | 'no_actor';
@@ -127,13 +129,13 @@ export function applyHeuristicTurn(game: Game): AutoplayStepResult {
         // RULES 3.4.1 tiebreak — deklarant je s.currentBidder, uvek Igra boja.
         const seat = s.currentBidder;
         const hand = s.players[seat]!.hand;
-        game.declareIgra(seat, chooseIgraGame(hand, s.currentBid, s.bidStartPlayer === seat));
+        game.declareIgra(seat, chooseIgraGame(hand, s.currentBid, s.bidStartPlayer === seat, otherIgraOf(s, seat)));
         return 'acted';
       }
       const seat = s.winner!;
       const hand = s.players[seat]!.hand;
       if (s.igraPlayer === seat) {
-        game.declareIgra(seat, chooseIgraGame(hand, s.currentBid, s.bidStartPlayer === seat));
+        game.declareIgra(seat, chooseIgraGame(hand, s.currentBid, s.bidStartPlayer === seat, otherIgraOf(s, seat)));
       } else {
         game.declareGame(seat, chooseStandardGame(hand, s.currentBid, s.bidStartPlayer === seat));
       }

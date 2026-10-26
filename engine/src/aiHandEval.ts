@@ -283,14 +283,30 @@ export function igraTrumpsOk(hand: Card[], suit: Suit, declarerLeads: boolean): 
   return declarerLeads && ranks.has('K') && ranks.has('Q') && ranks.has('J');
 }
 
+/** Neko drugi je u ovoj ruci vec rekao "igra"; sayerLeads: on prvi baca kartu. */
+export type OtherIgra = { sayerLeads: boolean } | null;
+
+// Sans posle tudjeg "igra" (korisnik 2026-10-26, #17 ruka 5: Bora Igra-Sans sa suvom 10 pik
+// posle Milanovog igra — "to znaci da je igra ono upravo sto on nema, i lako moze da padne"):
+// svaka boja mora biti zasticena — as, vezane K,D ili D,J,10; K sa jos nekom kartom samo kad prvi
+// baca onaj koji je rekao igra ("zna se da je as kod njega"; inace drugi pratilac baci suvu kartu,
+// onaj sa makazama uzme i nastavi boju).
+export function sansGuardedAfterIgra(hand: Card[], sayerLeads: boolean): boolean {
+  return SUITS.every((s) => {
+    const r = new Set(hand.filter((c) => c.suit === s).map((c) => c.rank));
+    if (r.has('A') || (r.has('K') && r.has('Q')) || (r.has('Q') && r.has('J') && r.has('10'))) return true;
+    return sayerLeads && r.has('K') && r.size >= 2;
+  });
+}
+
 /** declarerLeads: nosilac bi prvi bacao kartu (prvi licitant u ovoj ruci). */
-export function isIgraWorthy(hand: Card[], declarerLeads = false): boolean {
+export function isIgraWorthy(hand: Card[], declarerLeads = false, otherIgra: OtherIgra = null): boolean {
   for (const s of SUITS) {
     if (!igraTrumpsOk(hand, s, declarerLeads)) continue;
     const tricks = countDeclarerTricks(hand, s);
     if (tricks >= 6 || (tricks >= 5 && hasSolidLongTrumps(hand, s))) return true;
   }
-  return !hasVoidSuit(hand) && countSansTricks(hand) >= 6;
+  return !hasVoidSuit(hand) && countSansTricks(hand) >= 6 && (!otherIgra || sansGuardedAfterIgra(hand, otherIgra.sayerLeads));
 }
 
 // Igra bez ikakvog rizika: neka boja daje siguran prolaz (certainTricks).

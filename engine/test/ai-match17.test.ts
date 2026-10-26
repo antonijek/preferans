@@ -2,8 +2,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isIgraWorthy } from '../src/aiHandEval.ts';
-import { chooseBidAction, chooseDeclareGame } from '../src/aiBidding.ts';
+import { isIgraWorthy, sansGuardedAfterIgra } from '../src/aiHandEval.ts';
+import { chooseBidAction, chooseDeclareGame, otherIgraOf } from '../src/aiBidding.ts';
 import { IGRA_GAMES } from '../src/constants.ts';
 import { choosePlayCard } from '../src/aiDiscardPlay.ts';
 import { searchChoosePlayCard } from '../src/aiSearch.ts';
@@ -94,4 +94,44 @@ test('betl D: Milan nema tref — baca A pik (Bora nema pik ni herc), cuva 10 ka
     [tc(1, '8♥'), tc(2, 'K♦'), tc(0, 'Q♥')],
   ];
   assert.equal(betl(hand('K♥ J♥ A♠ K♠ 10♦'), 1, [tc(0, 'K♣')], tricks), 'A♠');
+});
+
+test('sans posle tudjeg igra: Bora sa suvom 10 pik igra Igra-Tref, ne Igra-Sans (ruka 5)', () => {
+  const bora = hand('A♣ K♣ J♣ 8♣ A♥ K♥ Q♥ J♥ 10♠ A♦');
+  const bids = [{ player: 0 as Position, type: 'PASS' }, { player: 1 as Position, type: 'IGRA' }, { player: 2 as Position, type: 'IGRA' }];
+  const other = otherIgraOf({ bids, bidStartPlayer: 0 as Position }, 2 as Position);
+  assert.deepEqual(other, { sayerLeads: false });
+  assert.equal(chooseDeclareGame(bora, 0, IGRA_GAMES, false, other), 'Igra-Tref');
+  assert.equal(chooseDeclareGame(bora, 0, IGRA_GAMES, false, null), 'Igra-Sans', 'bez tudjeg igra Sans ostaje');
+});
+
+test('sans posle tudjeg igra: K,7 samo kad prvi baca onaj sa igra; D,J,10 uvek', () => {
+  const k7 = hand('A♣ K♣ Q♣ A♥ K♥ Q♥ A♦ K♦ K♠ 7♠');
+  assert.equal(sansGuardedAfterIgra(k7, true), true);
+  assert.equal(sansGuardedAfterIgra(k7, false), false);
+  const qj10 = hand('A♣ K♣ Q♣ A♥ K♥ Q♥ A♦ Q♠ J♠ 10♠');
+  assert.equal(sansGuardedAfterIgra(qj10, false), true);
+});
+
+test('pratilac posle svog asa nastavlja boju: Bora K karo, ne A pik (ruka 6)', () => {
+  const bora = hand('K♣ J♣ 8♥ A♠ 10♠ 7♠ K♦ 10♦ 8♦');
+  const card = choosePlayCard({
+    hand: bora, currentTrick: [], trump: '♥', declaredGame: 'Herc', winnerTricks: 0, isDeclarer: false,
+    myPosition: 2 as Position, declarer: 1 as Position, tricks: [[tc(2, 'A♦'), tc(1, '9♦')]], twoHanded: true,
+    nextActivePosition: 1 as Position, trickCount: 1,
+  });
+  assert.equal(card?.id, 'K♦');
+});
+
+test('pratilac posle svog asa nastavlja boju i u pretrazi (ruka 6)', () => {
+  const g = new Game({ seed: 1 });
+  const s = g.state;
+  Object.assign(s, {
+    phase: 'PLAYING', declaredGame: 'Herc', trump: '♥', winner: 1, currentPlayer: 2, currentTrick: [],
+    tricks: [[tc(2, 'A♦'), tc(1, '9♦')]], trickCount: 1, followChoices: ['NE_DODJEM', null, 'DODJEM'],
+  });
+  s.players[0]!.hand = hand('A♣ Q♣ 10♣ 9♣ 8♣ 10♥ Q♠ 9♠ Q♦ J♦');
+  s.players[1]!.hand = hand('A♥ K♥ Q♥ J♥ 9♥ 7♥ K♠ J♠ 8♠');
+  s.players[2]!.hand = hand('K♣ J♣ 8♥ A♠ 10♠ 7♠ K♦ 10♦ 8♦');
+  assert.equal(searchChoosePlayCard(s, 2 as Position, 40).id, 'K♦');
 });

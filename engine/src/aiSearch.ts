@@ -15,12 +15,13 @@ import { choosePlayCard } from './aiDiscardPlay.js';
 import { betlPlay } from './aiBetl.js';
 import {
   sansDefenderLead, partnerSuitLead, defenderSuitLead, defenderTrumpPull, waitsForDeclarer, weakTrumpLeadAllowed,
+  continueAceSuit,
   type LeadContext,
 } from './aiLeads.js';
 import { activePlayerCount, nextActivePlayer } from './turnOrder.js';
 import { followAfterPartner, withoutKingGuards } from './aiDefenderFollow.js';
 import { chooseKontra, chooseFollow, chooseCallOrAlone } from './aiFollowKontra.js';
-import { chooseDeclareGame, chooseBidAction, igraAllowed } from './aiBidding.js';
+import { chooseDeclareGame, chooseBidAction, igraAllowed, otherIgraOf } from './aiBidding.js';
 import { STANDARD_GAMES, IGRA_GAMES } from './constants.js';
 import type { Card, GameState, LegalAction, Position, Suit } from './types.js';
 
@@ -300,7 +301,7 @@ function defenderPlayFilter(state: GameState, seat: Position, legal: Card[]): Ca
       partnerKontra: state.kontraPlayer === partner,
     };
     if (state.trump) {
-      const lead = defenderTrumpPull(ctx) ?? partnerSuitLead(ctx) ?? defenderSuitLead(ctx);
+      const lead = defenderTrumpPull(ctx) ?? continueAceSuit(ctx) ?? partnerSuitLead(ctx) ?? defenderSuitLead(ctx);
       if (lead) return [lead];
       const sideSuits = legal.filter((c) => c.suit !== state.trump);
       const open = sideSuits.filter((c) => !waitsForDeclarer(sideSuits.filter((x) => x.suit === c.suit)));
@@ -526,7 +527,7 @@ export function searchChooseAction(
     // proverenog praga.
     const others = ([0, 1, 2] as Position[]).filter((p) => p !== seat);
     const othersPassed = others.every((p) => state.players[p]!.hasPassedBid);
-    if (!igraAllowed(hand, othersPassed, state.bidStartPlayer === seat)) {
+    if (!igraAllowed(hand, othersPassed, state.bidStartPlayer === seat, otherIgraOf(state, seat))) {
       const filteredIgra = candidates.filter((a) => a.type !== 'igra');
       if (filteredIgra.length > 0) candidates = filteredIgra;
     }
@@ -663,7 +664,7 @@ export function searchChooseAction(
     const hand = state.players[seat]!.hand;
     const isIgra = state.igraPlayer !== null || state.igraCompetitors !== null;
     const games = isIgra ? IGRA_GAMES : STANDARD_GAMES;
-    const recommended = chooseDeclareGame(hand, state.currentBid, games, state.bidStartPlayer === seat);
+    const recommended = chooseDeclareGame(hand, state.currentBid, games, state.bidStartPlayer === seat, otherIgraOf(state, seat));
     const pick = candidates.find((a) => a.type === 'declare' && a.game === recommended);
     if (pick) return pick;
   }

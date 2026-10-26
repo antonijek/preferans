@@ -7,7 +7,7 @@ import type { Card, Game, Suit, Position, ContraLevel } from './types.js';
 import { CARD_POINTS, sequentialRunFromAce } from './aiHandEval.js';
 import {
   sansDefenderLead, declarerLead, sansDefenderDiscard, defenderSafeExit, partnerSuitLead, defenderSuitLead,
-  defenderTrumpPull, masterTrump, isMaster, declarerKingQueenLead, isWeakFour,
+  defenderTrumpPull, masterTrump, isMaster, declarerKingQueenLead, isWeakFour, continueAceSuit,
 } from './aiLeads.js';
 import { followAfterPartner, withoutKingGuards } from './aiDefenderFollow.js';
 import { betlPlay } from './aiBetl.js';
@@ -150,7 +150,7 @@ export function choosePlayCard(args: {
     // boje (aiLeads.ts, korisnik posle partija #12/#13). Ranije (partija #9)
     // se naplacivao najkraci as — korisnik je tad igrao asa pre niske karte.
     if (!isDeclarer && trump && leadCtx) {
-      const lead = defenderTrumpPull(leadCtx) ?? partnerSuitLead(leadCtx) ?? defenderSuitLead(leadCtx);
+      const lead = defenderTrumpPull(leadCtx) ?? continueAceSuit(leadCtx) ?? partnerSuitLead(leadCtx) ?? defenderSuitLead(leadCtx);
       if (lead) return lead;
     }
     // Napad na adute nosioca (korisnikova ispravka uzivo, 2026-09-20, iz
