@@ -5,6 +5,9 @@ import assert from 'node:assert/strict';
 import { isIgraWorthy } from '../src/aiHandEval.ts';
 import { chooseBidAction, chooseDeclareGame } from '../src/aiBidding.ts';
 import { IGRA_GAMES } from '../src/constants.ts';
+import { choosePlayCard } from '../src/aiDiscardPlay.ts';
+import { searchChoosePlayCard } from '../src/aiSearch.ts';
+import { Game } from '../src/game.ts';
 import type { Card, Position } from '../src/types.ts';
 
 const hand = (s: string): Card[] => s.split(' ').map((x) => ({ id: x, rank: x.slice(0, -1), suit: x.slice(-1) } as Card));
@@ -35,4 +38,60 @@ test('igra: 4 aduta po korisnikovim odgovorima (pik A,K,D uz svaki karo)', () =>
     assert.equal(isIgraWorthy(hand(s), true), true, `${name} sigurna igra`);
     assert.equal(isIgraWorthy(hand(s), false), true, `${name} sigurna igra`);
   }
+});
+
+// Ruka 3, Betl: Bora (2) nosilac, Antonije (0) i Milan (1) pratioci.
+
+const BORA = hand('A♣ 10♣ 9♣ 8♣ 7♣ A♦ K♦ J♦ 9♦ 7♦');
+const tc = (player: number, id: string) => ({ player: player as Position, card: hand(id)[0]! });
+const betl = (h: Card[], me: number, currentTrick: ReturnType<typeof tc>[], tricks: ReturnType<typeof tc>[][] = [], discard: Card[] = []) =>
+  choosePlayCard({
+    hand: h, currentTrick, trump: null, declaredGame: 'Betl', winnerTricks: 0, avoidTricks: me === 2,
+    isDeclarer: me === 2, myPosition: me as Position, declarer: 2 as Position, tricks, discard,
+  })?.id;
+
+test('betl A: nosilac krece 7 tref (vezane 7,8,9), ne 7 karo (posle nje 8 karo kod pratilaca)', () => {
+  assert.equal(betl(BORA, 2, [], [], hand('9♠ 7♠')), '7♣');
+});
+
+test('betl A: pretraga ne preskace pravilo — Bora krece 7 tref', () => {
+  const g = new Game({ seed: 1 });
+  const s = g.state;
+  Object.assign(s, {
+    phase: 'PLAYING', declaredGame: 'Betl', trump: null, winner: 2, currentPlayer: 2,
+    currentTrick: [], tricks: [], trickCount: 0, discard: hand('9♠ 7♠'), followChoices: ['DODJEM', 'DODJEM', null],
+  });
+  s.players[0]!.hand = hand('K♣ J♣ A♥ Q♥ 10♥ 9♥ Q♠ J♠ 8♠ Q♦');
+  s.players[1]!.hand = hand('Q♣ K♥ J♥ 8♥ 7♥ A♠ K♠ 10♠ 10♦ 8♦');
+  s.players[2]!.hand = BORA;
+  assert.equal(searchChoosePlayCard(s, 2 as Position, 40).id, '7♣');
+});
+
+test('betl B2: Milan na 7 karo i D karo baca 10, cuva 8', () => {
+  const milan = hand('Q♣ K♥ J♥ 8♥ 7♥ A♠ K♠ 10♠ 10♦ 8♦');
+  assert.equal(betl(milan, 1, [tc(2, '7♦'), tc(0, 'Q♦')]), '10♦');
+});
+
+test('betl B1: nosilac drzi stih — pratilac baca manju da nosilac uzme', () => {
+  assert.equal(betl(hand('8♦ K♦ 7♠'), 1, [tc(2, '9♦'), tc(0, '7♦')]), '8♦');
+});
+
+test('betl B3: nosilac baca posle mene — najmanja', () => {
+  assert.equal(betl(hand('10♦ 8♦ 7♠'), 0, [tc(1, '7♦')]), '8♦');
+});
+
+test('betl C: Bora nema pik — Milan igra 8 karo, ne pik i ne 7 herc', () => {
+  const tricks = [[tc(2, '7♦'), tc(0, 'Q♦'), tc(1, '10♦')], [tc(0, '8♠'), tc(1, '10♠'), tc(2, 'A♣')]];
+  assert.equal(betl(hand('K♥ J♥ 8♥ 7♥ A♠ K♠ 8♦ Q♣'), 1, [], tricks), '8♦');
+});
+
+test('betl D: Milan nema tref — baca A pik (Bora nema pik ni herc), cuva 10 karo', () => {
+  const tricks = [
+    [tc(2, '7♦'), tc(0, 'Q♦'), tc(1, '8♦')],
+    [tc(0, '8♠'), tc(1, '10♠'), tc(2, 'A♣')],
+    [tc(1, '7♥'), tc(2, 'J♦'), tc(0, 'A♥')],
+    [tc(0, 'J♣'), tc(1, 'Q♣'), tc(2, '10♣')],
+    [tc(1, '8♥'), tc(2, 'K♦'), tc(0, 'Q♥')],
+  ];
+  assert.equal(betl(hand('K♥ J♥ A♠ K♠ 10♦'), 1, [tc(0, 'K♣')], tricks), 'A♠');
 });

@@ -229,6 +229,7 @@ export function applyHeuristicTurn(game: Game): AutoplayStepResult {
           bidLevels: [s.players[0]!.bidLevel, s.players[1]!.bidLevel, s.players[2]!.bidLevel],
           twoHanded: [0, 1, 2].filter((p) => game.isPlayerActive(p as Position)).length === 2,
           kontraPlayer: s.kontraPlayer,
+          discard: s.discard,
         });
         cardId = card ? card.id : legal[0]!.id;
       }

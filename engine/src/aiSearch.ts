@@ -12,6 +12,7 @@ import { makeDeck, shuffle } from './deck.js';
 import { applyHeuristicTurn } from './aiAutoplay.js';
 import { estimatedMaxLevel } from './aiHandEval.js';
 import { choosePlayCard } from './aiDiscardPlay.js';
+import { betlPlay } from './aiBetl.js';
 import {
   sansDefenderLead, partnerSuitLead, defenderSuitLead, defenderTrumpPull, waitsForDeclarer, weakTrumpLeadAllowed,
   type LeadContext,
@@ -354,6 +355,15 @@ export function searchChoosePlayCard(
   const legal = declarerPlayFilter(state, seat, defenderPlayFilter(state, seat, allLegal));
   if (legal.length === 1) return legal[0]!;
 
+  // Betl pravila (aiBetl.ts, korisnik 2026-10-26) su obavezna — simulacija ih ne preskace
+  if ((state.declaredGame === 'Betl' || state.declaredGame === 'Igra-Betl') && state.winner !== null) {
+    const forced = betlPlay({
+      hand: state.players[seat]!.hand, legal, currentTrick: state.currentTrick, tricks: state.tricks,
+      myPosition: seat, declarer: state.winner, discard: seat === state.winner ? state.discard : [],
+    });
+    if (forced) return forced;
+  }
+
   // Uzivo prijavljen bag (2026-09-22, korisnik: "sve pravilo koje smo
   // pominjali... trebalo je da implementiras i da ga naucis da igra... a ti
   // to uopste nisi koristio"): sve konvencije u choosePlayCard() (vodi
@@ -387,6 +397,7 @@ export function searchChoosePlayCard(
       twoHanded: [0, 1, 2].filter((p) => probe.isPlayerActive(p as Position)).length === 2,
       bidLevels: [state.players[0]!.bidLevel, state.players[1]!.bidLevel, state.players[2]!.bidLevel],
       kontraPlayer: state.kontraPlayer,
+      discard: state.discard,
     });
     heuristicPick = heuristicCard?.id ?? null;
   } catch {

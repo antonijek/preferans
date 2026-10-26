@@ -194,6 +194,7 @@ export function computeAiAction(game: Game, seat: Position): GameAction | null {
         twoHanded: [0, 1, 2].filter((p) => game.isPlayerActive(p as Position)).length === 2,
         bidLevels: [s.players[0]!.bidLevel, s.players[1]!.bidLevel, s.players[2]!.bidLevel],
         kontraPlayer: s.kontraPlayer,
+        discard: s.discard,
       } as never);
       return { type: 'playCard', player: seat, cardId: card ? card.id : legal[0]!.id };
     }
