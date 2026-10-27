@@ -577,6 +577,14 @@
         btn.textContent = '📋 otvori';
         btn.onclick = () => openMatchModal(m.id);
         tdAction.appendChild(btn);
+        const replay = document.createElement('a');
+        replay.className = 'clickable';
+        replay.style.marginLeft = '10px';
+        replay.href = '/replay.html?id=' + m.id;
+        replay.target = '_blank';
+        replay.textContent = '▶ ruke';
+        replay.title = 'Pregled ruku po ruku (sve karte, štih po štih)';
+        tdAction.appendChild(replay);
         tr.appendChild(tdAction);
 
         body.appendChild(tr);
