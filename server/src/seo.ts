@@ -15,6 +15,8 @@ const PAGES = [
   { loc: '/', file: 'preferans.html', changefreq: 'weekly', priority: '1.0' },
   { loc: '/pravila.html', file: 'pravila.html', changefreq: 'monthly', priority: '0.8' },
   { loc: '/vodic.html', file: 'vodic.html', changefreq: 'monthly', priority: '0.8' },
+  { loc: '/saveti.html', file: 'saveti.html', changefreq: 'monthly', priority: '0.8' },
+  { loc: '/betl-sans.html', file: 'betl-sans.html', changefreq: 'monthly', priority: '0.7' },
   { loc: '/recnik.html', file: 'recnik.html', changefreq: 'monthly', priority: '0.6' },
   { loc: '/pitanja.html', file: 'pitanja.html', changefreq: 'monthly', priority: '0.6' },
   { loc: '/privatnost.html', file: 'privatnost.html', changefreq: 'yearly', priority: '0.2' },
