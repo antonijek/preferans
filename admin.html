@@ -106,6 +106,7 @@
     <button data-tab="sobe" onclick="showTab('sobe'); loadRooms();">Sobe</button>
     <button data-tab="partije" onclick="showTab('partije'); loadMatches();">Partije</button>
     <button data-tab="kreditlog" onclick="showTab('kreditlog'); loadCreditLog();">Kredit log</button>
+    <button data-tab="utisci" onclick="showTab('utisci'); loadFeedback();">Utisci <span id="feedbackUnread"></span></button>
   </div>
 
   <div class="tab-panel active" data-tab="pregled">
@@ -182,6 +183,19 @@
       <div class="muted" id="creditLogEmpty" style="display:none;margin-top:8px">Nema zabeleženih izmena kredita.</div>
     </div>
   </div>
+
+  <!-- Primedbe, predlozi i pohvale igraca (korisnikov zahtev 2026-10-28, admin-feedback.js) -->
+  <div class="tab-panel" data-tab="utisci">
+    <div class="card">
+      <h2><span>Utisci igrača</span><button onclick="loadFeedback()">🔄 Osveži</button></h2>
+      <div class="err" id="feedbackErr" style="display:none"></div>
+      <table>
+        <thead><tr><th>Kada</th><th>Vrsta</th><th>Ko</th><th>Poruka</th><th>Partija</th><th></th></tr></thead>
+        <tbody id="feedbackBody"></tbody>
+      </table>
+      <div class="muted" id="feedbackEmpty" style="display:none;margin-top:8px">Još nema poruka.</div>
+    </div>
+  </div>
 </div>
 
 <div class="modal-bg" id="matchModal" onclick="if(event.target===this)closeMatchModal()">
@@ -204,6 +218,7 @@
   </div>
 </div>
 
+<script src="/admin-feedback.js"></script>
 <script>
   let token = null;
   try { token = localStorage.getItem('pref_token'); } catch (e) {}
@@ -259,11 +274,15 @@
       await loadRooms();
       await loadMatches();
       await loadDashboard();
+      await loadFeedback();
+      // obavestenje o novoj poruci otvara /admin.html#utisci
+      if (location.hash === '#utisci') showTab('utisci');
       document.getElementById('loginBox').style.display = 'none';
       document.getElementById('adminBox').style.display = 'block';
       document.getElementById('whoami').textContent = 'Prijavljen kao: ' + (me.user.name || me.user.email);
       setInterval(loadRooms, 5000);
       setInterval(loadDashboard, 5000);
+      setInterval(loadFeedback, 60000);
       pushRefresh();
     } catch (e) {
       document.getElementById('loginErr').textContent = 'Nemaš admin pristup ili nisi prijavljen (' + e.message + ').';

@@ -1430,7 +1430,7 @@
 
   .text-field { margin: 10px 0; text-align: left; }
   .text-field label { display: block; font-size: 0.85em; opacity: 0.85; margin-bottom: 4px; }
-  .text-field input {
+  .text-field input, .text-field textarea {
     width: 100%;
     box-sizing: border-box;
     background: rgba(255,255,255,0.1);
@@ -1440,7 +1440,7 @@
     font-size: 1em;
     padding: 10px 12px;
   }
-  .text-field input:focus { outline: none; border-color: #66bb6a; }
+  .text-field input:focus, .text-field textarea:focus { outline: none; border-color: #66bb6a; }
   .field-error { color: #ef5350; min-height: 1.2em; font-size: 0.85em; margin: 6px 0; }
   /* Korisnikov zahtev (2026-10-05): "Napravi novu sobu"/"Pridruzi se" treba
      da su u istoj ravni — prazan #roomError je i dalje rezervisao ~30px

@@ -38,6 +38,7 @@
 <link rel="stylesheet" href="./league.css?v=1">
 <link rel="stylesheet" href="./dialog.css?v=1">
 <link rel="stylesheet" href="./avatar.css?v=1">
+<link rel="stylesheet" href="./feedback.css?v=1">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -83,6 +84,7 @@
     <div class="match-menu-wrap">
       <button class="icon-btn" id="matchMenuBtn" onclick="toggleMatchMenu()" style="display:none" title="Opcije partije">🏳️</button>
       <div id="matchMenuPanel" class="match-menu-panel" style="display:none">
+        <button class="mode-btn" onclick="closeMatchMenu(); openFeedback();">✉️ Primedbe i pohvale</button>
         <button class="mode-btn" onclick="closeMatchMenu(); proposeEndMatch();">🤝 Predloži prekid partije</button>
         <button class="mode-btn danger" onclick="closeMatchMenu(); leaveMatch();">🏳️ Napusti svakako</button>
       </div>
@@ -96,6 +98,8 @@
          display), isti icon-btn stil kao ostali. -->
     <button class="icon-btn" id="localMenuBtn" onclick="backToSetup()" style="display:none" title="Nazad na glavni meni">🏠</button>
     <button class="icon-btn" onclick="toggleScore()">📊</button>
+    <!-- Primedbe i pohvale (korisnikov zahtev 2026-10-28, feedback-ui.js) — online je u meniju partije -->
+    <button class="icon-btn" id="feedbackGameBtn" onclick="openFeedback()" title="Primedbe i pohvale">✉️</button>
     <button class="icon-btn" id="soundToggleBtn" onclick="toggleSound()" title="Zvuk uklj/isklj">🔊</button>
     <!-- Korisnikov zahtev (2026-09-26) — "da korisnik bira koje ce karte,
          one od pre ili ove" — cuva se po korisniku (localStorage), samo
@@ -220,6 +224,9 @@
          je vec '1v2' po podrazumevanoj vrednosti u app.js). -->
     <button class="mode-btn primary" style="min-height:56px;font-size:1.1em" onclick="startGame()">🎮 Igraj protiv računara</button>
     <button class="mode-btn" style="margin-top:10px" onclick="goOnline()">🌐 Igraj online</button>
+    <!-- Primedbe i pohvale (korisnikov zahtev 2026-10-28, feedback-ui.js) -->
+    <button class="mode-btn" id="feedbackBtnSetup" style="margin-top:10px" onclick="openFeedback()">✉️ Primedbe i pohvale</button>
+    <p class="feedback-hint">Primetio si grešku ili imaš predlog? Javi nam — tako pomažeš da sajt bude bolji.</p>
     <!-- predlog instalacije app-a (samo telefon) — sadrzaj pravi app.js, vidi maybeShowPwaInstallBanner -->
     <div class="pwa-install-banner" style="display:none"></div>
 
@@ -297,6 +304,9 @@
          privremeno "izasao" da pogleda pocetnu (peekHomeScreen ispod), ne
          gubeci sediste. -->
     <button class="mode-btn home-cta" id="backToTableBtn" onclick="backToTable()" style="display:none;margin-top:10px">↩️ Nazad za sto</button>
+    <!-- Primedbe i pohvale (korisnikov zahtev 2026-10-28, feedback-ui.js) -->
+    <button class="mode-btn home-cta" id="feedbackBtnHome" style="margin-top:10px" onclick="openFeedback()">✉️ Primedbe i pohvale</button>
+    <p class="feedback-hint">Primetio si grešku ili imaš predlog? Javi nam — tako pomažeš da sajt bude bolji.</p>
 
     <!-- Korisnikov zahtev (2026-09-20, tekst azuriran 2026-09-26 za javno
          lansiranje), dismissible (localStorage), da ne dosadjuje posle

@@ -18,6 +18,7 @@ import { seoRouter } from './seo.js';
 import { initPush } from './push.js';
 import { isPublicPath } from './publicPaths.js';
 import { avatarRouter } from './avatars.js';
+import { feedbackRouter, feedbackAdminRouter } from './feedback.js';
 
 // dist/index.js -> server/dist -> server -> project root, where
 // preferans.html/app.js/engine/dist all live. Serving them same-origin
@@ -89,7 +90,9 @@ async function main(): Promise<void> {
 
   app.use('/api', authRouter);
   app.use('/api', passwordResetRouter);
+  app.use('/api/admin/feedback', feedbackAdminRouter);
   app.use('/api/admin', adminRouter);
+  app.use('/api/feedback', feedbackRouter);
   app.use('/api/leagues', leaguesRouter);
   app.use('/api/replay', replayRouter);
   app.use('/api/stats', statsRouter);

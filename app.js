@@ -25,6 +25,7 @@ import { isRed, sortHand, cardImageSrc } from './card-order.js';
 import { renderClaim } from './claim-ui.js';
 import { showSeatDeltas, fadeSeatDeltas, clearSeatDeltas } from './seat-delta.js';
 import { initAvatarUi, setMyAvatar, paintAvatar, firstLetter } from './avatar-ui.js';
+import { initFeedbackUi, handSnapshot } from './feedback-ui.js';
 import { claimIsCertain } from './engine/dist/claim.js';
 
 // Feature-flag za search-bazirani AI (Monte Carlo determinizacija, vidi
@@ -4129,6 +4130,15 @@ window.leaveMatch = leaveMatch;
 window.goToLeagues = goToLeagues;
 
 initAvatarUi({ getToken: () => onlineToken });
+// Uz primedbu iz partije ide trenutna ruka: online soba i ruka (karte su na serveru), lokalno sve karte.
+initFeedbackUi({
+  getToken: () => onlineToken,
+  getContext: () => {
+    const s = game?.state;
+    if (mode === 'online') return myRoomCode ? { mode, room: myRoomCode, seat: mySeat, round: s?.round ?? null, phase: s?.phase ?? null } : null;
+    return s && !$('setupScreen').classList.contains('active') ? { mode: 'local', ...handSnapshot(s) } : null;
+  },
+});
 initLeagueUi({
   getToken: () => onlineToken,
   getSocket: () => onlineSocket,

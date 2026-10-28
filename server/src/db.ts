@@ -141,6 +141,19 @@ export async function initDb(): Promise<void> {
     )`);
     db.run('CREATE INDEX idx_league_members_user ON league_members(user_id)');
   }
+  // Primedbe i pohvale igraca (korisnikov zahtev 2026-10-28, vidi feedback.ts); user_id je prazan za goste
+  if (db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='feedback'").length === 0) {
+    db.run(`CREATE TABLE feedback (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kind TEXT NOT NULL,
+      message TEXT NOT NULL,
+      contact TEXT,
+      context_json TEXT,
+      user_id INTEGER,
+      is_read INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+  }
   // partija odigrana u ligi — tabela lige se racuna iz match_log
   const matchLogCols = new Set((db.exec('PRAGMA table_info(match_log)')[0]?.values ?? []).map((row) => row[1]));
   if (!matchLogCols.has('league_id')) {

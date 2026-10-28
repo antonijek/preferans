@@ -1,0 +1,13 @@
+/* Prozor za primedbe i pohvale (feedback-ui.js), dugme na pocetnim ekranima i za stolom. Polja
+   koriste .text-field iz preferans.css, greska .field-error. */
+
+.feedback-dialog [hidden] { display: none; }
+.feedback-kinds { display: flex; gap: 6px; margin: 4px 0; }
+.feedback-kinds .mode-btn { flex: 1 1 0; width: auto; margin: 0; padding: 8px 4px; font-size: 0.9em; }
+.feedback-dialog textarea { font-family: inherit; resize: vertical; min-height: 110px; }
+.feedback-count { text-align: right; font-size: 0.8em; opacity: 0.6; margin-top: -6px; }
+.feedback-attach { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 0.85em; opacity: 0.85; }
+.feedback-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.feedback-hint { font-size: 0.85em; opacity: 0.75; margin: 6px auto 0; max-width: 420px; text-align: center; }
+/* online je dugme u meniju partije (🏳️) — traka na telefonu bi dobila treci red ikonica */
+body.online-in-game #feedbackGameBtn { display: none; }
