@@ -7,7 +7,9 @@
 
 const HOST = 'preferans.igrajmo.online';
 const KEY = '0e1224fd04629909710006e9618b66ba';
-const urls = [`https://${HOST}/`, `https://${HOST}/pravila.html`];
+// sve stranice iz sitemap.xml (spisak je u server/src/seo.ts)
+const sitemap = await (await fetch(`https://${HOST}/sitemap.xml`)).text();
+const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
 
 const res = await fetch('https://api.indexnow.org/indexnow', {
   method: 'POST',

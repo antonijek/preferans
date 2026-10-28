@@ -59,7 +59,7 @@
 <body>
 
 <div class="top-bar">
-  <h1><img src="/icons/logo-mark.svg" class="logo-mark" alt="">Preferans</h1>
+  <div class="top-title"><img src="/icons/logo-mark.svg" class="logo-mark" alt="">Preferans</div>
   <div class="top-info">
     <!-- "Potez" polje uklonjeno (korisnikov zahtev) — dupliralo je isto sto
          vec pise pored dugmadi za akciju (POTEZ: Ime / Dodjem-NeDodjem itd.),
@@ -212,7 +212,7 @@
 <!-- Setup screen -->
 <div class="screen active" id="setupScreen">
   <div class="box setup-box">
-    <h2 class="setup-title">Preferans</h2>
+    <h1 class="setup-title">Preferans</h1>
     <div class="setup-suits"><span class="red">♥</span><span class="black">♠</span><span class="red">♦</span><span class="black">♣</span></div>
     <!-- Korisnikov zahtev (2026-10-05): svedeno na Lorin obrazac — dva
          glavna izbora (protiv racunara / online), ne 3 moda + podesavanja
@@ -238,6 +238,14 @@
       <label for="setupRefeCount">Refe po igraču</label>
       <input type="number" id="setupRefeCount" value="2" min="0" max="5" step="1">
     </div>
+
+    <!-- Tekst za pretrazivace i nove igrace (korisnikov zahtev 2026-10-28), kao Lorin "Igraj Lore online" -->
+    <section class="setup-about" aria-labelledby="setupAboutTitle">
+      <h2 id="setupAboutTitle">Igraj preferans online</h2>
+      <p>Preferans (preferanc, balkanski preferans) je kartaška igra za tri igrača. Ovde ga igraš online, uživo i besplatno — na telefonu ili računaru, bez instaliranja. Igraj odmah protiv računara, bez naloga, ili se prijavi, napravi sobu i pozovi drugare kodom ili linkom preko Vibera ili WhatsApp-a. Ako vas nema trojica, prazno mesto popunjava računar.</p>
+      <p>Igra se po pravilima iz Srbije, Crne Gore i BiH: licitacija, mogu i igra, dođem i ne dođem, kontra, refa, bule i supe, Betl i Sans. Prvi put igraš? Pročitaj <a href="/vodic.html">vodič za početnike</a> i <a href="/recnik.html">rečnik pojmova</a>, a sve detalje nađi u <a href="/pravila.html">pravilima</a>. Kako se igra na sajtu, piše u <a href="/pitanja.html">čestim pitanjima</a>.</p>
+      <p>Voliš i Lore? Igraj <a href="https://lora.igrajmo.online/">Lore online</a> na našem drugom sajtu.</p>
+    </section>
   </div>
 </div>
 
@@ -291,7 +299,7 @@
       <button type="button" class="home-avatar" id="homeAvatarBtn" title="Tvoja slika" aria-label="Tvoja slika" hidden>
         <span class="avatar-circle home-avatar-face"></span><span class="home-avatar-cam"></span>
       </button>
-      <h1 class="home-greeting" id="homeGreeting">Zdravo!</h1>
+      <div class="home-greeting" id="homeGreeting">Zdravo!</div>
     </div>
     <p class="home-tagline">Preferans online — igraj preferans uživo (poznat i kao balkanski preferans ili preferanc) sa pravim igračima, besplatno u browseru.</p>
     <button class="mode-btn primary home-cta" onclick="goToRoomScreen()">🎮 Sobe — napravi ili se pridruži</button>
@@ -392,7 +400,7 @@
        pored drugog. Svi ID-jevi/onclick ostaju isti, samo omotac. -->
   <div class="box setup-box room-panel-wrap">
   <section class="room-hero">
-    <h1 class="room-hero-title">Soba</h1>
+    <div class="room-hero-title">Soba</div>
     <div id="roomStatus" class="room-status-line"></div>
     <!-- Korisnikov zahtev (2026-10-05): "0 igraca" pilula ovde je bila
          DUPLIKAT istog broja koji vec pise na "Ko je online" dugmetu ispod

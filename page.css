@@ -41,9 +41,10 @@ h2 {
   border-bottom: 2px solid rgba(255,235,59,0.4); padding-bottom: 8px; margin-bottom: 14px;
   color: #ffeb99;
 }
-h3 { font-family: 'Cinzel', serif; font-weight: 600; font-size: 1.12em; margin: 20px 0 8px; color: #cdeccd; }
+h3, .glossary dt { font-family: 'Cinzel', serif; font-weight: 600; font-size: 1.12em; margin: 20px 0 8px; color: #cdeccd; }
+.glossary dt { scroll-margin-top: 70px; }
 h4 { font-size: 1em; margin: 14px 0 6px; color: #b9dab9; }
-p { margin: 0 0 12px; color: rgba(255,255,255,0.9); }
+p, .glossary dd { margin: 0 0 12px; color: rgba(255,255,255,0.9); }
 ul, ol { margin: 0 0 12px; padding-left: 24px; }
 li { margin-bottom: 4px; }
 strong { color: #fff; }
