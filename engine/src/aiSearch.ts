@@ -15,11 +15,12 @@ import { choosePlayCard } from './aiDiscardPlay.js';
 import { betlPlay } from './aiBetl.js';
 import {
   sansDefenderLead, partnerSuitLead, defenderSuitLead, defenderTrumpPull, waitsForDeclarer, weakTrumpLeadAllowed,
-  continueAceSuit,
+  continueAceSuit, attackDeclarerRuff,
   type LeadContext,
 } from './aiLeads.js';
 import { activePlayerCount, nextActivePlayer } from './turnOrder.js';
-import { followAfterPartner, withoutKingGuards } from './aiDefenderFollow.js';
+import { followAfterPartner, withoutKingGuards, discardFromDeclarerVoid } from './aiDefenderFollow.js';
+import { declarerDrawnChoices, declarerRuffedFourChoices } from './aiDeclarerPlay.js';
 import { chooseKontra, chooseFollow, chooseCallOrAlone } from './aiFollowKontra.js';
 import { chooseDeclareGame, chooseBidAction, igraAllowed, otherIgraOf } from './aiBidding.js';
 import { STANDARD_GAMES, IGRA_GAMES } from './constants.js';
@@ -301,7 +302,8 @@ function defenderPlayFilter(state: GameState, seat: Position, legal: Card[]): Ca
       partnerKontra: state.kontraPlayer === partner,
     };
     if (state.trump) {
-      const lead = defenderTrumpPull(ctx) ?? continueAceSuit(ctx) ?? partnerSuitLead(ctx) ?? defenderSuitLead(ctx);
+      const lead = defenderTrumpPull(ctx) ?? continueAceSuit(ctx) ?? partnerSuitLead(ctx) ?? attackDeclarerRuff(ctx)
+        ?? defenderSuitLead(ctx);
       if (lead) return [lead];
       const sideSuits = legal.filter((c) => c.suit !== state.trump);
       const open = sideSuits.filter((c) => !waitsForDeclarer(sideSuits.filter((x) => x.suit === c.suit)));
@@ -321,16 +323,25 @@ function defenderPlayFilter(state: GameState, seat: Position, legal: Card[]): Ca
     });
     return pick ? [pick] : legal;
   }
-  return withoutKingGuards(hand, keep(legal.filter((c) => c.suit === state.trump || (c.rank !== 'A' && c.rank !== 'K'))));
+  const discards = legal.filter((c) => c.suit === state.trump || (c.rank !== 'A' && c.rank !== 'K'));
+  const pool = withoutKingGuards(hand, keep(discards));
+  const { currentTrick, trump, tricks } = state;
+  const ctx = { hand, legal, currentTrick, trump, declarer: state.winner!, tricks };
+  const fromVoid = discardFromDeclarerVoid(ctx, pool);
+  return fromVoid ? [fromVoid] : pool;
 }
 
 // Nosilac: sa 4 aduta bez K i D ne krece iz aduta (aiLeads weakTrumpLeadAllowed,
 // partija #14 ruka 8) — pretraga je i posle ispravke pravila vodila J herc.
+// Partija #18: kad pratioci nemaju adut, i sa 4 aduta posle secenja u 1. stihu, pravila
+// (aiDeclarerPlay.ts) biraju vrstu karte; pretraga bira samo medju njima.
 function declarerPlayFilter(state: GameState, seat: Position, legal: Card[]): Card[] {
   if (seat !== state.winner || state.currentTrick.length > 0 || !state.trump) return legal;
   const ctx: LeadContext = {
     legal, hand: state.players[seat]!.hand, trump: state.trump, myPosition: seat, declarer: seat, tricks: state.tricks,
   };
+  const choices = declarerDrawnChoices(ctx) ?? declarerRuffedFourChoices(ctx);
+  if (choices) return choices;
   if (weakTrumpLeadAllowed(ctx)) return legal;
   const side = legal.filter((c) => c.suit !== state.trump);
   return side.length > 0 ? side : legal;

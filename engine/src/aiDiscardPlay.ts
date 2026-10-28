@@ -7,9 +7,11 @@ import type { Card, Game, Suit, Position, ContraLevel } from './types.js';
 import { CARD_POINTS, sequentialRunFromAce } from './aiHandEval.js';
 import {
   sansDefenderLead, declarerLead, sansDefenderDiscard, defenderSafeExit, partnerSuitLead, defenderSuitLead,
-  defenderTrumpPull, masterTrump, isMaster, declarerKingQueenLead, isWeakFour, continueAceSuit,
+  defenderTrumpPull, masterTrump, isMaster, declarerKingQueenLead, isWeakFour, continueAceSuit, attackDeclarerRuff,
+  declarerVoidLead,
 } from './aiLeads.js';
-import { followAfterPartner, withoutKingGuards } from './aiDefenderFollow.js';
+import { declarerRulesLead } from './aiDeclarerPlay.js';
+import { followAfterPartner, withoutKingGuards, discardFromDeclarerVoid } from './aiDefenderFollow.js';
 import { betlPlay } from './aiBetl.js';
 
 // === DISCARD STRATEGIJA ===
@@ -150,7 +152,8 @@ export function choosePlayCard(args: {
     // boje (aiLeads.ts, korisnik posle partija #12/#13). Ranije (partija #9)
     // se naplacivao najkraci as — korisnik je tad igrao asa pre niske karte.
     if (!isDeclarer && trump && leadCtx) {
-      const lead = defenderTrumpPull(leadCtx) ?? continueAceSuit(leadCtx) ?? partnerSuitLead(leadCtx) ?? defenderSuitLead(leadCtx);
+      const lead = defenderTrumpPull(leadCtx) ?? continueAceSuit(leadCtx) ?? partnerSuitLead(leadCtx)
+        ?? attackDeclarerRuff(leadCtx) ?? defenderSuitLead(leadCtx);
       if (lead) return lead;
     }
     // Napad na adute nosioca (korisnikova ispravka uzivo, 2026-09-20, iz
@@ -164,20 +167,10 @@ export function choosePlayCard(args: {
     // (korisnik: "pratilac pokusava da izbije adute nosiocu na taj
     // nacin"). Vodi NAJSLABIJOM kartom te boje — poenta je da nosilac
     // potrosi adut, ne da ova konkretna karta pobedi stih.
-    if (!isDeclarer && trump && declarer != null && tricks.length > 0) {
-      const declarerVoidSuits = new Set<Suit>();
-      for (const trick of tricks) {
-        const ledSuit = trick[0]?.card.suit;
-        if (!ledSuit || ledSuit === trump) continue;
-        const declarerPlay = trick.find(tc => tc.player === declarer);
-        if (declarerPlay && declarerPlay.card.suit !== ledSuit) {
-          declarerVoidSuits.add(ledSuit);
-        }
-      }
-      const attackCards = legal.filter(c => declarerVoidSuits.has(c.suit));
-      if (attackCards.length > 0) {
-        return attackCards.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
-      }
+    // Od 2026-10-27 ovo pre naplate (attackDeclarerRuff gore) dok nosilac jos moze imati adut.
+    if (!isDeclarer && trump && leadCtx) {
+      const attack = declarerVoidLead(leadCtx);
+      if (attack) return attack;
     }
     // POVUCENO (2026-09-22, uzivo prijavljeno "AI igra potpuno suprotno i
     // uzasno lose" odmah posle deploya): pretpostavka da bidLevel>0 znaci
@@ -213,6 +206,12 @@ export function choosePlayCard(args: {
           if (cards && cards.length === 1) return cards[0]!;
         }
       }
+    }
+    // Nosilac (aiDeclarerPlay.ts, partija #18): kad pratioci nemaju adut — aduti, sigurne karte, pa
+    // gubitnik; sa 4 aduta posle secenja u 1. stihu — duga sporedna boja, ne adut.
+    if (isDeclarer && trump && leadCtx) {
+      const lead = declarerRulesLead(leadCtx);
+      if (lead) return lead;
     }
     // Nosilac: izvlacenje aduta pre igranja duge/jake boje (korisnikova
     // pravila uzivo, 2026-09-19): ako nosilac drzi 5+ aduta ukljucujuci
@@ -553,6 +552,10 @@ export function choosePlayCard(args: {
   const nonHonor = legal.filter(c => c.rank !== 'A' && c.rank !== 'K');
   const basePool = nonHonor.length > 0 ? nonHonor : legal;
   const pool = isDeclarer ? basePool : withoutKingGuards(hand, basePool);
+  if (!isDeclarer && declarer != null) {
+    const fromVoid = discardFromDeclarerVoid({ hand, legal, currentTrick, trump, declarer, tricks }, pool);
+    if (fromVoid) return fromVoid;
+  }
   // Visak duge boje sa A,K (korisnik 2026-10-24, #13 ruka 32: Milan ♣A,K,10,9
   // ♠K,J,8 ♦K,10 bacio 8 pik — "Ako ima A, K i jos 2 u trefu ... velika je
   // sansa da nosilac nema toliko trefova ... bas dobar primjer sta je lako

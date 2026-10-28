@@ -68,17 +68,32 @@ function declarerShown(ctx: BetlContext): Set<Suit> {
   return new Set([...ctx.tricks, ctx.currentTrick].flat().filter((t) => t.player === ctx.declarer).map((t) => t.card.suit));
 }
 
+/** Boje kojima je nosilac sam krenuo. */
+function declarerLed(ctx: BetlContext): Set<Suit> {
+  return new Set(ctx.tricks.filter((t) => t[0]?.player === ctx.declarer).map((t) => t[0]!.card.suit));
+}
+
 /**
  * C. Pratilac kad prvi baca: ne boju koju nosilac nema (tu se oslobadja opasnih karata), nego
  * najmanju kartu boje koju jos ima — prvo boje za koje se zna da ih ima (#17 ruka 3: Bora krenuo
- * 7 karo i nema pik; Milan igra 8 karo, ne 7 herc za koji se ne zna).
+ * 7 karo i nema pik; Milan igra 8 karo, ne 7 herc za koji se ne zna). Boja kojom je nosilac sam
+ * krenuo se ne vraca (#18 ruka 36, Milan posle A karo ne igra J karo: "ta boja mu odgovara"), osim
+ * kad je moja najmanja karta te boje niza od svih preostalih — tad nosilac mora da uzme (#17 ruka 3,
+ * Milan 8 karo, a kod ostalih su jos samo 9, J, K, A).
  */
 function defenderLead(ctx: BetlContext): Card {
   const voids = declarerVoids(ctx);
   const shown = declarerShown(ctx);
+  const led = declarerLed(ctx);
   const has = ctx.legal.filter((c) => !voids.has(c.suit));
-  const known = has.filter((c) => shown.has(c.suit));
-  return lowest(known.length > 0 ? known : has.length > 0 ? has : ctx.legal);
+  const forcing = (suit: Suit) => {
+    const out = unseen(ctx, suit);
+    return out.length > 0 && value(lowest(ctx.legal.filter((c) => c.suit === suit))) < out[0]!;
+  };
+  const notHis = has.filter((c) => !led.has(c.suit) || forcing(c.suit));
+  const pool = notHis.length > 0 ? notHis : has;
+  const known = pool.filter((c) => shown.has(c.suit));
+  return lowest(known.length > 0 ? known : pool.length > 0 ? pool : ctx.legal);
 }
 
 /**
@@ -98,11 +113,18 @@ function defenderFollow(ctx: BetlContext, sameSuit: Card[]): Card {
   return highest(sameSuit);
 }
 
-/** D. Pratilac nema trazenu boju: najvecu iz boje koju nosilac nema, inace svoju najvecu. */
+/**
+ * D. Pratilac nema trazenu boju: najvecu iz boje koju nosilac nema, inace svoju najvecu. Od takvih
+ * boja prvo najkracu, da je sasvim isprazni (#18 ruka 7: "cilj je da se treci oslobodi boje jedne u
+ * potpunosti. Na D pik Milan je morao da baci 10 tref" — imao je jos J, 10, 8 karo).
+ */
 function defenderDiscard(ctx: BetlContext): Card {
   const voids = declarerVoids(ctx);
-  const useless = ctx.legal.filter((c) => voids.has(c.suit));
-  return highest(useless.length > 0 ? useless : ctx.legal);
+  const useless = SUITS.filter((s) => voids.has(s))
+    .map((s) => ctx.legal.filter((c) => c.suit === s))
+    .filter((cards) => cards.length > 0)
+    .sort((a, b) => a.length - b.length)[0];
+  return highest(useless ?? ctx.legal);
 }
 
 /** Karta po Betl pravilima, ili null kad o njoj odlucuju opsta pravila (nosilac prati boju ili baca). */

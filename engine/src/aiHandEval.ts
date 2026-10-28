@@ -2,7 +2,7 @@
 // biddinga, follow/kontra, i discard/play odluka). Ciste funkcije, bez
 // stanja.
 
-import { RANK_VALUE, SUITS, GAME_VALUES } from './constants.js';
+import { RANK_VALUE, RANKS, SUITS, GAME_VALUES } from './constants.js';
 import type { Card, Game, Rank, Suit } from './types.js';
 
 // Bodovi karata (high card points) — za procenu snage ruke
@@ -97,9 +97,8 @@ export function evaluateHand(hand: Card[]): HandEval {
 const RANK_ORDER_DESC = ['A', 'K', 'Q', 'J', '10', '9', '8', '7'] as const;
 
 // Koliko karata drzim u nizu OD ASA NADOLE u datoj boji (A,K,D,J,10,9,8,7 —
-// prvi "rupa" prekida niz). Koristi se i za Sans (bez aduta, gde SVE boje
-// rade po ovom principu) i za sporedne boje POSLE izvlacenja aduta (vidi
-// countDeclarerTricks — korisnikov zahtev, uzivo potvrdjeno 2026-09-06).
+// prvi "rupa" prekida niz). Koristi se za Sans (bez aduta, gde SVE boje
+// rade po ovom principu — korisnikov zahtev, uzivo potvrdjeno 2026-09-06).
 export function sequentialRunFromAce(hand: Card[], suit: Suit): number {
   const ranksHeld = new Set(hand.filter(c => c.suit === suit).map(c => c.rank));
   let run = 0;
@@ -110,24 +109,21 @@ export function sequentialRunFromAce(hand: Card[], suit: Suit): number {
   return run;
 }
 
-// Sporedna boja (POSLE izvlacenja aduta, secenje vise nije rizik) kad NE
-// drzim njen As: korisnikov zahtev, uzivo potvrdjeno 2026-09-06 ("K i D su
-// uvek stih... ko god da igra, neka K odnese A, ostaje D najjaca, siguran
-// stih") — As kod nekog drugog moze da "ubije" SAMO JEDNU od moje dve
-// najjace karte (K ili D), bez obzira kad je odigra, pa mi ostaje TACNO 1
-// sigurno kad drzim i K i D (bez obzira na dodatnu duzinu — za razliku od
-// aduta, ovde "prazna" boja kod pratioca ne cini ostatak automatski
-// sigurnim, jer nema secenja/izvlacenja da to iznudi).
+// Sporedna boja POSLE izvlacenja aduta (korisnik 2026-10-27, partija #18 ruka 7): "u boji gubis samo
+// na karte jace od tvojih koje su kod protivnika, a ostale nosis" — K,J,10,8,7 = 3, K,D,9,8,7 = 4,
+// D,J,10,9,8 = 3 (zamenilo pravilo od 2026-09-06 da K,D vredi samo u kratkoj boji). Brojim krug po
+// krug: igram svoju najjacu; ako je kod protivnika jaca, on uzme, a drugi baci svoju najmanju; inace
+// oba bacaju najmanje — dok im boja ne nestane. Isto daje i stara brojanja (K,D = 1, A,K,10 = 2).
 function sideSuitTricksPostDraw(hand: Card[], suit: Suit): number {
-  const cards = hand.filter(c => c.suit === suit);
-  if (cards.some(c => c.rank === 'A')) return sequentialRunFromAce(hand, suit);
-  const hasK = cards.some(c => c.rank === 'K');
-  const hasD = cards.some(c => c.rank === 'Q');
-  // Korisnikov zahtev, uzivo potvrdjeno 2026-09-06: garancija vazi SAMO za
-  // kratku boju (K,D same ili K,D + 1 mala — dužina do 3); za dužu ("ako
-  // nije predugacko") se gubi — razlog jos nije potpuno razjasnjen (pitanje
-  // postavljeno korisniku), privremeno ograniceno na dužinu <=3.
-  return hasK && hasD && cards.length <= 3 ? 1 : 0;
+  const mine = hand.filter((c) => c.suit === suit).map((c) => RANK_VALUE[c.rank]!).sort((a, b) => b - a);
+  const theirs = RANKS.map((r) => RANK_VALUE[r]!).filter((v) => !mine.includes(v)).sort((a, b) => b - a);
+  let tricks = 0;
+  for (const v of mine) {
+    if (theirs.length > 0 && theirs[0]! > v) theirs.shift();
+    else { tricks++; theirs.pop(); }
+    theirs.pop();
+  }
+  return tricks;
 }
 
 export function countDeclarerTricks(hand: Card[], trump: Suit | null): number {
@@ -232,6 +228,12 @@ export function certainTricks(hand: Card[], trump: Suit, declarerLeads: boolean)
 // ne za odigravanje... ovdje imas samo 2, dakle obavezno dalje").
 const MIN_TRICKS_TO_BID = 5;
 
+// Boja sa 3 karte nikad nije adut (korisnik 2026-10-27, #18 ruka 25: Bora sa tref K,D,J licitirao do 5
+// — "IMA samo 3 aduta, pogresno, ne smije preko 3 da ide", karo A,K,D,10 je bio do 3).
+export const MIN_TRUMPS = 4;
+export const hasTrumpLength = (hand: Card[], suit: Suit): boolean =>
+  hand.filter((c) => c.suit === suit).length >= MIN_TRUMPS;
+
 // Korisnik 2026-10-20: "Sans ne moze da se igra ni bez jedne boje".
 export function hasVoidSuit(hand: Card[]): boolean {
   return SUITS.some((s) => !hand.some((c) => c.suit === s));
@@ -244,6 +246,7 @@ export function estimatedMaxLevel(hand: Card[]): number {
     '♠': 'Pik', '♦': 'Karo', '♥': 'Herc', '♣': 'Tref',
   };
   for (const s of evalRes.suits) {
+    if (s.count < MIN_TRUMPS) continue;
     const safe = countDeclarerTricks(hand, s.suit);
     if (safe >= MIN_TRICKS_TO_BID) {
       maxLevel = Math.max(maxLevel, GAME_VALUES[SUIT_GAME[s.suit]]);
@@ -302,7 +305,7 @@ export function sansGuardedAfterIgra(hand: Card[], sayerLeads: boolean): boolean
 /** declarerLeads: nosilac bi prvi bacao kartu (prvi licitant u ovoj ruci). */
 export function isIgraWorthy(hand: Card[], declarerLeads = false, otherIgra: OtherIgra = null): boolean {
   for (const s of SUITS) {
-    if (!igraTrumpsOk(hand, s, declarerLeads)) continue;
+    if (!hasTrumpLength(hand, s) || !igraTrumpsOk(hand, s, declarerLeads)) continue;
     const tricks = countDeclarerTricks(hand, s);
     if (tricks >= 6 || (tricks >= 5 && hasSolidLongTrumps(hand, s))) return true;
   }
@@ -438,6 +441,15 @@ function sideSuitValue(cards: Card[]): number {
   return threeHonours || scissors ? 2 : 1;
 }
 
+// Jak rezon od 2 stiha za "2 rezona po 2 stiha = dolazim" (korisnik 2026-10-27, #18 ruka 23, Milan
+// pik A,K,9 i karo A,D,10,8): A,K sa najvise jednom malom, i makaze A,D bez K bilo koje duzine ("neces
+// ti igrati odatle, nego ces cekati da ti se nosilac otvori"). Sam za sebe nije 2 stiha: "samo 2 jaka
+// rezona sa po 2 stiha mi govore da jedan rezon sigurno nema nosilac".
+function strongDouble(cards: Card[]): boolean {
+  const has = (r: string) => cards.some((c) => c.rank === r);
+  return has('A') && ((has('K') && cards.length <= 3) || (has('Q') && !has('K')));
+}
+
 function defenderCount(hand: Card[], trump: Suit | null): { tricks: number; rezoni: number; doubles: number } {
   const trumpTricks = trumpOnlySafeTricks(hand, trump);
   const trumps = hand.filter((c) => c.suit === trump).length;
@@ -447,7 +459,7 @@ function defenderCount(hand: Card[], trump: Suit | null): { tricks: number; rezo
   return {
     tricks: trumpTricks + values.reduce((a, v) => a + v, 0) + half,
     rezoni: trumpTricks + values.filter((v) => v > 0).length + half,
-    doubles: values.filter((v) => v === 2).length,
+    doubles: sides.filter((cards, i) => values[i] === 2 || strongDouble(cards)).length,
   };
 }
 
@@ -457,10 +469,13 @@ export function countSafeTricks(hand: Card[], trump: Suit | null): number {
 }
 
 // Dolazak u adutskoj igri (korisnik 2026-10-24): "na 2 rezona ne dolazis
-// osim ako u oba imas po 2 stiha", inace treba 3 rezona.
+// osim ako u oba imas po 2 stiha", inace treba 3 rezona. Sa 2,5 rezona se dolazi kad je jedan od
+// njih adutski K treci (2026-10-27, #18 ruka 23, Bora tref K,10,8 i herc K,9,7 uz singl karo).
 export function defenderComes(hand: Card[], trump: Suit | null): boolean {
   const { rezoni, doubles } = defenderCount(hand, trump);
-  return rezoni >= 3 || doubles >= 2;
+  const trumps = hand.filter((c) => c.suit === trump);
+  const kingThird = trumps.length >= 3 && trumps.some((c) => c.rank === 'K');
+  return rezoni >= 3 || doubles >= 2 || (rezoni >= 2.5 && kingThird);
 }
 
 // Helper: izvlaci adut boju iz igre

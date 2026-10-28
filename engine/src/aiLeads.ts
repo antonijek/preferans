@@ -31,12 +31,12 @@ export interface LeadContext {
 const SUITS: Suit[] = ['♠', '♥', '♦', '♣'];
 const desc = (a: Card, b: Card) => RANK_VALUE[b.rank] - RANK_VALUE[a.rank];
 
-function cardsIn(cards: Card[], suit: Suit): Card[] {
+export function cardsIn(cards: Card[], suit: Suit): Card[] {
   return cards.filter((c) => c.suit === suit).sort(desc);
 }
 
 /** Karte koje nisam ni video (nisu u mojoj ruci, nisu odigrane). */
-function unseenRanks(ctx: LeadContext, suit: Suit): string[] {
+export function unseenRanks(ctx: LeadContext, suit: Suit): string[] {
   const seen = new Set<string>(ctx.hand.map((c) => c.id));
   for (const t of ctx.tricks) for (const tc of t) seen.add(tc.card.id);
   return RANKS.filter((r) => !seen.has(`${r}${suit}`));
@@ -50,7 +50,7 @@ function masters(ctx: LeadContext, suit: Suit): Card[] {
 }
 
 /** Boje u kojima je igrac pokazao da je prazan (nije pratio vodjenu boju). */
-function voidsOf(ctx: LeadContext, player: Position): Set<Suit> {
+export function voidsOf(ctx: LeadContext, player: Position): Set<Suit> {
   const out = new Set<Suit>();
   for (const t of ctx.tricks) {
     const led = t[0]?.card.suit;
@@ -177,6 +177,24 @@ export function continueAceSuit(ctx: LeadContext): Card | null {
   return masters(ctx, lead.card.suit)[0] ?? null;
 }
 
+/** Najmanja karta iz boje u kojoj je nosilac pokazao da je prazan (vodi se da bi on sekao). */
+export function declarerVoidLead(ctx: LeadContext): Card | null {
+  const voids = voidsOf(ctx, ctx.declarer);
+  const cards = ctx.legal.filter((c) => c.suit !== ctx.trump && voids.has(c.suit)).sort(desc);
+  return cards[cards.length - 1] ?? null;
+}
+
+/**
+ * Dok nosilac sece moju boju i jos moze imati adut, nastavljam tu boju, a svoje karte cuvam za
+ * kasnije (korisnik 2026-10-27, #18 ruka 22: Bora umesto 9 karo "trebao da igra opet tref. Jer ako
+ * Darko ima karo manji pitace mu se kasnije, a ovako je cilj da ga ostavi bez aduta").
+ */
+export function attackDeclarerRuff(ctx: LeadContext): Card | null {
+  if (!ctx.trump || unseenRanks(ctx, ctx.trump).length === 0) return null;
+  if (voidsOf(ctx, ctx.declarer).has(ctx.trump)) return null;
+  return declarerVoidLead(ctx);
+}
+
 /**
  * Brojanje (korisnik 2026-10-24: "mora da se broji uvek"): pratilac koji drzi
  * najjace preostale adute — bar onoliko koliko ih jos ima van njegove ruke —
@@ -262,13 +280,14 @@ export function declarerKingQueenLead(ctx: LeadContext): Card | null {
   return suits.sort(longerFirst)[0]?.[0] ?? null;
 }
 
+// Boja koju niko drugi vise nema se NE preskace (bilo je tako od 2026-10-20): #18 ruka 25 Bora je
+// zbog toga odigrao D herc umesto A i K karo i pao — "MORA prvo da prodje, to je najvaznije".
 export function declarerLead(ctx: LeadContext): Card | null {
   if (!ctx.trump) return null;
   const risky = riskySuits(ctx);
   let best: Card[] | null = null;
   for (const s of SUITS) {
     if (s === ctx.trump || risky.has(s)) continue;
-    if (unseenRanks(ctx, s).length === 0) continue; // niko vise nema boju — ne trosi je sada
     const m = masters(ctx, s);
     if (m.length === 0) continue;
     if (!best || m.length > best.length) best = m;

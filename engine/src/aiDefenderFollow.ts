@@ -80,3 +80,26 @@ export function withoutKingGuards(hand: Card[], cards: Card[]): Card[] {
   const rest = cards.filter((c) => !guarded(c));
   return rest.length > 0 ? rest : cards;
 }
+
+/** Nosilac mozda jos ima adut: nije pokazao da je prazan, a nisu svi aduti izasli. */
+function declarerMayHaveTrump(ctx: DefenderFollowContext, trump: Suit): boolean {
+  const seen = new Set<string>(ctx.hand.map((c) => c.id));
+  for (const t of ctx.tricks) for (const p of t) seen.add(p.card.id);
+  for (const p of ctx.currentTrick) seen.add(p.card.id);
+  return !declarerShowedVoid(ctx, trump) && RANKS.some((r) => !seen.has(`${r}${trump}`));
+}
+
+/**
+ * Skart dok nosilac jos ima adut (korisnik 2026-10-27, #18 ruka 31, Bora J herc a ne J pik): "Vidio
+ * je da Darko nema herca, zasto ne skarta herc, jer ako cuva pik na njega moze uzeti stih." Baca
+ * boju koju nosilac nema kad su mu ostale karte najjace preostale u bojama koje nosilac mozda ima.
+ * Kad medju njima ima i slabih, odlucuju stara pravila (cuva se jedna karta boje koju nosilac sece).
+ */
+export function discardFromDeclarerVoid(ctx: DefenderFollowContext, pool: Card[]): Card | null {
+  const trump = ctx.trump;
+  if (!trump || !declarerMayHaveTrump(ctx, trump)) return null;
+  const voidCards = pool.filter((c) => c.suit !== trump && declarerShowedVoid(ctx, c.suit)).sort(asc);
+  const others = pool.filter((c) => !voidCards.includes(c));
+  if (voidCards.length === 0 || others.some((c) => higherUnseen(ctx, c))) return null;
+  return voidCards[0]!;
+}

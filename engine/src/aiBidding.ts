@@ -15,6 +15,7 @@ import {
   isIgraCertain,
   igraTrumpsOk,
   sansGuardedAfterIgra,
+  hasTrumpLength,
 } from './aiHandEval.js';
 import type { OtherIgra } from './aiHandEval.js';
 
@@ -72,6 +73,8 @@ const SUIT_FOR_GAME: Partial<Record<Game, Suit>> = {
 // Siguran prolaz (certainTricks, #12 ruka 5) ide pre svake procene stihova: Igra-Karo
 // sa A,K,D,J karo kad nosilac prvi igra, ne Igra-Pik sa A,10,9,8,7 pik.
 const CERTAIN_GAME_SCORE = 11; // vise od bilo kog broja stihova, manje od sigurnog Betla (100)
+// boja sa 3 karte (hasTrumpLength) samo kad nijedna druga igra nije dozvoljena, i tad pre nesigurnog Betla
+const SHORT_TRUMP_PENALTY = 50;
 
 /** Da li je neko drugi u ovoj ruci vec rekao "igra" (i da li on prvi baca kartu). */
 export function otherIgraOf(s: { bids: { player: Position; type: string }[]; bidStartPlayer: Position }, seat: Position): OtherIgra {
@@ -106,6 +109,7 @@ export function chooseDeclareGame(
       // posle "igra" ne bira se boja koju bi isto pravilo odbilo za sam poziv (igraTrumpsOk)
       if (g.startsWith('Igra-') && trump !== null && !certain && !igraTrumpsOk(hand, trump, declarerLeads)) continue;
       score = certain ? CERTAIN_GAME_SCORE : countDeclarerTricks(hand, trump);
+      if (trump !== null && !hasTrumpLength(hand, trump)) score -= SHORT_TRUMP_PENALTY;
     }
     // Izjednaceno: vrednija igra (korisnik u partiji #9, 2026-10-20: Herc pre
     // Kara, Tref pre Kara kod iste procene) — isti rizik, vise bula. Ranije

@@ -58,6 +58,7 @@ const SHELL_FILES = [
   '/engine/dist/aiLeads.js',
   '/engine/dist/aiDefenderFollow.js',
   '/engine/dist/aiBetl.js',
+  '/engine/dist/aiDeclarerPlay.js',
   '/engine/dist/claim.js',
 ];
 
