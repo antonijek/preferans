@@ -2052,6 +2052,11 @@
      .table-area morao da skroluje da se stigne do dugmadi za licitaciju.
      Manji sto/sedista/padding ovde oslobadjaju dovoljno prostora da SVE
      (bez skrolovanja) stane na tipican telefon-u-landscape-u ekran. */
+  /* korisnik 2026-10-29: ikonice su u meniju ☰ (game-menu.css), pa sto dobija oslobođeni prostor —
+     samo od 375px visine; na nižim (640x360) bi sto pokrio karte u ruci */
+  @media (max-height: 480px) and (min-height: 375px) {
+    body .table-felt { height: min(64vh, 330px); } /* body: jače od bloka ispod, koji dolazi kasnije */
+  }
   @media (max-height: 480px) {
     .table-felt { height: min(58vh, 300px); min-height: 130px; }
     .player-seat { padding: 2px 5px; min-width: 60px; }

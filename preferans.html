@@ -33,12 +33,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./theme.css?v=2">
-<link rel="stylesheet" href="./preferans.css?v=12">
+<link rel="stylesheet" href="./theme.css?v=3">
+<link rel="stylesheet" href="./preferans.css?v=13">
 <link rel="stylesheet" href="./league.css?v=1">
 <link rel="stylesheet" href="./dialog.css?v=1">
 <link rel="stylesheet" href="./avatar.css?v=1">
 <link rel="stylesheet" href="./feedback.css?v=3">
+<link rel="stylesheet" href="./game-menu.css?v=1">
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://preferans.igrajmo.online/#site","name":"Preferans online","alternateName":["Preferans uživo","Online preferans","Preferanc online"],"url":"https://preferans.igrajmo.online/","inLanguage":"sr"},{"@id":"https://preferans.igrajmo.online/#app","@type":"WebApplication","name":"Preferans online","alternateName":["Preferans uživo","Online preferans","Balkanski preferans"],"url":"https://preferans.igrajmo.online/","image":"https://preferans.igrajmo.online/icons/og-image.jpg","description":"Preferans online i preferans uživo — igraj balkanski preferans (preferanc) sa drugarima ili protiv AI-ja, besplatno u browseru, bez preuzimanja. Radi i bez registracije u lokalnom modu (protiv računara).","applicationCategory":"GameApplication","operatingSystem":"Any (web browser)","inLanguage":"sr","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"RSD"},"isPartOf":{"@id":"https://preferans.igrajmo.online/#site"},"about":{"@type":"Game","name":"Preferans","alternateName":["Preferanc","Balkanski preferans","Srpski preferans"],"numberOfPlayers":{"@type":"QuantitativeValue","value":3}}}]}</script>
 </head>
 <body>
@@ -74,25 +75,32 @@
         <button class="mode-btn danger" onclick="closeMatchMenu(); leaveMatch();">🏳️ Napusti svakako</button>
       </div>
     </div>
-    <button class="icon-btn" id="peekHomeBtn" onclick="peekHomeScreen()" style="display:none" title="Nazad na početnu (ostaješ za stolom)">🏠</button>
-    <!-- Korisnikov zahtev (2026-10-05): "kad igram protiv kompjutera nemam
-         dugme da izadjem u glavni meni" — lokalni mod (protiv racunara)
-         nema svoj ekvivalent peekHomeBtn-a (koji je samo za online), pa je
-         jedini nacin povratka na setupScreen bilo osvezavanje stranice.
-         Vidljivo SAMO u lokalnom modu (startGame()/backToSetup() upravljaju
-         display), isti icon-btn stil kao ostali. -->
-    <button class="icon-btn" id="localMenuBtn" onclick="backToSetup()" style="display:none" title="Nazad na glavni meni">🏠</button>
-    <button class="icon-btn" onclick="toggleScore()">📊</button>
-    <!-- Primedbe i pohvale (korisnikov zahtev 2026-10-28, feedback-ui.js). Online je samo u meniju 🏳️:
-         u traci je polozen telefon dobijao 3. red ikonica i manji sto (korisnik 2026-10-29 uvece),
-         feedback.css to skriva. -->
-    <button class="icon-btn" id="feedbackGameBtn" onclick="openFeedback()" title="Primedbe i pohvale">✉️</button>
-    <button class="icon-btn" id="soundToggleBtn" onclick="toggleSound()" title="Zvuk uklj/isklj">🔊</button>
-    <!-- Korisnikov zahtev (2026-09-26) — "da korisnik bira koje ce karte,
-         one od pre ili ove" — cuva se po korisniku (localStorage), samo
-         kozmetika, klijent-side. -->
-    <button class="icon-btn" id="cardStyleToggleBtn" onclick="toggleCardStyle()" title="Izgled karata (ilustrovane/tekstualne)">🎴</button>
-    <button class="icon-btn" onclick="restart()">🔄</button>
+    <!-- Korisnik 2026-10-29: na telefonu su ikonice u jednom meniju ☰ (game-menu.css), da sto dobije prostor;
+         na racunaru ostaju u traci. Natpisi u meniju su u data-label. -->
+    <div class="game-menu-wrap">
+      <button class="icon-btn" id="gameMenuBtn" onclick="toggleGameMenu()" title="Meni" aria-label="Meni">☰</button>
+      <div id="gameMenuItems" class="game-menu-items">
+      <button class="icon-btn" id="peekHomeBtn" data-label="Početna (ostaješ za stolom)" onclick="peekHomeScreen()" style="display:none" title="Nazad na početnu (ostaješ za stolom)">🏠</button>
+      <!-- Korisnikov zahtev (2026-10-05): "kad igram protiv kompjutera nemam
+           dugme da izadjem u glavni meni" — lokalni mod (protiv racunara)
+           nema svoj ekvivalent peekHomeBtn-a (koji je samo za online), pa je
+           jedini nacin povratka na setupScreen bilo osvezavanje stranice.
+           Vidljivo SAMO u lokalnom modu (startGame()/backToSetup() upravljaju
+           display), isti icon-btn stil kao ostali. -->
+      <button class="icon-btn" id="localMenuBtn" data-label="Glavni meni" onclick="backToSetup()" style="display:none" title="Nazad na glavni meni">🏠</button>
+      <button class="icon-btn" id="scoreToggleBtn" data-label="Rezultat" onclick="toggleScore()">📊</button>
+      <!-- Primedbe i pohvale (korisnikov zahtev 2026-10-28, feedback-ui.js). Online je samo u meniju 🏳️:
+           u traci je polozen telefon dobijao 3. red ikonica i manji sto (korisnik 2026-10-29 uvece),
+           feedback.css to skriva. -->
+      <button class="icon-btn" id="feedbackGameBtn" data-label="Primedbe i pohvale" onclick="openFeedback()" title="Primedbe i pohvale">✉️</button>
+      <button class="icon-btn" id="soundToggleBtn" data-label="Zvuk" onclick="toggleSound()" title="Zvuk uklj/isklj">🔊</button>
+      <!-- Korisnikov zahtev (2026-09-26) — "da korisnik bira koje ce karte,
+           one od pre ili ove" — cuva se po korisniku (localStorage), samo
+           kozmetika, klijent-side. -->
+      <button class="icon-btn" id="cardStyleToggleBtn" data-label="Izgled karata" onclick="toggleCardStyle()" title="Izgled karata (ilustrovane/tekstualne)">🎴</button>
+      <button class="icon-btn" id="restartBtn" data-label="Nova ruka" onclick="restart()">🔄</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -552,6 +560,6 @@
      je jedini NEPOBITAN nacin — to je BUKVALNO nov URL koji nijedan keš
      ikad nije video, ne postoji nacin da posluzi staru kopiju. UBUDUCE:
      bump-ovati ?v=N ovde pri SVAKOM deploy-u koji dira app.js. -->
-<script type="module" src="./app.js?v=40"></script>
+<script type="module" src="./app.js?v=41"></script>
 </body>
 </html>

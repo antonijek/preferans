@@ -26,4 +26,7 @@
   /* dobro / loše za igrača (supe na pločici, promena posle ruke) */
   --good: #a5d6a7;
   --bad: #ff8a80;
+  /* padajući meniji (🏳️ partija, ☰ igra) — iste boje kao .match-menu-panel */
+  --panel: #2c2013;
+  --panel-dark: #1a130b;
 }

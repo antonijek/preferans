@@ -1,0 +1,31 @@
+/* Meni igre na telefonu (korisnik 2026-10-29: „skloni ikonice odavde i proširi sto“).
+   Na telefonu su sve ikonice iz gornje trake u jednom meniju ☰ sa natpisima;
+   na računaru .game-menu-wrap i .game-menu-items „nestaju“ (display: contents),
+   pa su dugmad u traci kao i ranije. */
+.game-menu-wrap, .game-menu-items { display: contents; }
+#gameMenuBtn { display: none; }
+
+@media (max-width: 699px) and (orientation: portrait), (max-height: 480px) {
+  .game-menu-wrap { display: inline-block; position: relative; }
+  #gameMenuBtn { display: inline-block; }
+  .game-menu-items {
+    display: none; position: absolute; top: 100%; right: 0; margin-top: 6px; z-index: 300;
+    flex-direction: column; gap: 6px; min-width: 230px; padding: 8px;
+    background: linear-gradient(180deg, var(--panel) 0%, var(--panel-dark) 100%);
+    border: 1px solid rgba(var(--gold-rgb), 0.4); border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  }
+  .game-menu-items.open { display: flex; }
+  .game-menu-items .icon-btn {
+    display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px;
+    padding: 6px 12px; font-size: 1em; text-align: left; white-space: nowrap;
+  }
+  /* natpis iz data-label: tekst dugmeta (🔊/🔇) menja JS, pa natpis ne sme da bude u tekstu */
+  .game-menu-items .icon-btn::after { content: attr(data-label); font-size: 0.95em; }
+}
+
+/* položen telefon: traka je dole desno, pa se meni otvara nagore */
+@media (max-height: 480px) {
+  .game-menu-items { top: auto; bottom: 100%; margin: 0 0 6px; }
+  .top-actions .game-menu-items .icon-btn { min-width: 0; min-height: 38px; padding: 4px 10px; font-size: 0.95em; }
+}

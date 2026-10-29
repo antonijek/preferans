@@ -3839,6 +3839,18 @@ document.addEventListener('click', (e) => {
   if (wrap && !wrap.contains(e.target)) closeMatchMenu();
 });
 
+// Meni igre ☰ na telefonu (game-menu.css): zatvara se posle izbora stavke i na klik van njega.
+function toggleGameMenu() {
+  $('gameMenuItems').classList.toggle('open');
+}
+window.toggleGameMenu = toggleGameMenu;
+document.addEventListener('click', (e) => {
+  const items = $('gameMenuItems');
+  if (!items?.classList.contains('open')) return;
+  if (e.target.closest('#gameMenuBtn')) return;
+  if (items.contains(e.target) || !e.target.closest('.game-menu-wrap')) items.classList.remove('open');
+});
+
 function leaveMatch() {
   if (mode !== 'online' || !onlineSocket || mySeat === null) return;
   const myBula = game.state?.bulas?.[mySeat];
