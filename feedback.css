@@ -9,3 +9,6 @@
 .feedback-attach { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 0.85em; opacity: 0.85; }
 .feedback-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 .feedback-hint { font-size: 0.85em; opacity: 0.75; margin: 6px auto 0; max-width: 420px; text-align: center; }
+/* online je dugme u meniju partije (🏳️) — u traci bi telefon dobio treći red ikonica i manji sto
+   (korisnik 2026-10-29 uveče: "sve zbijeno, sto premali"), pa je fb56e99 vraćen */
+body.online-in-game #feedbackGameBtn { display: none; }
