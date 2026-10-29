@@ -9,5 +9,3 @@
 .feedback-attach { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 0.85em; opacity: 0.85; }
 .feedback-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 .feedback-hint { font-size: 0.85em; opacity: 0.75; margin: 6px auto 0; max-width: 420px; text-align: center; }
-/* online je dugme u meniju partije (🏳️) — traka na telefonu bi dobila treci red ikonica */
-body.online-in-game #feedbackGameBtn { display: none; }
