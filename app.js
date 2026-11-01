@@ -18,7 +18,7 @@ import { searchChoosePlayCard, searchChooseAction, applyLegalAction } from './en
 import { sfx } from './sfx.js';
 import { $, el, escapeHtml, IS_PHONE_UA } from './dom.js';
 import { initLeagueUi, goToLeagues, consumeLeagueLink, wantedLeagueCode } from './league-ui.js';
-import { copyLink } from './dialog.js';
+import { askConfirm, copyLink } from './dialog.js';
 import { watchSessionReplaced } from './session-replaced.js';
 import { shareResult } from './share.js';
 import { isRed, sortHand, cardImageSrc } from './card-order.js';
@@ -3163,6 +3163,9 @@ async function connectOnlineSocket() {
       $('roomScreen').classList.remove('active');
       $('setupScreen').classList.remove('active');
       $('leagueScreen').classList.remove('active');
+      // Soba vise ne sme da nudi „Čeka se još igrača / Popuni računarom“ za sto za kojim se vec igra (korisnik
+      // 2026-11-01: posle 🏠 je to stajalo u Sobi, a dugme je server odbijao — „ne radi“)
+      $('roomStatus').textContent = myRoomCode ? `🃏 Igraš za stolom ${myRoomCode}.` : '';
       $('chatToggleBtn').style.display = '';
       $('matchMenuBtn').style.display = '';
       $('peekHomeBtn').style.display = '';
@@ -3697,11 +3700,34 @@ window.fillWithBotsOnline = fillWithBotsOnline;
 
 // === ONLINE: sobe ===
 
+// Sedanje za drugi sto dok partija za starim traje (korisnik 2026-11-01): server odbije sa seatedIn, igrac bira
+// „Napusti i nastavi“ (isti zahtev ponovo, uz leaveCurrent) ili „Nazad za sto“. Posle uspeha stari sto vise nije
+// njegov (server ga je pustio, seatSwitch.ts), pa se i prikaz starog stola cisti.
+function emitSeating(event, payload, onDone) {
+  onlineSocket.emit(event, payload, async (res) => {
+    if (res?.seatedIn) {
+      const leave = await askConfirm({
+        title: `Već igraš za stolom ${res.seatedIn}`,
+        text: 'Da napustiš tu partiju i počneš novu? Sto sa računarom se zatvara, a za stolom sa ljudima '
+          + 'računar igra umesto tebe do kraja ruke.',
+        ok: 'Napusti i nastavi',
+        cancel: 'Nazad za sto',
+        danger: true,
+      });
+      if (leave) emitSeating(event, { ...payload, leaveCurrent: true }, onDone);
+      else { $('roomScreen').classList.remove('active'); backToTable(); }
+      return;
+    }
+    if (!res?.error && myRoomCode !== null) leaveTableUi();
+    onDone(res);
+  });
+}
+
 function createRoomOnline(withBots = false) {
   const initialBule = parseInt($('roomStartBula').value, 10);
   const refePerPlayer = parseInt($('roomRefeCount').value, 10);
   const turnSeconds = parseInt($('roomTurnSeconds')?.value ?? '30', 10);
-  onlineSocket.emit('room:create', { initialBule, refePerPlayer, withBots, turnSeconds }, (res) => {
+  emitSeating('room:create', { initialBule, refePerPlayer, withBots, turnSeconds }, (res) => {
     if (res.error) { $('roomError').textContent = res.error; return; }
     enterCreatedRoom(res);
   });
@@ -3722,7 +3748,7 @@ function enterCreatedRoom(res) {
 function joinRoomOnline() {
   const code = $('roomCodeInput').value.trim().toUpperCase();
   if (!code) { $('roomError').textContent = 'Unesi kod sobe.'; return; }
-  onlineSocket.emit('room:join', { code }, (res) => {
+  emitSeating('room:join', { code }, (res) => {
     if (res.error) { $('roomError').textContent = res.error; return; }
     mySeat = res.seat;
     myRoomCode = res.code;

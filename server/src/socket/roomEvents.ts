@@ -10,7 +10,7 @@ import {
   isAnyoneConnected,
   persistRoom,
 } from '../rooms/RoomManager.js';
-import { adminCloseRoom } from './roomAdmin.js';
+import { releaseOtherSeat, leaveRunningMatch } from './seatSwitch.js';
 import type { RoomState, ChatMessage } from '../rooms/RoomState.js';
 import { CHAT_LOG_LIMIT } from '../rooms/RoomState.js';
 import type { Position } from '../../../engine/dist/types.js';
@@ -115,6 +115,13 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
   function currentRoom(): RoomState | undefined {
     const loc = getUserLocation(userId);
     return loc ? getRoomByCode(loc.code) : undefined;
+  }
+
+  // pre sedanja za drugi sto ustani sa starog (seatSwitch.ts); partija u toku trazi potvrdu — klijent pita i salje ponovo
+  function releaseSeat(targetCode: string | null, leaveCurrent: boolean, ack?: Ack): boolean {
+    const released = releaseOtherSeat(userId, name, socket, targetCode, leaveCurrent);
+    if ('error' in released) ack?.(released);
+    return !('error' in released);
   }
 
   // M6 reconnect: if this user already has an active room (seat reserved
@@ -251,7 +258,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     ack?.({ ok: true });
   });
 
-  socket.on('room:create', (payload: { initialBule?: number; refePerPlayer?: number; withBots?: boolean; turnSeconds?: number; leagueId?: number }, ack?: Ack) => {
+  socket.on('room:create', (payload: { initialBule?: number; refePerPlayer?: number; withBots?: boolean; turnSeconds?: number; leagueId?: number; leaveCurrent?: boolean }, ack?: Ack) => {
     // Ligaska soba: podesavanja diktira liga, sedaju samo clanovi, bez racunara
     if (payload?.leagueId != null) {
       const league = getLeague(Number(payload.leagueId));
@@ -263,6 +270,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
         ack?.({ error: leagueStatus(league) === 'upcoming' ? 'Liga još nije počela.' : 'Liga je završena.' });
         return;
       }
+      if (!releaseSeat(null, payload.leaveCurrent === true, ack)) return;
       const room = createRoom({ initialBule: league.initial_bule, refePerPlayer: league.refe_per_player });
       room.turnSeconds = league.turn_seconds;
       room.leagueId = league.id;
@@ -283,6 +291,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     // dozvoli/ne stigne da klampuje na vreme.
     const refeMax = Math.max(1, Math.min(5, Math.round(initialBule / 50)));
     const refePerPlayer = clamp(Number(payload?.refePerPlayer), 0, refeMax, Math.min(2, refeMax));
+    if (!releaseSeat(null, payload?.leaveCurrent === true, ack)) return;
     const room = createRoom({ initialBule, refePerPlayer });
     // vreme za potez: samo ponudjene vrednosti, sve ostalo = 30 s
     const turnSeconds = Number(payload?.turnSeconds);
@@ -386,7 +395,7 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
     broadcastRoomState(room);
   });
 
-  socket.on('room:join', (payload: { code?: string }, ack?: Ack) => {
+  socket.on('room:join', (payload: { code?: string; leaveCurrent?: boolean }, ack?: Ack) => {
     const room = getRoomByCode(payload?.code ?? '');
     if (!room) {
       ack?.({ error: 'Room not found' });
@@ -403,6 +412,11 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
       ack?.({ error: `Ovo je ligaška partija (${room.leagueName ?? 'liga'}) — sedaju samo članovi lige. Možeš da gledaš.` });
       return;
     }
+    if (!room.seatUserIds.includes(userId) && !room.seatUserIds.includes(null)) {
+      ack?.({ error: 'Room is full' });
+      return;
+    }
+    if (!releaseSeat(room.code, payload?.leaveCurrent === true, ack)) return;
     const seat = joinAsPlayer(room, userId, socket, name);
     if (seat === null) {
       ack?.({ error: 'Room is full' });
@@ -685,44 +699,8 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
       ack?.({ error: 'Game has not started' });
       return;
     }
-    const seat = loc.seat;
-    // Poslednji covek napusta sto za kojim su ostali samo racunari — nema
-    // kome da se nastavi, sto se zatvara (partija sa racunarom ionako ne
-    // ide u rejting).
-    const humansLeft = ([0, 1, 2] as Position[]).filter(
-      (p) => p !== seat && p !== room.abandonedSeat && !room.botSeats.has(p) && room.seatUserIds[p] !== null
-    );
-    if (humansLeft.length === 0 && room.botSeats.size > 0) {
-      room.sockets[seat] = null;
-      socket.leave(room.code);
-      clearUserLocation(userId);
-      ack?.({ frozenBula: room.game.state.bulas[seat] });
-      adminCloseRoom(room, 'Svi igrači su napustili sto.');
-      return;
-    }
-    const frozenBula = room.game.state.bulas[seat];
-    room.frozenBula = frozenBula;
-    room.abandonedSeat = seat;
-    room.seatNames[seat] = `${room.seatNames[seat] ?? name} (napustio)`;
-    room.sockets[seat] = null;
-    socket.leave(room.code);
-    clearUserLocation(userId);
+    const frozenBula = leaveRunningMatch(room, loc.seat, userId, name, socket);
     ack?.({ frozenBula });
-
-    const message: ChatMessage = {
-      name: 'Sistem',
-      role: 'system',
-      seat: null,
-      text: `${name} je napustio partiju na buli ${frozenBula}. AI preuzima do kraja ove ruke.`,
-      ts: Date.now(),
-    };
-    room.chatLog.push(message);
-    if (room.chatLog.length > CHAT_LOG_LIMIT) {
-      room.chatLog.splice(0, room.chatLog.length - CHAT_LOG_LIMIT);
-    }
-    io.to(room.code).emit('chat:message', message);
-
-    broadcastRoomState(room);
   });
 
   // Uzivo prijavljen bag: zatvaranje MATCH_OVER ekrana je ranije SAMO
