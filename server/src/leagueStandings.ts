@@ -44,8 +44,8 @@ export interface StandingRow {
 }
 
 // Izjednaceni dele bodove mesta koja zajedno zauzimaju (npr. dvojica prva
-// kod 10-5-1 dobijaju po 7.5).
-function placePoints(scores: number[], points: [number, number, number]): number[] {
+// kod 10-5-1 dobijaju po 7.5). Koristi je i „Pref meseca“ (monthly.ts).
+export function placePoints(scores: number[], points: [number, number, number]): number[] {
   const order = [0, 1, 2].sort((a, b) => scores[a]! - scores[b]!);
   const out = [0, 0, 0];
   for (let i = 0; i < 3; ) {

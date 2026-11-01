@@ -14,6 +14,7 @@ import { resumeRoomTimers } from './socket/roomBroadcast.js';
 import { leaguesRouter } from './leagues.js';
 import { replayRouter } from './replay.js';
 import { statsRouter } from './stats.js';
+import { monthlyRouter } from './monthly.js';
 import { seoRouter } from './seo.js';
 import { initPush } from './push.js';
 import { isPublicPath } from './publicPaths.js';
@@ -96,6 +97,7 @@ async function main(): Promise<void> {
   app.use('/api/leagues', leaguesRouter);
   app.use('/api/replay', replayRouter);
   app.use('/api/stats', statsRouter);
+  app.use('/api/month', monthlyRouter);
   app.use('/api/avatar', avatarRouter);
 
   const httpServer = http.createServer(app);

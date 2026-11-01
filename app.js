@@ -27,6 +27,7 @@ import { showSeatDeltas, fadeSeatDeltas, clearSeatDeltas } from './seat-delta.js
 import { initAvatarUi, setMyAvatar, paintAvatar, firstLetter } from './avatar-ui.js';
 import { initFeedbackUi, handSnapshot } from './feedback-ui.js';
 import { claimIsCertain } from './engine/dist/claim.js';
+import { initMonthly } from './monthly.js';
 
 // Feature-flag za search-bazirani AI (Monte Carlo determinizacija, vidi
 // plan "toasty-rolling-sparkle") — localStorage prekidac radi trenutnog
@@ -3009,6 +3010,7 @@ async function connectOnlineSocket() {
       .then((r) => r.json())
       .then((data) => {
         if (!data.user) return;
+        onlineMyUserId = data.user.id;
         $('homeGreeting').textContent = `Zdravo, ${data.user.name}!`;
         setMyAvatar(data.user.avatar, data.user.name);
         $('homeAdminBtn').style.display = data.user.is_admin ? '' : 'none';
@@ -3365,12 +3367,16 @@ function logoutOnline() {
 // === ONLINE: lista otvorenih soba ===
 
 let roomListInterval = null;
+// „Pref meseca“ (monthly.js) se osvežava sa listom stolova, a sam čeka minut između dva upita
+let onlineMyUserId = null;
+const monthly = initMonthly({ myId: () => onlineMyUserId });
 
 function startRoomListPolling() {
   refreshRoomList();
   refreshOnlineUsers();
   if (roomListInterval) clearInterval(roomListInterval);
-  roomListInterval = setInterval(() => { refreshRoomList(); refreshOnlineUsers(); }, 4000);
+  monthly.refresh();
+  roomListInterval = setInterval(() => { refreshRoomList(); refreshOnlineUsers(); monthly.refresh(); }, 4000);
 }
 
 function stopRoomListPolling() {

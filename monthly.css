@@ -1,0 +1,52 @@
+/* „Pref meseca“ (monthly.js): mesečna tabela u Sobi, ispod „Napravi sobu / Pridruži se“.
+   Okvir je isti stakleni panel kao .room-panel; boje samo zlatna iz teme i providna bela kao ostatak Sobe. */
+.month-box { margin-top: 18px; gap: 10px; text-align: left; }
+.month-box[hidden] { display: none; }
+.month-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 8px; }
+/* manji od ostalih naslova Sobe i bez zlatne crtice — da „Pref meseca · novembar“ stane u red i na telefonu */
+.month-head .section-title { margin: 0; padding: 0; font-size: 1.15em; text-align: left; color: var(--gold-bright); }
+.month-head .section-title::after { display: none; }
+.month-left { color: rgba(255,255,255,0.6); font-size: .85rem; white-space: nowrap; }
+.month-crown {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px;
+  background: linear-gradient(90deg, rgba(var(--gold-rgb), .28), rgba(var(--gold-rgb), .08));
+  border: 1px solid rgba(var(--gold-rgb), .55);
+}
+.month-crown-ic { font-size: 1.5rem; }
+.month-crown small { display: block; color: rgba(255,255,255,0.65); font-size: .78rem; }
+.month-crown b { color: var(--gold-bright); }
+.month-crown-avg { display: block; margin-top: 3px; font-size: .85rem; font-weight: 700; }
+
+.month-seg {
+  align-self: flex-start; display: inline-flex; padding: 3px; gap: 3px; border-radius: 999px;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+}
+#roomScreen .month-seg button {
+  flex: none; width: auto; min-width: 0; margin: 0; padding: 6px 16px; border-radius: 999px; border: none; cursor: pointer;
+  background: transparent; color: rgba(255,255,255,0.75); font: inherit; font-weight: 700; font-size: .9rem;
+}
+#roomScreen .month-seg button.on { background: var(--gold); color: var(--panel-dark); }
+
+.month-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-variant-numeric: tabular-nums; }
+.month-table th { color: rgba(255,255,255,0.6); font-size: .74rem; font-weight: 600; text-align: right; padding: 0 6px 4px; }
+.month-table th:nth-child(1) { width: 36px; text-align: center; }
+.month-table th:nth-child(2) { text-align: left; }
+.month-table th:nth-child(3), .month-table th:nth-child(4) { width: 64px; }
+.month-table td { padding: 7px 6px; text-align: right; }
+.month-table tbody tr { border-top: 1px solid rgba(255,255,255,0.08); }
+.month-table td:nth-child(1) { text-align: center; }
+.month-table td.nm { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.month-table td:last-child { font-weight: 800; }
+.month-table td.month-empty { text-align: center; color: rgba(255,255,255,0.6); font-size: .9rem; font-weight: 400; }
+.month-table tr.mine td { background: rgba(var(--gold-rgb), .18); }
+/* prosek: igrači bez dovoljno mečeva — ispod, sivo, bez mesta */
+.month-table tr.short td { color: rgba(255,255,255,0.5); }
+.month-table tr.short td:last-child { font-weight: 600; }
+.month-no-rank { color: rgba(255,255,255,0.5); }
+.month-rank {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px; height: 24px; border-radius: 50%; font-weight: 800; font-size: .85rem;
+}
+.month-rank.r1, .month-rank.r2, .month-rank.r3 { background: rgba(var(--gold-rgb), .35); color: var(--gold-bright); }
+.month-rank.r1 { background: var(--gold); color: var(--panel-dark); }
+.month-note { color: rgba(255,255,255,0.6); font-size: .8rem; margin: 0; }
