@@ -20,7 +20,10 @@ import {
 } from './aiLeads.js';
 import { activePlayerCount, nextActivePlayer } from './turnOrder.js';
 import { followAfterPartner, withoutKingGuards, discardFromDeclarerVoid } from './aiDefenderFollow.js';
-import { declarerDrawnChoices, declarerRuffedFourChoices } from './aiDeclarerPlay.js';
+import {
+  declarerDrawnChoices, declarerRuffedFourChoices, declarerCoveredTrumps, declarerBareTopTrump, declarerAceOnce,
+  withoutLowTrumpLead,
+} from './aiDeclarerPlay.js';
 import { chooseKontra, chooseFollow, chooseCallOrAlone } from './aiFollowKontra.js';
 import { chooseDeclareGame, chooseBidAction, igraAllowed, otherIgraOf } from './aiBidding.js';
 import { STANDARD_GAMES, IGRA_GAMES } from './constants.js';
@@ -340,11 +343,17 @@ function declarerPlayFilter(state: GameState, seat: Position, legal: Card[]): Ca
   const ctx: LeadContext = {
     legal, hand: state.players[seat]!.hand, trump: state.trump, myPosition: seat, declarer: seat, tricks: state.tricks,
   };
-  const choices = declarerDrawnChoices(ctx) ?? declarerRuffedFourChoices(ctx);
+  const drawn = declarerDrawnChoices(ctx) ?? declarerAceOnce(ctx);
+  if (drawn) return drawn;
+  // Partija #19 ("As jednom" je obavezan, gore): adut koji pravila sad traze (pokriveni aduti, suv as) ne sme da zabrani "sporedna boja posle
+  // secenja" — pretraga tu bira slobodno, a pravilo dobija prednost. Manji adut uz najjaci se ne vodi nikad.
+  const trumpNow = declarerCoveredTrumps(ctx) ?? declarerBareTopTrump(ctx);
+  const choices = trumpNow ? null : declarerRuffedFourChoices(ctx);
   if (choices) return choices;
-  if (weakTrumpLeadAllowed(ctx)) return legal;
-  const side = legal.filter((c) => c.suit !== state.trump);
-  return side.length > 0 ? side : legal;
+  const allowed = withoutLowTrumpLead(ctx);
+  if (weakTrumpLeadAllowed(ctx)) return allowed;
+  const side = allowed.filter((c) => c.suit !== state.trump);
+  return side.length > 0 ? side : allowed;
 }
 
 /**

@@ -3,7 +3,7 @@
 
 import { RANK_VALUE } from './constants.js';
 import type { Card, Position, Suit } from './types.js';
-import { cardsIn, isMaster, unseenRanks, voidsOf } from './aiLeads.js';
+import { cardsIn, isMaster, isTenace, unseenRanks, voidsOf } from './aiLeads.js';
 import type { LeadContext } from './aiLeads.js';
 
 const SUITS: Suit[] = ['♠', '♥', '♦', '♣'];
@@ -17,6 +17,62 @@ export function defendersOutOfTrumps(ctx: LeadContext): boolean {
   // pratilac koji ne igra (rekao je "ne dodjem") ne baca karte, pa se ne broji
   const defenders = new Set<Position>(ctx.tricks.flat().map((p) => p.player).filter((p) => p !== ctx.declarer));
   return defenders.size > 0 && [...defenders].every((p) => voidsOf(ctx, p).has(trump));
+}
+
+/** Moji aduti koji su jaci od svih tudjih. */
+const masterTrumps = (ctx: LeadContext): Card[] => (ctx.trump ? cardsIn(ctx.legal, ctx.trump).filter((c) => isMaster(ctx, c)) : []);
+
+/**
+ * Makaze (A,D bez K i bez J, a K je napolju): nosilac ih ne otvara sam, ceka da pratilac dodje u njih (korisnik
+ * 2026-11-01, #19 ruka 7: "otvara makaze As i D herca umesto karo"). A,D,J,10 nisu makaze — #18: "odmah pik" sa A,D,J,10.
+ */
+export function isOpenTenace(ctx: LeadContext, cards: Card[]): boolean {
+  const has = (r: string) => cards.some((c) => c.rank === r);
+  return isTenace(cards) && !has('J') && unseenRanks(ctx, cards[0]!.suit).includes('K');
+}
+
+/**
+ * Svi aduti koji su jos napolju slabiji su od mojih najjacih, a najjacih imam bar toliko: uzimam ih odmah
+ * (korisnik 2026-11-01, #19 ruka 5: Milan A,K herc protiv 10 i 7 — "zasto ne igra 2 puta adut"). Vazi i kad
+ * je igra vec izgubljena; "kad vidis da je ostao jedan adut a ti mozes da ga uzmes, naravno da ces igrati adut".
+ */
+export function declarerCoveredTrumps(ctx: LeadContext): Card[] | null {
+  if (!ctx.trump) return null;
+  const out = unseenRanks(ctx, ctx.trump).length;
+  const top = masterTrumps(ctx);
+  return out > 0 && top.length >= out ? top : null;
+}
+
+/** Ostao mi je samo jedan adut i on je najjaci (suv as), a pratioci jos imaju adute: igram ga odmah (#19 ruka 7). */
+export function declarerBareTopTrump(ctx: LeadContext): Card[] | null {
+  if (!ctx.trump) return null;
+  const trumps = cardsIn(ctx.legal, ctx.trump);
+  return trumps.length === 1 && isMaster(ctx, trumps[0]!) && unseenRanks(ctx, ctx.trump).length > 0 ? trumps : null;
+}
+
+/**
+ * Nosilac sa A i K u adutu (bar 4 aduta), dama je napolju, a adut jos nije vodio: prvi put vodi As (korisnik
+ * 2026-11-01, #19 ruka 5, Milan A,K,J,8 herc: "As jednom, ne treba vise"; i kad je simulacija vise volela pik —
+ * "Asem"). Posle toga odlucuju ostala pravila i pretraga.
+ */
+export function declarerAceOnce(ctx: LeadContext): Card[] | null {
+  const trump = ctx.trump;
+  if (!trump) return null;
+  const trumps = cardsIn(ctx.legal, trump);
+  const has = (r: string) => trumps.some((c) => c.rank === r);
+  const ledTrump = ctx.tricks.some((t) => t[0]?.player === ctx.myPosition && t[0].card.suit === trump);
+  if (ledTrump || originalTrumps(ctx).length < 4 || !has('A') || !has('K')) return null;
+  return unseenRanks(ctx, trump).includes('Q') ? trumps.filter((c) => c.rank === 'A') : null;
+}
+
+/**
+ * Nosilac koji vodi adutom, a ima najjaci preostali adut, ne vodi manji (korisnik 2026-11-01, #19 ruka 5: Milan sa
+ * A,K,J,8 herc vodio J, a dama je bila kod Antonija koji igra poslednji — "As jednom"). Za stolom nema saveznika,
+ * pa manji adut samo daruje stih tudjoj jacoj karti. Vraca karte koje pretraga sme da razmatra.
+ */
+export function withoutLowTrumpLead(ctx: LeadContext): Card[] {
+  if (masterTrumps(ctx).length === 0) return ctx.legal;
+  return ctx.legal.filter((c) => c.suit !== ctx.trump || isMaster(ctx, c));
 }
 
 /** Koliko jos puta gubim ruku u boji (tudje karte jace od mojih gubitnika), a posle toga mi treba ulaz. */
@@ -81,11 +137,21 @@ export function declarerRuffedFourChoices(ctx: LeadContext): Card[] | null {
   if (defendersOutOfTrumps(ctx)) return null;
   const masters = (cards: Card[]) => cards.filter((c) => isMaster(ctx, c)).length;
   const suits = SUITS.filter((s) => s !== trump).map((s) => cardsIn(ctx.legal, s)).filter((c) => c.length > 0);
-  const best = suits.sort((a, b) => b.length - a.length || masters(b) - masters(a) || desc(a[0]!, b[0]!))[0];
+  // makaze ne otvara ako ima drugu boju (#19 ruka 7: "umesto karo")
+  const tenace = (cards: Card[]) => Number(isOpenTenace(ctx, cards));
+  const best = suits.sort(
+    (a, b) => tenace(a) - tenace(b) || b.length - a.length || masters(b) - masters(a) || desc(a[0]!, b[0]!)
+  )[0];
   return best ?? null;
 }
 
-/** Karta nosioca po pravilima iz partije #18, ili null kad ona ne odlucuju. */
+/**
+ * Karta nosioca po pravilima iz partija #18 i #19, ili null kad ona ne odlucuju. Adut koji se sad uzima (pokriveni
+ * aduti, suv as, "As jednom") ide pre "sporedne boje posle secenja" — ono vazi dok pratioci imaju adute koje nosilac ne moze da uzme.
+ */
 export function declarerRulesLead(ctx: LeadContext): Card | null {
-  return (declarerDrawnChoices(ctx) ?? declarerRuffedFourChoices(ctx))?.[0] ?? null;
+  const choices =
+    declarerDrawnChoices(ctx) ?? declarerCoveredTrumps(ctx) ?? declarerBareTopTrump(ctx) ?? declarerAceOnce(ctx)
+    ?? declarerRuffedFourChoices(ctx);
+  return choices?.[0] ?? null;
 }

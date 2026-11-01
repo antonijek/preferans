@@ -143,7 +143,7 @@ function topSequenceLead(ctx: LeadContext, suits: Card[][]): Card | null {
 
 // As,D bez K ("makaze") se ne otvara osim sa 5+ karata — korisnik 2026-10-24:
 // "ako nosilac odigra bilo koju kartu makaze uzimaju 2 stiha".
-const isTenace = (cards: Card[]) =>
+export const isTenace = (cards: Card[]) =>
   cards.length < 5 && cards.some((c) => c.rank === 'A') && cards.some((c) => c.rank === 'Q') && !cards.some((c) => c.rank === 'K');
 
 /**
@@ -282,15 +282,26 @@ export function declarerKingQueenLead(ctx: LeadContext): Card | null {
 
 // Boja koju niko drugi vise nema se NE preskace (bilo je tako od 2026-10-20): #18 ruka 25 Bora je
 // zbog toga odigrao D herc umesto A i K karo i pao — "MORA prvo da prodje, to je najvaznije".
+// Makaze (A,D bez K i J, K napolju) se otvaraju tek kad druge boje sa sigurnom kartom nema (korisnik 2026-11-01,
+// #19 ruka 7: "otvara makaze As i D herca umesto karo").
 export function declarerLead(ctx: LeadContext): Card | null {
   if (!ctx.trump) return null;
   const risky = riskySuits(ctx);
+  const openTenace = (s: Suit) => {
+    const cards = cardsIn(ctx.legal, s);
+    return isTenace(cards) && !cards.some((c) => c.rank === 'J') && unseenRanks(ctx, s).includes('K');
+  };
   let best: Card[] | null = null;
+  let bestTenace = true;
   for (const s of SUITS) {
     if (s === ctx.trump || risky.has(s)) continue;
     const m = masters(ctx, s);
     if (m.length === 0) continue;
-    if (!best || m.length > best.length) best = m;
+    const t = openTenace(s);
+    if (!best || (bestTenace && !t) || (bestTenace === t && m.length > best.length)) {
+      best = m;
+      bestTenace = t;
+    }
   }
   return best ? best[0]! : null;
 }

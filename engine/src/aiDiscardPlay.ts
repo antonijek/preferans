@@ -511,7 +511,7 @@ export function choosePlayCard(args: {
       return sameSuit.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
     }
 
-    if (isTrumpHighest) {
+    if (isTrumpHighest && leadSuit !== trump) {
       // Adut je vođa — moram adutom ako imam
       const myTrumps = sameSuit.filter(c => c.suit === trump);
       if (myTrumps.length > 0) {
