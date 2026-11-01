@@ -3621,6 +3621,8 @@ function renderWaitingStatus(code, lead) {
     `<div class="waiting-note">Čeka se još igrača… Pozovi prijatelje ili ne čekaj:</div>` +
     `<div class="waiting-league-note">🏆 Ligaška partija — čeka se još članova lige (računar ne igra).</div>` +
     `<button class="mode-btn fill-bots-btn" onclick="fillWithBotsOnline()">🤖 Popuni računarom i počni</button>` +
+    // odbijeno dugme pise razlog odmah ispod (roomError je na telefonu daleko dole, van ekrana)
+    `<div class="field-error" id="fillBotsError"></div>` +
     `<button class="link-btn notify-wait-btn" style="display:${pushState === 'off' ? '' : 'none'}" onclick="enablePlayerPush()">🔔 Javi mi na telefon kad sto bude pun</button>`;
 }
 
@@ -3688,7 +3690,7 @@ function markTurnInTitle(state) {
 
 function fillWithBotsOnline() {
   onlineSocket?.emit('room:fillWithBots', {}, (res) => {
-    if (res?.error) $('roomError').textContent = res.error;
+    if (res?.error) $('fillBotsError').textContent = res.error;
   });
 }
 window.fillWithBotsOnline = fillWithBotsOnline;

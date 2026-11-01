@@ -38,7 +38,7 @@
 <link rel="stylesheet" href="./league.css?v=1">
 <link rel="stylesheet" href="./dialog.css?v=1">
 <link rel="stylesheet" href="./avatar.css?v=1">
-<link rel="stylesheet" href="./feedback.css?v=3">
+<link rel="stylesheet" href="./feedback.css?v=4">
 <link rel="stylesheet" href="./game-menu.css?v=1">
 <link rel="stylesheet" href="./monthly.css?v=1">
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://preferans.igrajmo.online/#site","name":"Preferans online","alternateName":["Preferans uživo","Online preferans","Preferanc online"],"url":"https://preferans.igrajmo.online/","inLanguage":"sr"},{"@id":"https://preferans.igrajmo.online/#app","@type":"WebApplication","name":"Preferans online","alternateName":["Preferans uživo","Online preferans","Balkanski preferans"],"url":"https://preferans.igrajmo.online/","image":"https://preferans.igrajmo.online/icons/og-image.jpg","description":"Preferans online i preferans uživo — igraj balkanski preferans (preferanc) sa drugarima ili protiv AI-ja, besplatno u browseru, bez preuzimanja. Radi i bez registracije u lokalnom modu (protiv računara).","applicationCategory":"GameApplication","operatingSystem":"Any (web browser)","inLanguage":"sr","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"RSD"},"isPartOf":{"@id":"https://preferans.igrajmo.online/#site"},"about":{"@type":"Game","name":"Preferans","alternateName":["Preferanc","Balkanski preferans","Srpski preferans"],"numberOfPlayers":{"@type":"QuantitativeValue","value":3}}}]}</script>
@@ -71,7 +71,6 @@
     <div class="match-menu-wrap">
       <button class="icon-btn" id="matchMenuBtn" onclick="toggleMatchMenu()" style="display:none" title="Opcije partije">🏳️</button>
       <div id="matchMenuPanel" class="match-menu-panel" style="display:none">
-        <button class="mode-btn" onclick="closeMatchMenu(); openFeedback();">✉️ Primedbe i pohvale</button>
         <button class="mode-btn" onclick="closeMatchMenu(); proposeEndMatch();">🤝 Predloži prekid partije</button>
         <button class="mode-btn danger" onclick="closeMatchMenu(); leaveMatch();">🏳️ Napusti svakako</button>
       </div>
@@ -90,9 +89,8 @@
            display), isti icon-btn stil kao ostali. -->
       <button class="icon-btn" id="localMenuBtn" data-label="Glavni meni" onclick="backToSetup()" style="display:none" title="Nazad na glavni meni">🏠</button>
       <button class="icon-btn" id="scoreToggleBtn" data-label="Rezultat" onclick="toggleScore()">📊</button>
-      <!-- Primedbe i pohvale (korisnikov zahtev 2026-10-28, feedback-ui.js). Online je samo u meniju 🏳️:
-           u traci je polozen telefon dobijao 3. red ikonica i manji sto (korisnik 2026-10-29 uvece),
-           feedback.css to skriva. -->
+      <!-- Primedbe i pohvale (korisnikov zahtev 2026-10-28, feedback-ui.js) — i online, isto kao protiv racunara:
+           na telefonu red u meniju ☰, na racunaru ikonica (korisnik 2026-11-01: u meniju 🏳️ ga niko ne bi trazio). -->
       <button class="icon-btn" id="feedbackGameBtn" data-label="Primedbe i pohvale" onclick="openFeedback()" title="Primedbe i pohvale">✉️</button>
       <button class="icon-btn" id="soundToggleBtn" data-label="Zvuk" onclick="toggleSound()" title="Zvuk uklj/isklj">🔊</button>
       <!-- Korisnikov zahtev (2026-09-26) — "da korisnik bira koje ce karte,
@@ -471,6 +469,7 @@
     <button class="mode-btn" onclick="toggleLockOnline()">🔒 Zaključaj/otključaj sobu</button>
     <button class="mode-btn" onclick="goToHomeScreen()">← Nazad</button>
     <button class="mode-btn" onclick="logoutOnline()">Odjavi se</button>
+    <button class="mode-btn" id="feedbackBtnRoom" onclick="openFeedback()">✉️ Primedbe i pohvale</button>
   </section>
   </div>
 </div>
@@ -564,6 +563,6 @@
      je jedini NEPOBITAN nacin — to je BUKVALNO nov URL koji nijedan keš
      ikad nije video, ne postoji nacin da posluzi staru kopiju. UBUDUCE:
      bump-ovati ?v=N ovde pri SVAKOM deploy-u koji dira app.js. -->
-<script type="module" src="./app.js?v=42"></script>
+<script type="module" src="./app.js?v=43"></script>
 </body>
 </html>
