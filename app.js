@@ -1726,10 +1726,10 @@ function renderFollowing() {
     const isHumanTurn = isHuman(undecided);
     if (isHumanTurn) {
       ctrl.appendChild(el('div', 'section-label', mode === '3human' ? `POTEZ: ${POS_LABELS[undecided]}` : 'TVOJ POTEZ'));
-      const dodjem = el('button', 'bid-btn primary', 'Dodjem');
+      const dodjem = el('button', 'bid-btn primary', 'Dođem');
       dodjem.onclick = (e) => { logTrustedAction('userFollow DODJEM', e); game.follow(undecided, 'DODJEM'); render(); };
       ctrl.appendChild(dodjem);
-      const ne = el('button', 'bid-btn danger', 'Ne dodjem');
+      const ne = el('button', 'bid-btn danger', 'Ne dođem');
       ne.onclick = (e) => { logTrustedAction('userFollow NE_DODJEM', e); game.follow(undecided, 'NE_DODJEM'); render(); };
       ctrl.appendChild(ne);
     } else if (mode === 'online') {
