@@ -14,19 +14,18 @@ import { estimatedMaxLevel } from './aiHandEval.js';
 import { choosePlayCard } from './aiDiscardPlay.js';
 import { betlPlay } from './aiBetl.js';
 import {
-  sansDefenderLead, partnerSuitLead, defenderSuitLead, defenderTrumpPull, waitsForDeclarer, weakTrumpLeadAllowed,
-  continueAceSuit, attackDeclarerRuff,
+  sansDefenderLead, defenderTrumpGameLead, waitsForDeclarer, weakTrumpLeadAllowed,
   type LeadContext,
 } from './aiLeads.js';
 import { activePlayerCount, nextActivePlayer } from './turnOrder.js';
-import { followAfterPartner, withoutKingGuards, discardFromDeclarerVoid } from './aiDefenderFollow.js';
+import { followAfterPartner, secondHandLow, withoutKingGuards, discardFromDeclarerVoid } from './aiDefenderFollow.js';
 import {
   declarerDrawnChoices, declarerRuffedFourChoices, declarerCoveredTrumps, declarerBareTopTrump, declarerAceOnce,
   withoutLowTrumpLead,
 } from './aiDeclarerPlay.js';
 import { chooseKontra, chooseFollow, chooseCallOrAlone } from './aiFollowKontra.js';
 import { chooseDeclareGame, chooseBidAction, igraAllowed, otherIgraOf } from './aiBidding.js';
-import { STANDARD_GAMES, IGRA_GAMES } from './constants.js';
+import { STANDARD_GAMES, IGRA_GAMES, RANK_VALUE } from './constants.js';
 import type { Card, GameState, LegalAction, Position, Suit } from './types.js';
 
 export type Rng = () => number;
@@ -305,12 +304,15 @@ function defenderPlayFilter(state: GameState, seat: Position, legal: Card[]): Ca
       partnerKontra: state.kontraPlayer === partner,
     };
     if (state.trump) {
-      const lead = defenderTrumpPull(ctx) ?? continueAceSuit(ctx) ?? partnerSuitLead(ctx) ?? attackDeclarerRuff(ctx)
-        ?? defenderSuitLead(ctx);
+      const lead = defenderTrumpGameLead(ctx);
       if (lead) return [lead];
       const sideSuits = legal.filter((c) => c.suit !== state.trump);
       const open = sideSuits.filter((c) => !waitsForDeclarer(sideSuits.filter((x) => x.suit === c.suit)));
-      return open.length > 0 ? open : keep(sideSuits);
+      const pool = open.length > 0 ? open : keep(sideSuits);
+      // Udvoje nema partnera da uzme stih, pa se iz boje vodi najjaca karta (korisnik 2026-11-02, #21 ruka 36:
+      // Milan 9 pik iz D,J,9 — "uvek najjacu, ovde D pik, ne malu").
+      if (!ctx.twoHanded) return pool;
+      return pool.filter((c) => !pool.some((x) => x.suit === c.suit && RANK_VALUE[x.rank]! > RANK_VALUE[c.rank]!));
     }
     if (state.declaredGame === 'Sans' || state.declaredGame === 'Igra-Sans') {
       const lead = sansDefenderLead(ctx);
@@ -321,9 +323,10 @@ function defenderPlayFilter(state: GameState, seat: Position, legal: Card[]): Ca
   const led = state.currentTrick[0]!.card.suit;
   const hand = state.players[seat]!.hand;
   if (legal.some((c) => c.suit === led)) {
-    const pick = followAfterPartner({
+    const followCtx = {
       hand, legal, currentTrick: state.currentTrick, trump: state.trump, declarer: state.winner!, tricks: state.tricks,
-    });
+    };
+    const pick = secondHandLow(followCtx, activePlayerCount(state) === 3) ?? followAfterPartner(followCtx);
     return pick ? [pick] : legal;
   }
   const discards = legal.filter((c) => c.suit === state.trump || (c.rank !== 'A' && c.rank !== 'K'));

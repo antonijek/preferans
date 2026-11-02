@@ -93,6 +93,8 @@ function reentries(ctx: LeadContext, losers: Card[]): number {
  * pita na kraju"). Poslednji adut se cuva dok ima vise od 2 karte (i onoliko aduta koliko puta ce jos
  * dati ruku u svojoj boji — #11 ruka 12, "5 puta adut, pa pik, pa kad posecem, opet pik"). Sigurne
  * karte idu pre gubitnika i zato sto je prolaz najvazniji (#25: A i K karo pre D herc).
+ * Korisnik 2026-11-02 (#21 ruka 17, Bora sa 8 herc i A,D tref: "adut pa tref, mozda skarta tref i ostavi K
+ * samog"): sa jednim gubitnikom adut se ne cuva, gubitnik ide poslednji.
  * Vraca karte koje pravilo dozvoljava, najbolja prva (pretraga bira samo medju njima).
  */
 export function declarerDrawnChoices(ctx: LeadContext): Card[] | null {
@@ -101,7 +103,7 @@ export function declarerDrawnChoices(ctx: LeadContext): Card[] | null {
   const trumps = cardsIn(ctx.legal, trump);
   const side = ctx.legal.filter((c) => c.suit !== trump);
   const losers = side.filter((c) => !isMaster(ctx, c));
-  const keep = losers.length > 0 && ctx.hand.length > 2 ? Math.max(1, reentries(ctx, losers)) : 0;
+  const keep = losers.length > 1 && ctx.hand.length > 2 ? Math.max(1, reentries(ctx, losers)) : 0;
   if (trumps.length > keep) return trumps;
   // prvo boje u kojima su mi sve karte sigurne, pa as boje u kojoj imam i gubitnike
   const pure = (c: Card) => !losers.some((l) => l.suit === c.suit);

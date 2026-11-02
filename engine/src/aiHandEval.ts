@@ -395,8 +395,9 @@ export function trumpOnlySafeTricks(hand: Card[], trump: Suit | null): number {
   if (trumpA && trumpK) return trumpLength;
   // Go As (bez Kralja) — isti "manje aduta kod njih sa duzom bojom" mehanizam
   // vazi za koga god drzi karte (vidi countDeclarerTricks): kratka duzina
-  // (<=3) daje samo 1, duzina 4+ daje duzinu-1.
-  if (trumpA) return trumpLength <= 3 ? 1 : trumpLength - 1;
+  // (<=3) daje samo 1, duzina 4+ daje duzinu-1. A,D su 2 sigurna stiha (korisnik 2026-11-02,
+  // #21 ruka 9: Milan sa A,D tref nije dosao — "2 sigurna").
+  if (trumpA) return trumpLength <= 3 ? (trumpD ? 2 : 1) : trumpLength - 1;
   // Bez asa: niz od kralja (K, K,D, K,D,J) nosi onoliko stihova koliko ima
   // karata u nizu, ako ima i malu da je baci na asa — K,D,10 = 2 (korisnik
   // 2026-10-21: "moram doci, imam 2 sigurna adutska stiha"), K,D = 1, K,x = 1.
@@ -470,12 +471,15 @@ export function countSafeTricks(hand: Card[], trump: Suit | null): number {
 
 // Dolazak u adutskoj igri (korisnik 2026-10-24): "na 2 rezona ne dolazis
 // osim ako u oba imas po 2 stiha", inace treba 3 rezona. Sa 2,5 rezona se dolazi kad je jedan od
-// njih adutski K treci (2026-10-27, #18 ruka 23, Bora tref K,10,8 i herc K,9,7 uz singl karo).
+// njih adutski K treci (2026-10-27, #18 ruka 23, Bora tref K,10,8 i herc K,9,7 uz singl karo), ili J,10 treci
+// (2026-11-02, #21 ruka 11, Milan 2 asa i karo J,10,8 uz singl tref: "na granici, ali ja bih dosao"; sa J,9,7
+// tref je 2026-10-21 rekao "na granici", ne dolazi).
 export function defenderComes(hand: Card[], trump: Suit | null): boolean {
   const { rezoni, doubles } = defenderCount(hand, trump);
   const trumps = hand.filter((c) => c.suit === trump);
-  const kingThird = trumps.length >= 3 && trumps.some((c) => c.rank === 'K');
-  return rezoni >= 3 || doubles >= 2 || (rezoni >= 2.5 && kingThird);
+  const has = (r: string) => trumps.some((c) => c.rank === r);
+  const third = trumps.length >= 3 && (has('K') || (has('J') && has('10')));
+  return rezoni >= 3 || doubles >= 2 || (rezoni >= 2.5 && third);
 }
 
 // Helper: izvlaci adut boju iz igre

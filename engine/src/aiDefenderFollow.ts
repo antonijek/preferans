@@ -67,6 +67,21 @@ export function followAfterPartner(ctx: DefenderFollowContext): Card | null {
 }
 
 /**
+ * Drugi sam na redu posle nosioca, a posle mene igra partner: na malu kartu nosioca u sporednoj boji ne
+ * stavljam asa iz A,x (korisnik 2026-11-02, #21 ruka 7: Bora A tref na 9 tref Milana, pa je pala i
+ * Antonijeva D — "igra je pik, nosilac verovatno ima jos trefova, a 9 je verovatno dovoljno jaka").
+ */
+export function secondHandLow(ctx: DefenderFollowContext, partnerAfter: boolean): Card | null {
+  if (!partnerAfter || !ctx.trump || ctx.currentTrick.length !== 1) return null;
+  const lead = ctx.currentTrick[0]!;
+  if (lead.player !== ctx.declarer || lead.card.suit === ctx.trump) return null;
+  if (RANK_VALUE[lead.card.rank] >= RANK_VALUE['J']) return null;
+  const mine = ctx.legal.filter((c) => c.suit === lead.card.suit).sort(asc);
+  const has = (r: string) => mine.some((c) => c.rank === r);
+  return mine.length >= 2 && has('A') && !has('K') ? mine[0]! : null;
+}
+
+/**
  * Skart pratioca bez karte koja ostavlja kralja samog (K i jos jedna karta),
  * dok ima druge — korisnik: "mala uz K,J cuva kralja" (#13 ruka 32), a u #14
  * (ruka 16) Bora je bacio 10 herc pa 7 pik i izgubio oba kralja ("morao je

@@ -173,8 +173,29 @@ export function defenderSuitLead(ctx: LeadContext): Card | null {
 export function continueAceSuit(ctx: LeadContext): Card | null {
   if (!ctx.trump) return null;
   const lead = ctx.tricks[ctx.tricks.length - 1]?.[0];
-  if (!lead || lead.player !== ctx.myPosition || lead.card.rank !== 'A' || lead.card.suit === ctx.trump) return null;
-  return masters(ctx, lead.card.suit)[0] ?? null;
+  if (!lead || lead.player !== ctx.myPosition || lead.card.suit === ctx.trump) return null;
+  if (lead.card.rank === 'A') return masters(ctx, lead.card.suit)[0] ?? null;
+  // U igri udvoje i posle K koji je uzeo stih nastavljam boju najjacom kartom (korisnik 2026-11-02, #21
+  // ruka 36: Milan posle K herc otvorio 9 pik — "umesto da nastavi herc", pa nosilac mora da sece).
+  if (lead.card.rank !== 'K' || !ctx.twoHanded) return null;
+  return cardsIn(ctx.legal, lead.card.suit)[0] ?? null;
+}
+
+/**
+ * Poslednji adut pratioca je najjaci, a nosilac jos moze imati adut: igram ga odmah, da mu izvuce jedan
+ * (korisnik 2026-11-02, #21 ruke 2 i 22: Milan sa suvim A herc igrao K tref i D pik umesto aduta).
+ */
+export function defenderLastMasterTrump(ctx: LeadContext): Card | null {
+  if (!ctx.trump || ctx.legal.length === 1 || voidsOf(ctx, ctx.declarer).has(ctx.trump)) return null;
+  const trumps = cardsIn(ctx.legal, ctx.trump);
+  if (trumps.length !== 1 || unseenRanks(ctx, ctx.trump).length === 0) return null;
+  return isMaster(ctx, trumps[0]!) ? trumps[0]! : null;
+}
+
+/** Otvaranje pratioca protiv adutske igre, pravila redom; null kad nijedno ne odlucuje. */
+export function defenderTrumpGameLead(ctx: LeadContext): Card | null {
+  return defenderTrumpPull(ctx) ?? defenderLastMasterTrump(ctx) ?? continueAceSuit(ctx) ?? partnerSuitLead(ctx)
+    ?? attackDeclarerRuff(ctx) ?? defenderSuitLead(ctx);
 }
 
 /** Najmanja karta iz boje u kojoj je nosilac pokazao da je prazan (vodi se da bi on sekao). */

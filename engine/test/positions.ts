@@ -12,7 +12,7 @@ export const hand = (s: string): Card[] => (s ? s.split(' ').map(card) : []);
 export const trick = (s: string) => s.split(' ').map((x) => ({ player: Number(x[0]) as Position, card: card(x.slice(1)) }));
 
 export interface Position18 {
-  game: 'Herc' | 'Karo' | 'Tref' | 'Igra-Herc' | 'Igra-Tref' | 'Betl';
+  game: 'Herc' | 'Karo' | 'Tref' | 'Igra-Pik' | 'Igra-Karo' | 'Igra-Herc' | 'Igra-Tref' | 'Betl';
   declarer: Position;
   follow: (FollowChoice | null)[];
   hands: [string, string, string];
@@ -23,7 +23,7 @@ export interface Position18 {
 }
 
 export const TRUMP: Record<Position18['game'], Suit | null> = {
-  Herc: '♥', Karo: '♦', Tref: '♣', 'Igra-Herc': '♥', 'Igra-Tref': '♣', Betl: null,
+  Herc: '♥', Karo: '♦', Tref: '♣', 'Igra-Pik': '♠', 'Igra-Karo': '♦', 'Igra-Herc': '♥', 'Igra-Tref': '♣', Betl: null,
 };
 
 export function stateOf(p: Position18) {

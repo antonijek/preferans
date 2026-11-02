@@ -6,12 +6,12 @@ import { isCardLegal } from './trick.js';
 import type { Card, Game, Suit, Position, ContraLevel } from './types.js';
 import { CARD_POINTS, sequentialRunFromAce } from './aiHandEval.js';
 import {
-  sansDefenderLead, declarerLead, sansDefenderDiscard, defenderSafeExit, partnerSuitLead, defenderSuitLead,
-  defenderTrumpPull, masterTrump, isMaster, declarerKingQueenLead, isWeakFour, continueAceSuit, attackDeclarerRuff,
+  sansDefenderLead, declarerLead, sansDefenderDiscard, defenderSafeExit, defenderTrumpGameLead,
+  masterTrump, isMaster, declarerKingQueenLead, isWeakFour,
   declarerVoidLead,
 } from './aiLeads.js';
 import { declarerRulesLead } from './aiDeclarerPlay.js';
-import { followAfterPartner, withoutKingGuards, discardFromDeclarerVoid } from './aiDefenderFollow.js';
+import { followAfterPartner, secondHandLow, withoutKingGuards, discardFromDeclarerVoid } from './aiDefenderFollow.js';
 import { betlPlay } from './aiBetl.js';
 
 // === DISCARD STRATEGIJA ===
@@ -152,8 +152,7 @@ export function choosePlayCard(args: {
     // boje (aiLeads.ts, korisnik posle partija #12/#13). Ranije (partija #9)
     // se naplacivao najkraci as — korisnik je tad igrao asa pre niske karte.
     if (!isDeclarer && trump && leadCtx) {
-      const lead = defenderTrumpPull(leadCtx) ?? continueAceSuit(leadCtx) ?? partnerSuitLead(leadCtx)
-        ?? attackDeclarerRuff(leadCtx) ?? defenderSuitLead(leadCtx);
+      const lead = defenderTrumpGameLead(leadCtx);
       if (lead) return lead;
     }
     // Napad na adute nosioca (korisnikova ispravka uzivo, 2026-09-20, iz
@@ -446,7 +445,8 @@ export function choosePlayCard(args: {
 
   const isBetlGame = args.declaredGame === 'Betl' || args.declaredGame === 'Igra-Betl';
   if (sameSuit.length > 0 && !isDeclarer && !isBetlGame && declarer != null) {
-    const pick = followAfterPartner({ hand, legal, currentTrick, trump, declarer, tricks });
+    const followCtx = { hand, legal, currentTrick, trump, declarer, tricks };
+    const pick = secondHandLow(followCtx, !twoHanded) ?? followAfterPartner(followCtx);
     if (pick) return pick;
   }
   if (sameSuit.length > 0) {
