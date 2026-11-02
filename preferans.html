@@ -34,7 +34,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./theme.css?v=3">
-<link rel="stylesheet" href="./preferans.css?v=13">
+<link rel="stylesheet" href="./preferans.css?v=14">
 <link rel="stylesheet" href="./league.css?v=1">
 <link rel="stylesheet" href="./dialog.css?v=1">
 <link rel="stylesheet" href="./avatar.css?v=1">
@@ -520,9 +520,14 @@
     <h2 id="resultTitle">Kraj</h2>
     <div id="resultMsg"></div>
     <button class="mode-btn" id="viewCardsBtn" style="display:none;margin-bottom:8px" onclick="viewCards()">👀 Pogledaj karte</button>
+    <!-- Kraj partije: tabela i poslednja ruka; zatvaranje vraca na ovaj prozor -->
+    <div class="result-btn-row" id="matchOverBtns" style="display:none">
+      <button class="mode-btn" id="matchTableBtn" onclick="toggleScore()">📊 Tabela</button>
+      <button class="mode-btn" id="lastHandBtn" onclick="viewCards()">👀 Poslednja ruka</button>
+      <button class="mode-btn" id="shareResultBtn" onclick="shareMatchResult()">📤 Podeli rezultat</button>
+    </div>
     <!-- Revans jednim klikom (online, kraj partije) — vidi requestRematch() u app.js -->
     <button class="mode-btn primary" style="min-height:48px;margin-bottom:8px;display:none" id="rematchBtn" onclick="requestRematch()">🔁 Revanš</button>
-    <button class="mode-btn" style="min-height:48px;margin-bottom:8px;display:none" id="shareResultBtn" onclick="shareMatchResult()">📤 Podeli rezultat</button>
     <button class="mode-btn primary" style="min-height:48px" id="nextRoundBtn" onclick="resultAction()">Igraj</button>
     <div id="dealNextStatus" style="display:none;margin-top:8px;font-size:0.85em;opacity:0.75"></div>
   </div>
@@ -535,7 +540,8 @@
      (cardEl(), isti izgled kao za vreme igranja) grupisanim po igraču. -->
 <div class="screen" id="revealedHandsScreen">
   <div class="box revealed-hands-box" style="max-width:960px;width:100%;max-height:92vh;overflow-y:auto">
-    <h2>Sve karte ove ruke</h2>
+    <h2 id="revealedHandsTitle">Sve karte ove ruke</h2>
+    <div id="revealedHandsSummary"></div>
     <div id="revealedHandsContent"></div>
     <button class="mode-btn primary" style="min-height:48px;margin-top:14px" onclick="closeRevealedHands()">Zatvori</button>
   </div>
@@ -563,6 +569,6 @@
      je jedini NEPOBITAN nacin — to je BUKVALNO nov URL koji nijedan keš
      ikad nije video, ne postoji nacin da posluzi staru kopiju. UBUDUCE:
      bump-ovati ?v=N ovde pri SVAKOM deploy-u koji dira app.js. -->
-<script type="module" src="./app.js?v=44"></script>
+<script type="module" src="./app.js?v=45"></script>
 </body>
 </html>

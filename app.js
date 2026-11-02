@@ -1209,12 +1209,10 @@ function renderTurnTimer() {
 
 // === SUPE / REFE po sedistu ===
 
-// Rezultat partije (korisnikov zahtev 2026-10-14, po uzoru na konkurenciju):
-// skor = bula×10 + supe koje igrac duguje − supe koje njemu duguju (nize je
-// bolje, isto kao engine calculateMatchScores), a REZULTAT je razlika od
-// proseka — koliko bi igrac dobio (+) ili izgubio (−) da se partija sad
-// zavrsi. Zbir za sve troje je 0; na kraju partije (posle otpisa) je to
-// tacno konacan rezultat sa ekrana kraja partije.
+// Rezultat partije: skor = bula×10 + supe koje igrac duguje − supe koje
+// njemu duguju, a REZULTAT je razlika skora od proseka. Manje je bolje
+// (korisnikovo pravilo; 2026-10-14 je bilo okrenuto na „plus je dobro“,
+// vraceno 2026-11-02). Zbir za sve troje je 0.
 function matchStanding(s) {
   const owed = [0, 1, 2].map(p => {
     let owedBy = 0, owedTo = 0;
@@ -1227,7 +1225,7 @@ function matchStanding(s) {
   });
   const scores = [0, 1, 2].map(p => s.bulas[p] * 10 + owed[p].owedBy - owed[p].owedTo);
   const mean = (scores[0] + scores[1] + scores[2]) / 3;
-  const results = scores.map(sc => Math.round(mean - sc));
+  const results = scores.map(sc => Math.round(sc - mean));
   return { owed, scores, results };
 }
 const signed = n => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
@@ -1366,8 +1364,10 @@ function renderTrick() {
 
 // === BIDDING PANEL ===
 
-function renderBiddingPanel() {
-  const s = game.state;
+// Cela licitacija (ko je sta rekao) u desnom panelu. Koristi se tokom
+// licitacije i dok pratioci biraju dođem/ne dođem (korisnikov zahtev 2026-11-02:
+// levi panel vec pokazuje dođem/ne dođem, desno se ponavljalo).
+function renderBidLog(s) {
   const log = $('bidLog');
   log.innerHTML = '';
 
@@ -1405,6 +1405,11 @@ function renderBiddingPanel() {
     const sidePanel = log.closest('.side-panel');
     if (sidePanel) sidePanel.scrollTop = sidePanel.scrollHeight;
   }
+}
+
+function renderBiddingPanel() {
+  const s = game.state;
+  renderBidLog(s);
 
   const ctrl = $('bidControls');
   ctrl.innerHTML = '';
@@ -1710,21 +1715,13 @@ function renderFollowing() {
   const third = (s.winner + 2) % 3;
   const followers = [right, third];
   const undecided = followers.find(p => s.followChoices[p] === null);
-  const log = $('bidLog');
-  const entries = [];
-  for (let p = 0; p < 3; p++) {
-    if (s.followChoices[p] !== null && p !== s.winner) {
-      const cls = s.followChoices[p] === 'DODJEM' ? 'mogu' : 'dalje';
-      entries.push(`<span class="bid-entry p${p} ${cls}">${POS_LABELS[p]}: ${s.followChoices[p] === 'DODJEM' ? 'Dodjem' : 'Ne dodjem'}</span>`);
-    }
-  }
 
   if (undecided !== undefined) {
     // Standardni tok — 'undecided' treba da kaze Dodjem/Ne dodjem. Pitanje
     // "X — Dodjem ili Ne dodjem?" OVDE (u logu) je uklonjeno (korisnikov
     // zahtev — ponavljanje) jer tacno isto vec pise ispod ("POTEZ: X") pored
     // samih Dodjem/Ne dodjem dugmadi.
-    log.innerHTML = entries.join('');
+    renderBidLog(s);
 
     const isHumanTurn = isHuman(undecided);
     if (isHumanTurn) {
@@ -1760,14 +1757,14 @@ function renderFollowing() {
   // Oba pratioca su odlucila. Ako je tacno 1 DODJEM + 1 NE_DODJEM i jos nema
   // caller-a, DODJEM igrac MORA birati: pozvati NE_DODJEM ili igrati sam
   // (RULES 5.3). Bez ovoga bidding ostaje zaglavljen zauvek.
-  if (s.caller !== null) { log.innerHTML = entries.join(''); return; }
+  if (s.caller !== null) { renderBidLog(s); return; }
   const neDodjem = followers.find(p => s.followChoices[p] === 'NE_DODJEM');
   const callerCandidate = followers.find(p => s.followChoices[p] === 'DODJEM');
-  if (neDodjem === undefined || callerCandidate === undefined) { log.innerHTML = entries.join(''); return; }
+  if (neDodjem === undefined || callerCandidate === undefined) { renderBidLog(s); return; }
 
   // "X — zove Y ili igra sam?" uklonjeno (korisnikov zahtev — ponavljanje,
   // isto vec pise ispod pored dugmadi/labele).
-  log.innerHTML = entries.join('');
+  renderBidLog(s);
 
   const isHumanCaller = isHuman(callerCandidate);
   if (isHumanCaller) {
@@ -2290,8 +2287,15 @@ function renderResult() {
   // "Pogledaj karte" ima smisla samo posle GAME_OVER (kraj rune) — kod
   // MATCH_OVER nema sledece runde cije karte bi se cekale/gledale.
   $('viewCardsBtn').style.display = s.phase === 'GAME_OVER' ? '' : 'none';
-  $('revealedHandsScreen').classList.remove('active');
-  $('revealedHandsContent').innerHTML = '';
+  // Kraj partije sakriva tabelu i poslednju ruku (korisnikov zahtev 2026-11-02).
+  // Poslednja ruka samo kod prirodnog kraja — kod dogovora je vec vidjena.
+  $('matchOverBtns').style.display = s.phase === 'MATCH_OVER' ? '' : 'none';
+  $('lastHandBtn').style.display = s.phase === 'MATCH_OVER' && s.matchEndReason === 'natural' ? '' : 'none';
+  // Novo stanje na kraju partije (rejting, neko izasao) ne zatvara otvorenu poslednju ruku.
+  if (!(s.phase === 'MATCH_OVER' && $('revealedHandsScreen').dataset.lastHand === '1')) {
+    $('revealedHandsScreen').classList.remove('active');
+    $('revealedHandsContent').innerHTML = '';
+  }
   // Online: sledeca runda se inace deli SAMA (automatski tajmer) — "Igraj"
   // bi zbunilo kao da ovo dugme pokrece nesto sto se inace desi samo od
   // sebe. "Deli" bolje opisuje "preskoci cekanje / potvrdi odmah".
@@ -2382,10 +2386,9 @@ function renderResult() {
                ${typeof newRating === 'number' ? `<span style="opacity:0.6">(rejting: ${newRating})</span>` : ''}
              </div>`
           : '';
-        // Rezultat (korisnikov zahtev 2026-10-14): plus je dobro, kao sto
-        // igraci preferansa i racunaju — bula se placa ×10, supe idu direktno.
+        // bula se racuna ×10, plus supe koje duguje, minus supe koje je naplatio
         const { owedBy, owedTo } = owed[p];
-        const breakdown = `bula ${s.bulas[p]} (${signed(-s.bulas[p] * 10)}) · supe ${signed(owedTo - owedBy)}`;
+        const breakdown = `bula ${s.bulas[p]} (${signed(s.bulas[p] * 10)}) · supe ${signed(owedBy - owedTo)}`;
         // Korisnikov zahtev (2026-09-18): kraj PARTIJE (za razliku od kraja
         // svake pojedinacne ruke, koje vec prikazuje stihove) nije imao
         // NIKAKAV podatak o stihovima — sabrano preko cele istorije partije
@@ -2448,10 +2451,12 @@ function renderResult() {
     return;
   }
 
-  // Redizajnirano (korisnikov zahtev: "sve pise na isti nacin i istim
-  // bojama") — strukturirane kartice/bedzevi umesto jednog bloka teksta sa
-  // <br>-ovima, jasna vizuelna hijerarhija (ugovor → prosao/pao → detalji →
-  // mini-tabela bula/stihova po igracu).
+  $('resultMsg').innerHTML = handResultHtml(s);
+}
+
+// Rezultat jedne ruke: ugovor → prosao/pao → detalji → mini-tabela
+// bula/stihova po igracu. Koristi ga i „Poslednja ruka“ na kraju partije.
+function handResultHtml(s) {
   let html = '';
   if (s.declaredGame && s.lastHandResult) {
     // Koristi engine-ov lastHandResult kao izvor istine — pokriva i slucajeve
@@ -2503,7 +2508,7 @@ function renderResult() {
     </div>`;
   }
   html += `</div>`;
-  $('resultMsg').innerHTML = html;
+  return html;
 }
 
 // === TABELA (bule / supe / refe / istorija) ===
@@ -2860,6 +2865,10 @@ function viewCards() {
 // preko celog ekrana i da se dobro vise svacije") — PRAVE karte (cardEl(),
 // isti izgled kao za vreme igranja), jedan red po igracu, jasno naslovljen.
 function renderRevealedHands(hands, talon) {
+  const lastHand = game.state.phase === 'MATCH_OVER';
+  $('revealedHandsScreen').dataset.lastHand = lastHand ? '1' : '';
+  $('revealedHandsTitle').textContent = lastHand ? 'Poslednja ruka' : 'Sve karte ove ruke';
+  $('revealedHandsSummary').innerHTML = lastHand ? handResultHtml(game.state) : '';
   const content = $('revealedHandsContent');
   content.innerHTML = '';
   // Korisnikov zahtev: talon (2 karte koje niko nije dobio) nedostajao je
@@ -2890,6 +2899,7 @@ function renderRevealedHands(hands, talon) {
 
 function closeRevealedHands() {
   $('revealedHandsScreen').classList.remove('active');
+  $('revealedHandsScreen').dataset.lastHand = '';
 }
 window.closeRevealedHands = closeRevealedHands;
 

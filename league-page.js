@@ -46,7 +46,7 @@ export async function openLeague(id) {
     <div class="lobby-table-list" id="leagueTables"><div class="room-list-empty">Učitavanje...</div></div>
     <h2 class="section-title">Tabela</h2>
     <div class="league-table-wrap"><table class="league-table">
-      <thead><tr><th>#</th><th>Igrač</th><th title="Odigrane partije">P</th><th>${l.scoring.mode === 'result' ? 'Rez.' : 'Bodovi'}</th><th title="Prosek po partiji">Pros.</th><th title="Zbir rezultata (plus je dobro)">±</th></tr></thead>
+      <thead><tr><th>#</th><th>Igrač</th><th title="Odigrane partije">P</th><th>${l.scoring.mode === 'result' ? 'Rez.' : 'Bodovi'}</th><th title="Prosek po partiji">Pros.</th><th title="Zbir rezultata (manje je bolje)">±</th></tr></thead>
       <tbody id="leagueStandings"></tbody>
     </table></div>
     <div class="league-note">Ispod norme (manje od ${l.norma} partija) — na dnu tabele, sivo. Partija prekinuta pre ${l.minHandsEarlyEnd} ruku se ne računa.</div>
@@ -60,12 +60,16 @@ export async function openLeague(id) {
   $('leagueBackBtn').onclick = () => nav.toList();
   $('leagueCopyLinkBtn').onclick = (ev) => copyLink(leagueUrl(l.code), 'Link lige', ev.currentTarget);
   if (l.status === 'active') $('leaguePlayBtn').onclick = createLeagueRoom;
-  renderStandings(standings, myUserId);
+  renderStandings(standings, myUserId, l.scoring.mode === 'result');
   renderLeagueTables(l.id);
   if (isAdmin) renderLeagueAdmin(l, members, myUserId);
 }
 
-function renderStandings(standings, myUserId) {
+// Server racuna rezultat kao „plus je dobro“, a prikazuje se „manje je bolje“
+// (korisnikovo pravilo); redosled tabele ostaje serverov.
+const shownResult = (n) => (n < 0 ? `+${-n}` : n > 0 ? `−${n}` : '0');
+
+function renderStandings(standings, myUserId, resultMode) {
   const body = $('leagueStandings');
   let place = 0;
   for (const r of standings) {
@@ -77,9 +81,9 @@ function renderStandings(standings, myUserId) {
       r.meetsNorma ? String(place) : '–',
       r.name,
       String(r.matches),
-      String(r.points),
-      r.matches ? String(r.avg) : '–',
-      r.result > 0 ? `+${r.result}` : r.result < 0 ? `−${-r.result}` : '0',
+      resultMode ? shownResult(r.points) : String(r.points),
+      !r.matches ? '–' : resultMode ? shownResult(r.avg) : String(r.avg),
+      shownResult(r.result),
     ];
     for (const c of cells) {
       const td = document.createElement('td');

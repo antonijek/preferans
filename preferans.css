@@ -1808,6 +1808,15 @@
      jednokarticni "fokalni" prikaz ispod (korisnikov zahtev — 3 male
      kartice odjednom mu se nisu svidjale). */
   .score-players-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  /* Kraj partije: „Tabela“ i „Poslednja ruka“ jedno pored drugog */
+  .result-btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+  .screen .result-btn-row .mode-btn { margin-top: 0; min-height: 48px; flex: 1 1 140px; }
+  /* Laptop: kraj partije bez klizaca (korisnikov zahtev 2026-11-02) — sira
+     kutija da sve 3 kartice stanu u jedan red umesto 2+1. */
+  @media (min-width: 700px) {
+    .screen #resultBox.match-over { max-width: 640px; }
+    #resultBox.match-over .score-players-row { flex-wrap: nowrap; }
+  }
   .score-player-card {
     background: rgba(0,0,0,0.3);
     border: 2px solid transparent;

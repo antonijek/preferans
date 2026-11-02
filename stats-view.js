@@ -5,6 +5,8 @@
 import { $, el } from './dom.js';
 
 const signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
+// server racuna rezultat kao „plus je dobro“, a prikazuje se „manje je bolje“
+const result = (n) => signed(-(n ?? 0));
 const pct = (part, whole) => (whole ? `${Math.round((part / whole) * 100)}%` : '—');
 const GAME_ORDER = ['Pik', 'Karo', 'Herc', 'Tref', 'Betl', 'Sans', 'Igra'];
 
@@ -28,9 +30,9 @@ function render(s) {
     tile(String(s.matches), s.withComputer ? `partija (${s.withComputer} sa računarom)` : 'partija'),
     tile(`${s.places[0]} (${pct(s.places[0], s.matches)})`, 'pobeda — 1. mesto'),
     tile(`${s.places[1]} / ${s.places[2]}`, '2. / 3. mesto'),
-    tile(signed(s.avgResult), 'prosečan rezultat'),
-    tile(signed(s.bestResult), 'najbolja partija'),
-    tile(signed(s.worstResult), 'najgora partija'),
+    tile(result(s.avgResult), 'prosečan rezultat'),
+    tile(result(s.bestResult), 'najbolja partija'),
+    tile(result(s.worstResult), 'najgora partija'),
     tile(s.rating !== null ? String(s.rating) : '—', s.peakRating ? `rejting (najviši ${s.peakRating})` : 'rejting'),
     tile(s.declared ? `${s.declared} (${pct(s.declaredPassed, s.declared)})` : '0', 'ruku kao nosilac (prošao)'),
     tile(String(s.kontraAgainstMe), 'kontri protiv mene'),

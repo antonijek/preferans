@@ -532,14 +532,18 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
   // PRIVATNO, ne dira tajmer/dealNextReady uopste.
   socket.on('game:viewCards', (_payload: unknown, ack?: Ack) => {
     const room = currentRoom();
-    if (!room || room.game.state.phase !== 'GAME_OVER') {
+    const st = room?.game.state;
+    // „Poslednja ruka“ sa ekrana kraja partije (prirodan kraj, korisnikov zahtev 2026-11-02)
+    const matchOverLastHand = st?.phase === 'MATCH_OVER' && st.matchEndReason === 'natural';
+    if (!room || (st?.phase !== 'GAME_OVER' && !matchOverLastHand)) {
       ack?.({ error: 'Nema zavrsene ruke za pregled' });
       return;
     }
     // Obavesti OSTALE (ne posiljaoca) da neko gleda karte — korisnikov
     // zahtev: "ostalima neka pise igrac X gleda karte, sacekajte".
+    // Posle kraja partije niko vise ne ceka, pa nema ni poruke.
     const viewerLoc = getUserLocation(userId);
-    if (viewerLoc?.role === 'player') {
+    if (viewerLoc?.role === 'player' && !matchOverLastHand) {
       socket.to(room.code).emit('game:viewingCards', { seat: viewerLoc.seat, name });
     }
     // Rekonstruisi punu ruku svakog igraca za rundu koja je upravo zavrsena:
