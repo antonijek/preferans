@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chooseFollow } from '../src/aiFollowKontra.ts';
+import { estimatedMaxLevel } from '../src/aiHandEval.ts';
 import { hand, rules, search } from './positions.ts';
 import type { Position18 } from './positions.ts';
 
@@ -78,4 +79,34 @@ const H17: Position18 = {
 test('ruka 17: Bora prvo igra adut, pa tek onda A tref', () => {
   assert.equal(rules(H17), '8♥');
   assert.equal(search(H17), '8♥');
+});
+
+test('ruka 21: tref A,D,J,10 i karo D,9,8,7 — do Trefa samo kad prvi baca kartu', () => {
+  const milan = hand('A♣ Q♣ J♣ 10♣ J♥ 7♠ Q♦ 9♦ 8♦ 7♦');
+  assert.equal(estimatedMaxLevel(milan, true), 5);
+  assert.ok(estimatedMaxLevel(milan, false) < 5);
+});
+
+// Ruka 19: Milan Igra-Tref protiv Antonija; posle 3 aduta Antonije nema adut, Milan ima 9,7 tref, A,7 pik, D,9,7 herc
+const H19: Position18 = {
+  game: 'Igra-Tref', declarer: 1, follow: ['DODJEM', null, 'NE_DODJEM'], talon: 'Q♦ J♦',
+  hands: ['A♥ K♥ J♥ K♠ 10♠ A♦ 9♦', '9♣ 7♣ Q♥ 9♥ 7♥ A♠ 7♠', '10♣ 10♥ Q♠ J♠ 9♠ 8♠ K♦ 10♦ 8♦ 7♦'],
+  tricks: ['1A♣ 08♣', '1K♣ 0J♣', '1Q♣ 08♥'],
+};
+
+test('ruka 19: Milan ne igra A pik iz A,7 ("igranje pika je nepotrebno"), nego herc', () => {
+  assert.equal(rules(H19).slice(-1), '♥');
+  assert.equal(search(H19).slice(-1), '♥');
+});
+
+// Ruka 31: Milan Igra-Tref protiv Antonija; Milanu je ostao J tref, a od tudjih aduta jos samo 9 tref
+const H31: Position18 = {
+  game: 'Igra-Tref', declarer: 1, follow: ['DODJEM', null, 'NE_DODJEM'], talon: 'Q♥ A♦',
+  hands: ['10♥ 9♥ 7♥ J♠ 9♠ J♦', 'J♣ A♠ Q♠ 10♠ 8♠ K♦', '9♣ J♥ 8♥ K♠ 7♠ Q♦ 10♦ 9♦ 8♦ 7♦'],
+  tricks: ['0A♥ 18♣', '1K♣ 0A♣', '0K♥ 110♣', '1Q♣ 07♣'],
+};
+
+test('ruka 31: Milan ne izvlaci poslednji adut J tref, nego igra A pik', () => {
+  assert.equal(rules(H31), 'A♠');
+  assert.equal(search(H31), 'A♠');
 });

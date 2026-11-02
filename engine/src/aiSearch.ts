@@ -21,7 +21,7 @@ import { activePlayerCount, nextActivePlayer } from './turnOrder.js';
 import { followAfterPartner, secondHandLow, withoutKingGuards, discardFromDeclarerVoid } from './aiDefenderFollow.js';
 import {
   declarerDrawnChoices, declarerRuffedFourChoices, declarerCoveredTrumps, declarerBareTopTrump, declarerAceOnce,
-  withoutLowTrumpLead,
+  withoutLowTrumpLead, declarerKeepLastTrump,
 } from './aiDeclarerPlay.js';
 import { chooseKontra, chooseFollow, chooseCallOrAlone } from './aiFollowKontra.js';
 import { chooseDeclareGame, chooseBidAction, igraAllowed, otherIgraOf } from './aiBidding.js';
@@ -346,7 +346,7 @@ function declarerPlayFilter(state: GameState, seat: Position, legal: Card[]): Ca
   const ctx: LeadContext = {
     legal, hand: state.players[seat]!.hand, trump: state.trump, myPosition: seat, declarer: seat, tricks: state.tricks,
   };
-  const drawn = declarerDrawnChoices(ctx) ?? declarerAceOnce(ctx);
+  const drawn = declarerDrawnChoices(ctx) ?? declarerKeepLastTrump(ctx) ?? declarerAceOnce(ctx);
   if (drawn) return drawn;
   // Partija #19 ("As jednom" je obavezan, gore): adut koji pravila sad traze (pokriveni aduti, suv as) ne sme da zabrani "sporedna boja posle
   // secenja" — pretraga tu bira slobodno, a pravilo dobija prednost. Manji adut uz najjaci se ne vodi nikad.
@@ -537,7 +537,7 @@ export function searchChooseAction(
   // "Mogu SME da potvrdi SAMO ako..." komentar ispod. Sad isto i ovde.
   if (state.phase === 'BIDDING') {
     const hand = state.players[seat]!.hand;
-    const maxLevel = estimatedMaxLevel(hand);
+    const maxLevel = estimatedMaxLevel(hand, state.bidStartPlayer === seat);
     const filtered = candidates.filter((a) => (a.type !== 'bid' && a.type !== 'mogu') || a.value <= maxLevel);
     if (filtered.length > 0) candidates = filtered;
     // Proaktivno pronadjeno (2026-09-22, audit posle korisnikovog "pogledaj

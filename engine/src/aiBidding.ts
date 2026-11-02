@@ -137,7 +137,8 @@ export function chooseBidAction(ctx: BidContext): BidAction {
   //   - BID Y (veca vrednost od trenutne)
   const evalRes = evaluateHand(ctx.hand);
   const best = evalRes.bestSuit;
-  const maxLevel = estimatedMaxLevel(ctx.hand);
+  const leads = ctx.bidStartPlayer === ctx.currentBidder;
+  const maxLevel = estimatedMaxLevel(ctx.hand, leads);
 
   if (ctx.playerBidLevel > 0) {
     // Mogu-eligible: vec licitirao I trenutno nadmasen (currentBid >
@@ -179,7 +180,6 @@ export function chooseBidAction(ctx: BidContext): BidAction {
   // ako ti ne treba talon?". Stara provera (duzina>=6 karata) je bila
   // nekalibrisana i nije pogadjala ovaj slucaj (Karo K,D,9,8,7 = 5 karata).
   const othersPassed = ctx.passedPlayers.size >= 2 && !ctx.passedPlayers.has(ctx.currentBidder);
-  const leads = ctx.bidStartPlayer === ctx.currentBidder;
   if (ctx.playerBidLevel === 0 && igraAllowed(ctx.hand, othersPassed, leads, otherIgraOf(ctx, ctx.currentBidder))) {
     return { type: 'IGRA' };
   }

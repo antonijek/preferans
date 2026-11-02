@@ -37,15 +37,34 @@ export function isOpenTenace(ctx: LeadContext, cards: Card[]): boolean {
  * je igra vec izgubljena; "kad vidis da je ostao jedan adut a ti mozes da ga uzmes, naravno da ces igrati adut".
  */
 export function declarerCoveredTrumps(ctx: LeadContext): Card[] | null {
-  if (!ctx.trump) return null;
+  if (!ctx.trump || lastTrumpVsOne(ctx)) return null;
   const out = unseenRanks(ctx, ctx.trump).length;
   const top = masterTrumps(ctx);
   return out > 0 && top.length >= out ? top : null;
 }
 
+/** Imam jos samo jedan adut, jaci od jedinog koji je ostao kod protivnika. */
+function lastTrumpVsOne(ctx: LeadContext): boolean {
+  if (!ctx.trump) return false;
+  const mine = cardsIn(ctx.legal, ctx.trump);
+  return mine.length === 1 && isMaster(ctx, mine[0]!) && unseenRanks(ctx, ctx.trump).length === 1;
+}
+
+/**
+ * Poslednji adut protiv jednog kod protivnika se ne vuce, nego se igra sporedna boja, prvo sigurne karte
+ * (korisnik 2026-11-02, #21 ruka 31, Milan J tref protiv 9 tref: "treba igrati As pik, pa nastaviti pikom").
+ * Kad su sva tri ili vise aduta napolju (#19 ruka 7) ili ih nosilac ima vise, odlucuju pravila iznad.
+ */
+export function declarerKeepLastTrump(ctx: LeadContext): Card[] | null {
+  if (!lastTrumpVsOne(ctx)) return null;
+  const side = ctx.legal.filter((c) => c.suit !== ctx.trump);
+  if (side.length === 0) return null;
+  return side.sort((a, b) => Number(isMaster(ctx, b)) - Number(isMaster(ctx, a)) || desc(a, b));
+}
+
 /** Ostao mi je samo jedan adut i on je najjaci (suv as), a pratioci jos imaju adute: igram ga odmah (#19 ruka 7). */
 export function declarerBareTopTrump(ctx: LeadContext): Card[] | null {
-  if (!ctx.trump) return null;
+  if (!ctx.trump || lastTrumpVsOne(ctx)) return null;
   const trumps = cardsIn(ctx.legal, ctx.trump);
   return trumps.length === 1 && isMaster(ctx, trumps[0]!) && unseenRanks(ctx, ctx.trump).length > 0 ? trumps : null;
 }
@@ -108,9 +127,18 @@ export function declarerDrawnChoices(ctx: LeadContext): Card[] | null {
   // prvo boje u kojima su mi sve karte sigurne, pa as boje u kojoj imam i gubitnike
   const pure = (c: Card) => !losers.some((l) => l.suit === c.suit);
   const sure = side.filter((c) => isMaster(ctx, c)).sort((a, b) => Number(pure(b)) - Number(pure(a)) || desc(a, b));
-  if (sure.length > 0) return sure;
   // gubitnik: najjaca karta najduze boje, da posle nje mozda prodju manje
   const byLength = SUITS.map((s) => cardsIn(losers, s)).sort((a, b) => b.length - a.length).flat();
+  // As uz jednu malu koja ne nosi: ta boja se ne igra dok ima drugih karata (korisnik 2026-11-02, #21 ruka 19,
+  // Milan A,7 pik: "posle asa je 7, ona ne moze uzeti stih, pa je igranje pika nepotrebno; bolje nesto drugo").
+  const bareAce = (s: Suit) => {
+    const cards = cardsIn(ctx.legal, s);
+    return cards.length === 2 && cards[0]!.rank === 'A' && !isMaster(ctx, cards[1]!);
+  };
+  const rest = (cards: Card[]) => cards.filter((c) => !bareAce(c.suit));
+  if (rest(sure).length > 0) return rest(sure);
+  if (rest(byLength).length > 0) return rest(byLength);
+  if (sure.length > 0) return sure;
   return byLength.length > 0 ? byLength : trumps.length > 0 ? trumps : null;
 }
 
@@ -153,7 +181,8 @@ export function declarerRuffedFourChoices(ctx: LeadContext): Card[] | null {
  */
 export function declarerRulesLead(ctx: LeadContext): Card | null {
   const choices =
-    declarerDrawnChoices(ctx) ?? declarerCoveredTrumps(ctx) ?? declarerBareTopTrump(ctx) ?? declarerAceOnce(ctx)
+    declarerDrawnChoices(ctx) ?? declarerKeepLastTrump(ctx) ?? declarerCoveredTrumps(ctx) ?? declarerBareTopTrump(ctx)
+    ?? declarerAceOnce(ctx)
     ?? declarerRuffedFourChoices(ctx);
   return choices?.[0] ?? null;
 }

@@ -126,7 +126,7 @@ function sideSuitTricksPostDraw(hand: Card[], suit: Suit): number {
   return tricks;
 }
 
-export function countDeclarerTricks(hand: Card[], trump: Suit | null): number {
+export function countDeclarerTricks(hand: Card[], trump: Suit | null, declarerLeads = true): number {
   const trumps = hand.filter(c => trump !== null && c.suit === trump);
   const trumpA = trumps.some(c => c.rank === 'A');
   const trumpK = trumps.some(c => c.rank === 'K');
@@ -177,7 +177,10 @@ export function countDeclarerTricks(hand: Card[], trump: Suit | null): number {
   // moze "stititi" sporedne boje (uzivo prijavljen bag: Pik K,J,8 bez ijedne
   // druge cаsne karte je pogresno otkljucavao sporedni Tref K,D bonus).
   const trumpHasRealCredit = hasTrumpAK || trumpA || (trumpK && trumpD);
-  const trumpsFullyDrawable = trumpHasRealCredit && trumps.length >= 3;
+  // Bez A,K u adutu sporedne boje se racunaju posle izvlacenja aduta samo kad nosilac prvi baca kartu
+  // (korisnik 2026-11-02, #21 ruka 21, Milan tref A,D,J,10 i karo D,9,8,7: "ako je rucni, moze licit do
+  // tref, u suprotnom ne").
+  const trumpsFullyDrawable = trumpHasRealCredit && trumps.length >= 3 && (hasTrumpAK || declarerLeads);
 
   if (trumpsFullyDrawable) {
     // Korisnikov zahtev, uzivo potvrdjeno 2026-09-06 ("racunas da imas 4 na
@@ -239,7 +242,7 @@ export function hasVoidSuit(hand: Card[]): boolean {
   return SUITS.some((s) => !hand.some((c) => c.suit === s));
 }
 
-export function estimatedMaxLevel(hand: Card[]): number {
+export function estimatedMaxLevel(hand: Card[], declarerLeads = true): number {
   const evalRes = evaluateHand(hand);
   let maxLevel = 0;
   const SUIT_GAME: Record<Suit, Game> = {
@@ -247,7 +250,7 @@ export function estimatedMaxLevel(hand: Card[]): number {
   };
   for (const s of evalRes.suits) {
     if (s.count < MIN_TRUMPS) continue;
-    const safe = countDeclarerTricks(hand, s.suit);
+    const safe = countDeclarerTricks(hand, s.suit, declarerLeads);
     if (safe >= MIN_TRICKS_TO_BID) {
       maxLevel = Math.max(maxLevel, GAME_VALUES[SUIT_GAME[s.suit]]);
     }
