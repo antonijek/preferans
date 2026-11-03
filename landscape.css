@@ -1,5 +1,5 @@
-/* Položen telefon (korisnik 2026-11-03): gornja linija (ko igra, talon) i dugmad 💬 🏳️ ☰ u levom pojasu
-   pored stola, karte u ruci veće i preko cele širine. Premeštanje elemenata: landscape-layout.js.
+/* Položen telefon (korisnik 2026-11-03): gornja linija (ko igra, talon) u levom pojasu pored stola,
+   💬 i 🏳️ u meniju ☰ dole desno, sto i karte veći. Premeštanje elemenata: landscape-layout.js.
    Na računaru i uspravnom telefonu se ništa ne menja. */
 .text-short { display: none; }
 
@@ -34,32 +34,49 @@
      ikonica gore, „mogu“ desno, „Milan:“ i „3“ ispod. */
   #rightSidePanel .bid-entry { display: block; }
 
-  /* chat se otvara desno od levog pojasa, da ne pokrije dugmad 💬 🏳️ ☰ */
+  /* chat se otvara desno od levog pojasa, da ga ne pokrije */
   .chat-panel { left: 128px; }
 
-  /* 💬 🏳️ ☰ na dnu levog pojasa, odmah iznad karata (desno je licitacija, kojoj treba visina) */
-  .top-actions {
-    right: auto; left: 4px; bottom: calc(var(--hand-h, 96px) + 4px);
-    max-width: 120px; flex-wrap: nowrap;
+  /* samo ☰ dole desno pored karata (osnovni .top-actions u preferans.css); 💬 i 🏳️ su stavke menija
+     (landscape-layout.js), pa se meni otvara nagore ka levo */
+  .game-menu-items { top: auto; bottom: 100%; right: 0; left: auto; margin: 0 0 6px; }
+  /* 🏳️ u meniju: njegov podmeni (Predloži prekid / Napusti svakako) se otvara ispod njega, u istom meniju */
+  .game-menu-items .match-menu-wrap { display: contents; }
+  .game-menu-items .match-menu-panel { position: static; min-width: 0; margin: 0; padding: 4px; gap: 3px; box-shadow: none; }
+  /* niži redovi, da meni sa otvorenim podmenijem 🏳️ stane u visinu ekrana; ako ne stane, skroluje se */
+  .top-actions .game-menu-items { gap: 3px; max-height: calc(100vh - 56px); overflow-y: auto; }
+  .top-actions .game-menu-items .icon-btn,
+  .game-menu-items .match-menu-panel .mode-btn { min-height: 30px; padding: 2px 10px; }
+  /* nova poruka u chatu: tačkica na ☰, jer se 💬 sa brojem vidi tek kad se meni otvori */
+  #gameMenuBtn { position: relative; }
+  #gameMenuBtn.has-unread::after {
+    content: ''; position: absolute; top: -3px; right: -3px;
+    width: 10px; height: 10px; border-radius: 50%; background: var(--bad);
   }
-  #leftSidePanel { padding-bottom: 48px; }
 
-  /* dugme je pri levoj ivici i blizu dna, pa se meniji 🏳️ i ☰ otvaraju nagore i udesno
-     (🏳️ se otvarao nadole, van ekrana, pa se „Napusti svakako“ nije videlo) */
-  .match-menu-panel,
-  .game-menu-items { top: auto; bottom: 100%; left: 0; right: auto; margin: 0 0 6px; }
+  /* tvoja pločica dole: jedan tanak red (korisnik: „može da bude mnogo manje visine“) */
+  #seat-south { min-width: 0; padding: 1px 10px; gap: 6px; bottom: 3px; }
+  #seat-south .avatar-circle { width: 20px; height: 20px; font-size: 0.6em; }
+  #seat-south .player-bule { font-size: 0.85em; }
+
+  /* sto do vrha i do crte iznad karata (osnovno: najviše 64% visine ekrana) */
+  body .table-felt { height: 100%; }
 
   /* nizak ekran: poslednji štih ne staje u levi pojas pored „ko je došao“ (korisnik: „možemo maći poslednji štih“) */
   @media (max-height: 380px) {
     #leftSidePanel .last-trick-info { display: none !important; }
   }
 
-  /* karte u ruci veće, preko cele širine (desno više nema dugmadi). Širina prema ekranu, da i 12 karata
-     posle talona stane u jedan red (fiksnih 64px je na telefonu širine 800 prelazilo u drugi red). */
-  .hand-area { padding-top: 3px; padding-right: 8px; gap: 2px; }
+  /* karte u ruci veće, širina prema ekranu (fiksnih 64px je na telefonu širine 800 prelazilo u drugi red);
+     desno 54px za ☰ */
+  .hand-area { padding-top: 3px; padding-right: 54px; gap: 2px; }
   .hand-area .card {
     --hand-card-w: min(72px, calc((100vw - 36px) / 12));
     width: var(--hand-card-w);
     height: calc(var(--hand-card-w) * 11 / 8);
+  }
+  /* 11 i više karata (talon): malo se preklope, da ostanu u jednom redu levo od ☰ */
+  .hand-area:has(> .card:nth-child(11)) .card {
+    margin-left: min(-2px, calc((100vw - 104px - 12 * var(--hand-card-w)) / 12));
   }
 }

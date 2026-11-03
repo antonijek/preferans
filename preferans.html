@@ -41,7 +41,7 @@
 <link rel="stylesheet" href="./feedback.css?v=4">
 <link rel="stylesheet" href="./game-menu.css?v=1">
 <link rel="stylesheet" href="./monthly.css?v=1">
-<link rel="stylesheet" href="./landscape.css?v=3">
+<link rel="stylesheet" href="./landscape.css?v=4">
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://preferans.igrajmo.online/#site","name":"Preferans online","alternateName":["Preferans uživo","Online preferans","Preferanc online"],"url":"https://preferans.igrajmo.online/","inLanguage":"sr"},{"@id":"https://preferans.igrajmo.online/#app","@type":"WebApplication","name":"Preferans online","alternateName":["Preferans uživo","Online preferans","Balkanski preferans"],"url":"https://preferans.igrajmo.online/","image":"https://preferans.igrajmo.online/icons/og-image.jpg","description":"Preferans online i preferans uživo — igraj balkanski preferans (preferanc) sa drugarima ili protiv AI-ja, besplatno u browseru, bez preuzimanja. Radi i bez registracije u lokalnom modu (protiv računara).","applicationCategory":"GameApplication","operatingSystem":"Any (web browser)","inLanguage":"sr","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"RSD"},"isPartOf":{"@id":"https://preferans.igrajmo.online/#site"},"about":{"@type":"Game","name":"Preferans","alternateName":["Preferanc","Balkanski preferans","Srpski preferans"],"numberOfPlayers":{"@type":"QuantitativeValue","value":3}}}]}</script>
 </head>
 <body>
@@ -63,14 +63,14 @@
     <div><div class="label">Do kraja</div><div class="value" id="untilEndInfo">300</div></div>
   </div>
   <div class="top-actions">
-    <button class="icon-btn" id="chatToggleBtn" onclick="toggleChat()" style="display:none;position:relative">💬<span id="chatUnreadBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#e53935;color:#fff;border-radius:50%;min-width:18px;height:18px;font-size:0.65em;line-height:18px;text-align:center;font-weight:700;padding:0 3px"></span></button>
+    <button class="icon-btn" id="chatToggleBtn" data-label="Chat" onclick="toggleChat()" style="display:none;position:relative">💬<span id="chatUnreadBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#e53935;color:#fff;border-radius:50%;min-width:18px;height:18px;font-size:0.65em;line-height:18px;text-align:center;font-weight:700;padding:0 3px"></span></button>
     <!-- Korisnikov zahtev (2026-09-10): "ne trebaju nam 2 ikonice za
          zastavicom, samo jedna" — nekada odvojena leaveMatchBtn (🏳️
          napusti) i proposeEndBtn (🏁 predlozi kraj) su sad JEDNO dugme
          koje otvara mali meni sa oba izbora (predlog za prekid gore,
          "napusti svakako" dole kao krajnja/opasnija opcija). -->
     <div class="match-menu-wrap">
-      <button class="icon-btn" id="matchMenuBtn" onclick="toggleMatchMenu()" style="display:none" title="Opcije partije">🏳️</button>
+      <button class="icon-btn" id="matchMenuBtn" data-label="Prekid / napusti partiju" onclick="toggleMatchMenu()" style="display:none" title="Opcije partije">🏳️</button>
       <div id="matchMenuPanel" class="match-menu-panel" style="display:none">
         <button class="mode-btn" onclick="closeMatchMenu(); proposeEndMatch();">🤝 Predloži prekid partije</button>
         <button class="mode-btn danger" onclick="closeMatchMenu(); leaveMatch();">🏳️ Napusti svakako</button>
@@ -614,6 +614,6 @@
      je jedini NEPOBITAN nacin — to je BUKVALNO nov URL koji nijedan keš
      ikad nije video, ne postoji nacin da posluzi staru kopiju. UBUDUCE:
      bump-ovati ?v=N ovde pri SVAKOM deploy-u koji dira app.js. -->
-<script type="module" src="./app.js?v=47"></script>
+<script type="module" src="./app.js?v=48"></script>
 </body>
 </html>

@@ -3914,7 +3914,8 @@ window.toggleGameMenu = toggleGameMenu;
 document.addEventListener('click', (e) => {
   const items = $('gameMenuItems');
   if (!items?.classList.contains('open')) return;
-  if (e.target.closest('#gameMenuBtn')) return;
+  // 🏳️ je na položenom telefonu stavka ovog menija (landscape-layout.js) i otvara svoj podmeni u njemu
+  if (e.target.closest('#gameMenuBtn, #matchMenuBtn')) return;
   if (items.contains(e.target) || !e.target.closest('.game-menu-wrap')) items.classList.remove('open');
 });
 
@@ -4093,6 +4094,8 @@ function updateChatBadge() {
   } else {
     badge.style.display = 'none';
   }
+  // tačkica na ☰ kad je 💬 u meniju (položen telefon, landscape.css)
+  $('gameMenuBtn').classList.toggle('has-unread', chatUnreadCount > 0);
 }
 
 function toggleChat() {
