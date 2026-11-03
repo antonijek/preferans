@@ -1,0 +1,65 @@
+/* Položen telefon (korisnik 2026-11-03): gornja linija (ko igra, talon) i dugmad 💬 🏳️ ☰ u levom pojasu
+   pored stola, karte u ruci veće i preko cele širine. Premeštanje elemenata: landscape-layout.js.
+   Na računaru i uspravnom telefonu se ništa ne menja. */
+.text-short { display: none; }
+
+@media (max-height: 480px) {
+  .text-full { display: none; }
+  .text-short { display: inline; }
+
+  /* Gornja linija se skuplja na 0 (ne display:none — body je grid sa 4 reda, vidi .status-bar u preferans.css) */
+  #statusBar { min-height: 0; height: 0; padding: 0; border: none; overflow: hidden; }
+
+  /* ugovor i talon kao kartice u levom pojasu, iste kao „ko je došao“ i poslednji štih */
+  #leftSidePanel .contract-info,
+  #leftSidePanel .talon-info {
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 10px;
+    padding: 6px 4px;
+    font-size: 0.72em;
+  }
+  #leftSidePanel .talon-info { flex-wrap: wrap; gap: 4px; }
+  /* ko je došao i poslednji štih: sitnije (osnovno #leftSidePanel pravilo bi pobedilo .side-panel iz preferans.css) */
+  #leftSidePanel .defense-info,
+  #leftSidePanel .last-trick-info { padding: 6px 4px; font-size: 0.72em; }
+  /* poslednji štih zbijeno: „Poslednji štih: K♠ 7♠ 9♠ Bora“ (korisnik: „ne mora toliko da zauzima“) */
+  #leftSidePanel .last-trick-info { gap: 3px; }
+  #leftSidePanel .last-trick-info .mini-card { padding: 0 3px; }
+
+  /* kratki natpis na dugmetu („Pozovi Milan“, „🏁 Nosim sve“) u jednom redu, da dugme bude niže */
+  .bid-btn .text-short { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bid-btn.claim-btn { padding: 3px 8px; min-height: 24px; font-size: 0.78em; }
+
+  /* licitacija desno: „Milan: mogu 3“ kao običan red teksta. Kao flex se rasturalo:
+     ikonica gore, „mogu“ desno, „Milan:“ i „3“ ispod. */
+  #rightSidePanel .bid-entry { display: block; }
+
+  /* chat se otvara desno od levog pojasa, da ne pokrije dugmad 💬 🏳️ ☰ */
+  .chat-panel { left: 128px; }
+
+  /* 💬 🏳️ ☰ na dnu levog pojasa, odmah iznad karata (desno je licitacija, kojoj treba visina) */
+  .top-actions {
+    right: auto; left: 4px; bottom: calc(var(--hand-h, 96px) + 4px);
+    max-width: 120px; flex-wrap: nowrap;
+  }
+  #leftSidePanel { padding-bottom: 48px; }
+
+  /* dugme je pri levoj ivici i blizu dna, pa se meniji 🏳️ i ☰ otvaraju nagore i udesno
+     (🏳️ se otvarao nadole, van ekrana, pa se „Napusti svakako“ nije videlo) */
+  .match-menu-panel,
+  .game-menu-items { top: auto; bottom: 100%; left: 0; right: auto; margin: 0 0 6px; }
+
+  /* nizak ekran: poslednji štih ne staje u levi pojas pored „ko je došao“ (korisnik: „možemo maći poslednji štih“) */
+  @media (max-height: 380px) {
+    #leftSidePanel .last-trick-info { display: none !important; }
+  }
+
+  /* karte u ruci veće, preko cele širine (desno više nema dugmadi). Širina prema ekranu, da i 12 karata
+     posle talona stane u jedan red (fiksnih 64px je na telefonu širine 800 prelazilo u drugi red). */
+  .hand-area { padding-top: 3px; padding-right: 8px; gap: 2px; }
+  .hand-area .card {
+    --hand-card-w: min(72px, calc((100vw - 36px) / 12));
+    width: var(--hand-card-w);
+    height: calc(var(--hand-card-w) * 11 / 8);
+  }
+}

@@ -6,6 +6,7 @@
 import { el } from './dom.js';
 import { isRed, sortHand } from './card-order.js';
 import { isPlayerActive } from './engine/dist/turnOrder.js';
+import { phoneShort } from './landscape-layout.js';
 
 const TRICKS_PER_HAND = 10;
 
@@ -44,7 +45,9 @@ export function renderClaim(container, { state, seat, nameOf, onClaim, onVote })
   const claim = state.claim;
   if (!claim) {
     if (canClaim(state, seat)) {
-      container.appendChild(button('claimBtn', 'bid-btn claim-btn', '🏁 Nosim sve štihove', onClaim));
+      const claimBtn = button('claimBtn', 'bid-btn claim-btn', '', onClaim);
+      claimBtn.innerHTML = phoneShort('🏁 Nosim sve štihove', '🏁 Nosim sve');
+      container.appendChild(claimBtn);
     }
     return;
   }

@@ -1361,6 +1361,8 @@
     text-shadow: 0 2px 12px rgba(0,0,0,0.4);
     letter-spacing: 0.5px;
     margin-bottom: 2px !important;
+    /* h1 od 2026-10-28 (SEO) — centriranje je davalo samo `.screen h2` */
+    text-align: center;
   }
   .setup-suits { text-align: center; font-size: 1.4em; margin-bottom: 14px; letter-spacing: 10px; opacity: 0.85; }
   /* tekst za pretrazivace i nove igrace na dnu pocetne kutije (preferans.html #setupAboutTitle) */
@@ -1413,6 +1415,18 @@
 
   .setup-field { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0; }
   .setup-field label { font-size: 0.9em; opacity: 0.85; }
+  .setup-about .home-features-grid.home-features-grid-compact { gap: 10px; }
+  .setup-links { margin: 10px 0 0; text-align: center; }
+  /* Laptop i polozen telefon (korisnik 2026-11-03: "Preferans" nije centriran, pojavljuje se klizac):
+     levo naslov i dugmad, desno sta sajt ima (kartice) — kutija upola niza */
+  @media (min-width: 700px) {
+    #setupScreen .box.setup-box, .screen .box.home-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; align-items: center; }
+    #setupScreen .box.setup-box { max-width: 820px; }
+    .home-panel .home-panel-divider { display: none; }
+    .home-panel .home-greeting { font-size: 1.5em; } /* uza kolona: pozdrav u jednom redu */
+    .setup-box .setup-about { margin-top: 0; }
+    .setup-about .home-features-grid.home-features-grid-compact p { font-size: 0.82em; }
+  }
   .setup-field input[type="number"] {
     width: 80px;
     background: rgba(255,255,255,0.1);

@@ -28,6 +28,7 @@ import { initAvatarUi, setMyAvatar, paintAvatar, firstLetter } from './avatar-ui
 import { initFeedbackUi, handSnapshot } from './feedback-ui.js';
 import { claimIsCertain } from './engine/dist/claim.js';
 import { initMonthly } from './monthly.js';
+import { initLandscapeLayout, placeStatusBanners, phoneShort } from './landscape-layout.js';
 
 // Feature-flag za search-bazirani AI (Monte Carlo determinizacija, vidi
 // plan "toasty-rolling-sparkle") — localStorage prekidac radi trenutnog
@@ -823,6 +824,9 @@ const SEAT_PLAYER_CLASS = ['p0', 'p1', 'p2'];
 // od njihovih drugara sedi gde (uzivo prijavljena zabuna: "ne znam ko je na
 // potezu"). U lokalnim modovima (nema pravih ljudi da se pobrka) ostaje
 // nepromenjeno ponasanje.
+// Ime bez 🤖 (racunar) — za krace natpise na polozenom telefonu (phoneShort)
+const plainName = (pos) => String(POS_LABELS[pos]).replace(/^🤖 /, '');
+
 function seatDisplayName(pos) {
   // POS_LABELS[pos] (Proxy) vec resava pravo-ime-ili-fallback + escape za
   // online mod — SEAT_PLAYER_NAME ostaje SAMO za lokalni "Vi (Jug)" oblik
@@ -947,6 +951,7 @@ function renderStatusBar() {
   const talonBanner = $('talonBanner');
   const defenseBanner = $('defenseBanner');
   const lastTrickBanner = $('lastTrickBanner');
+  placeStatusBanners();
 
   if (s.declaredGame && s.winner !== null) {
     const kontraLabel = { KONTRA: 'Kontra ×2', REKONTRA: 'Rekontra ×4', SUBKONTRA: 'Subkontra ×8', MORTKONTRA: 'Mortkontra ×16' };
@@ -1056,7 +1061,9 @@ function renderStatusBar() {
       const cls = isRed(tc.card.suit) ? 'red' : '';
       return `<span class="mini-card ${cls}">${tc.card.rank}${tc.card.suit}</span>`;
     }).join('');
-    lastTrickBanner.innerHTML = `Poslednji štih: ${cardsHtml} — <strong>${POS_LABELS[winnerPos]}</strong>`;
+    const winnerHtml = `<strong>${phoneShort(POS_LABELS[winnerPos], plainName(winnerPos))}</strong>`;
+    lastTrickBanner.innerHTML =
+      `Poslednji štih: ${cardsHtml} <span class="text-full">—</span> ${winnerHtml}`;
     lastTrickBanner.style.display = 'flex';
   } else {
     lastTrickBanner.style.display = 'none';
@@ -1072,8 +1079,11 @@ function renderStatusBar() {
   // Levi bocni panel ima sopstvenu pozadinu/padding (.side-panel) — kad su
   // MU deca oba sakrivena, panel bi se i dalje video kao prazna tanka traka
   // (samo padding, bez sadrzaja). Sakrij ceo panel u tom slucaju.
-  const leftPanelEmpty = defenseBanner.style.display === 'none' && lastTrickBanner.style.display === 'none';
-  $('leftSidePanel').style.display = leftPanelEmpty ? 'none' : '';
+  // na polozenom telefonu su u levom pojasu i ugovor i talon (landscape-layout.js)
+  const leftPanel = $('leftSidePanel');
+  const leftPanelEmpty = [defenseBanner, lastTrickBanner, contractBanner, talonBanner]
+    .every(b => b.parentElement !== leftPanel || b.style.display === 'none');
+  leftPanel.style.display = leftPanelEmpty ? 'none' : '';
 }
 
 // Rezime praćenja: ko je Dođem/Ne dođem, i da li je neko pozvan ili igra sam.
@@ -1388,7 +1398,9 @@ function renderBidLog(s) {
       // za razliku od dalje/mogu/igra. Dodata plava (bid) da sve 4 vrste
       // licitacionog poteza budu vizuelno razlicite.
       const extraCls = b.type === 'PASS' ? 'dalje' : (b.type === 'IGRA' ? 'igra' : (b.type === 'MOGU' ? 'mogu' : 'bid'));
-      log.innerHTML += `<span class="${cls} ${extraCls}">${seatLabel}: ${txt}</span>`;
+      // bez 🤖 u licitaciji, na svim uređajima (korisnik 2026-11-03: „neka samo piše Milan mogu 3“)
+      const name = String(seatLabel).replace(/^🤖 /, '');
+      log.innerHTML += `<span class="${cls} ${extraCls}">${name}: ${txt}</span>`;
     }
     // Skroluj na kraj — HORIZONTALNO za baznu (desktop, red-obrazac) verziju
     // .bid-log-a. BAG (uzivo prijavljeno vise puta: "ne vidim ni pocetak ni
@@ -1642,7 +1654,8 @@ function renderDeclaring() {
   const isIgra = s.igraPlayer === winner;
 
   if (isAI && mode === 'online') {
-    ctrl.appendChild(el('div', 'section-label', `Čeka se ${seatDisplayName(winner)} (bira igru)...`));
+    ctrl.appendChild(el('div', 'section-label',
+      phoneShort(`Čeka se ${seatDisplayName(winner)} (bira igru)...`, `${plainName(winner)} bira igru`)));
     return;
   }
 
@@ -1769,7 +1782,8 @@ function renderFollowing() {
   const isHumanCaller = isHuman(callerCandidate);
   if (isHumanCaller) {
     ctrl.appendChild(el('div', 'section-label', mode === '3human' ? `POTEZ: ${POS_LABELS[callerCandidate]}` : 'TVOJ POTEZ'));
-    const call = el('button', 'bid-btn primary', `Pozovi ${POS_LABELS[neDodjem]}`);
+    const call = el('button', 'bid-btn primary',
+      phoneShort(`Pozovi ${POS_LABELS[neDodjem]}`, `Pozovi ${plainName(neDodjem)}`));
     call.onclick = (e) => { logTrustedAction(`userCall callee=${neDodjem}`, e); game.call(callerCandidate, neDodjem); render(); };
     ctrl.appendChild(call);
     const solo = el('button', 'bid-btn primary', 'Igram sam');
@@ -2646,6 +2660,15 @@ function toggleScore() {
 }
 
 // === GAME FLOW ===
+
+// Bula i refe za igru protiv racunara pitaju se u malom prozoru (korisnik 2026-11-03: na pocetnom ekranu su
+// "lebdeli"); polja se posle vracaju u skriveni #setupFieldsSlot, jer ih citaju i startGame i goOnline.
+async function startLocalGame() {
+  const fields = $('setupFields');
+  const ok = await askConfirm({ title: '🎮 Igra protiv računara', ok: 'Počni', cancel: 'Nazad', extra: fields });
+  $('setupFieldsSlot').appendChild(fields);
+  if (ok) startGame();
+}
 
 function startGame() {
   $('setupScreen').classList.remove('active');
@@ -4153,6 +4176,7 @@ function setGameMode(m) {
 
 // Global exposure
 window.startGame = startGame;
+window.startLocalGame = startLocalGame;
 window.nextRound = nextRound;
 window.resultAction = resultAction;
 window.viewCards = viewCards;
@@ -4186,6 +4210,7 @@ window.leaveMatch = leaveMatch;
 window.goToLeagues = goToLeagues;
 
 initAvatarUi({ getToken: () => onlineToken });
+initLandscapeLayout(() => { if (game?.state) render(); });
 // Uz primedbu iz partije ide trenutna ruka: online soba i ruka (karte su na serveru), lokalno sve karte.
 initFeedbackUi({
   getToken: () => onlineToken,

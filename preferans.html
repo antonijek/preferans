@@ -34,13 +34,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./theme.css?v=3">
-<link rel="stylesheet" href="./preferans.css?v=14">
+<link rel="stylesheet" href="./preferans.css?v=15">
 <link rel="stylesheet" href="./league.css?v=1">
 <link rel="stylesheet" href="./dialog.css?v=1">
 <link rel="stylesheet" href="./avatar.css?v=1">
 <link rel="stylesheet" href="./feedback.css?v=4">
 <link rel="stylesheet" href="./game-menu.css?v=1">
 <link rel="stylesheet" href="./monthly.css?v=1">
+<link rel="stylesheet" href="./landscape.css?v=3">
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://preferans.igrajmo.online/#site","name":"Preferans online","alternateName":["Preferans uživo","Online preferans","Preferanc online"],"url":"https://preferans.igrajmo.online/","inLanguage":"sr"},{"@id":"https://preferans.igrajmo.online/#app","@type":"WebApplication","name":"Preferans online","alternateName":["Preferans uživo","Online preferans","Balkanski preferans"],"url":"https://preferans.igrajmo.online/","image":"https://preferans.igrajmo.online/icons/og-image.jpg","description":"Preferans online i preferans uživo — igraj balkanski preferans (preferanc) sa drugarima ili protiv AI-ja, besplatno u browseru, bez preuzimanja. Radi i bez registracije u lokalnom modu (protiv računara).","applicationCategory":"GameApplication","operatingSystem":"Any (web browser)","inLanguage":"sr","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"RSD"},"isPartOf":{"@id":"https://preferans.igrajmo.online/#site"},"about":{"@type":"Game","name":"Preferans","alternateName":["Preferanc","Balkanski preferans","Srpski preferans"],"numberOfPlayers":{"@type":"QuantitativeValue","value":3}}}]}</script>
 </head>
 <body>
@@ -206,6 +207,8 @@
 <!-- Setup screen -->
 <div class="screen active" id="setupScreen">
   <div class="box setup-box">
+    <!-- dve kolone na sirokom ekranu (laptop, polozen telefon), korisnik 2026-11-03: bez klizaca -->
+    <div class="setup-col">
     <h1 class="setup-title">Preferans</h1>
     <div class="setup-suits"><span class="red">♥</span><span class="black">♠</span><span class="red">♦</span><span class="black">♣</span></div>
     <!-- Korisnikov zahtev (2026-10-05): svedeno na Lorin obrazac — dva
@@ -216,30 +219,67 @@
          uklonjen odavde na isti nacin). mode1v2 ostaje id="mode1v2" zarad
          CSS/JS kompatibilnosti ali vise nije vidljivo dugme za izbor (mode
          je vec '1v2' po podrazumevanoj vrednosti u app.js). -->
-    <button class="mode-btn primary" style="min-height:56px;font-size:1.1em" onclick="startGame()">🎮 Igraj protiv računara</button>
+    <button class="mode-btn primary" style="min-height:56px;font-size:1.1em" onclick="startLocalGame()">🎮 Igraj protiv računara</button>
     <button class="mode-btn" style="margin-top:10px" onclick="goOnline()">🌐 Igraj online</button>
     <!-- Primedbe i pohvale (korisnikov zahtev 2026-10-28, feedback-ui.js) -->
     <button class="mode-btn" id="feedbackBtnSetup" style="margin-top:10px" onclick="openFeedback()">✉️ Primedbe i pohvale</button>
     <p class="feedback-hint">Primetio si grešku ili imaš predlog? Javi nam — tako pomažeš da sajt bude bolji.</p>
     <!-- predlog instalacije app-a (samo telefon) — sadrzaj pravi app.js, vidi maybeShowPwaInstallBanner -->
     <div class="pwa-install-banner" style="display:none"></div>
-
-    <div class="setup-field" style="margin-top:20px">
-      <label for="setupStartBula">Početna bula (svi igrači)</label>
-      <input type="number" id="setupStartBula" value="100" min="10" max="300" step="10" oninput="clampRefeInputToBula('setupStartBula', 'setupRefeCount')">
+    <!-- bula i refe za igru protiv racunara: mali prozor posle klika (startLocalGame u app.js, korisnik 2026-11-03) -->
+    <div id="setupFieldsSlot" hidden>
+      <div class="setup-fields" id="setupFields">
+        <div class="setup-field">
+          <label for="setupStartBula">Početna bula (svi igrači)</label>
+          <input type="number" id="setupStartBula" value="100" min="10" max="300" step="10" oninput="clampRefeInputToBula('setupStartBula', 'setupRefeCount')">
+        </div>
+        <div class="setup-field">
+          <label for="setupRefeCount">Refe po igraču</label>
+          <input type="number" id="setupRefeCount" value="2" min="0" max="5" step="1">
+        </div>
+      </div>
     </div>
-    <div class="setup-field">
-      <label for="setupRefeCount">Refe po igraču</label>
-      <input type="number" id="setupRefeCount" value="2" min="0" max="5" step="1">
     </div>
 
-    <!-- Tekst za pretrazivace i nove igrace (korisnikov zahtev 2026-10-28), kao Lorin "Igraj Lore online" -->
+    <div class="setup-col">
+    <!-- Tekst za pretrazivace i nove igrace (korisnikov zahtev 2026-10-28), kartice kao na pocetnoj posle prijave (2026-11-03) -->
     <section class="setup-about" aria-labelledby="setupAboutTitle">
       <h2 id="setupAboutTitle">Igraj preferans online</h2>
-      <p>Preferans (preferanc, balkanski preferans) je kartaška igra za tri igrača. Ovde ga igraš online, uživo i besplatno — na telefonu ili računaru, bez instaliranja. Igraj odmah protiv računara, bez naloga, ili se prijavi, napravi sobu i pozovi drugare kodom ili linkom preko Vibera ili WhatsApp-a. Ako vas nema trojica, prazno mesto popunjava računar.</p>
-      <p>Igra se po pravilima iz Srbije, Crne Gore i BiH: licitacija, mogu i igra, dođem i ne dođem, kontra, refa, bule i supe, Betl i Sans. Prvi put igraš? Pročitaj <a href="/vodic.html">vodič za početnike</a> i <a href="/recnik.html">rečnik pojmova</a>, a sve detalje nađi u <a href="/pravila.html">pravilima</a>. Kad savladaš osnove, tu su <a href="/saveti.html">saveti i strategija</a> i <a href="/betl-sans.html">Betl i Sans</a>, a kako se igra na sajtu, piše u <a href="/pitanja.html">čestim pitanjima</a>.</p>
-      <p>Voliš i Lore? Igraj <a href="https://lora.igrajmo.online/">Lore online</a> na našem drugom sajtu.</p>
+      <div class="home-features-grid home-features-grid-compact">
+        <div class="feature-card">
+          <div class="feature-icon">🎮</div>
+          <h3>Igraj odmah</h3>
+          <p>Protiv računara, bez naloga i bez instaliranja.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📲</div>
+          <h3>Pozovi drugare</h3>
+          <p>Pošalji link preko Vibera ili WhatsApp-a. Prazno mesto popunjava računar.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🏆</div>
+          <h3>Lige i rang lista</h3>
+          <p>Takmiči se, prati svoj rejting i Prefa meseca.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">👀</div>
+          <h3>Kibicovanje i chat</h3>
+          <p>Gledaj partije uživo i dopisuj se za stolom.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📋</div>
+          <h3>Pregled partija</h3>
+          <p>Pogledaj svaku odigranu ruku, kartu po kartu.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📱</div>
+          <h3>Kao aplikacija</h3>
+          <p>Instaliraj na telefon; protiv računara radi i bez interneta.</p>
+        </div>
+      </div>
+      <p class="setup-links">📖 Nauči igru: <a href="/vodic.html">vodič</a> · <a href="/recnik.html">rečnik</a> · <a href="/pravila.html">pravila</a> · <a href="/saveti.html">saveti</a> · <a href="/betl-sans.html">Betl i Sans</a> · <a href="/pitanja.html">česta pitanja</a></p>
     </section>
+    </div>
   </div>
 </div>
 
@@ -288,6 +328,8 @@
        id=onlineUsersGrid) uklonjeno odavde — ista informacija vec postoji
        na Sobi (#onlineUsersList), bilo bi duplirano u uzoj kartici. -->
   <div class="box setup-box home-panel">
+    <!-- dve kolone na sirokom ekranu, kao pocetni ekran (korisnik 2026-11-03: bez klizaca na laptopu) -->
+    <div class="setup-col">
     <div class="setup-suits"><span class="red">♥</span><span class="black">♠</span><span class="red">♦</span><span class="black">♣</span></div>
     <div class="home-greeting-row">
       <button type="button" class="home-avatar" id="homeAvatarBtn" title="Tvoja slika" aria-label="Tvoja slika" hidden>
@@ -295,7 +337,6 @@
       </button>
       <div class="home-greeting" id="homeGreeting">Zdravo!</div>
     </div>
-    <p class="home-tagline">Preferans online — igraj preferans uživo (poznat i kao balkanski preferans ili preferanc) sa pravim igračima, besplatno u browseru.</p>
     <button class="mode-btn primary home-cta" onclick="goToRoomScreen()">🎮 Sobe — napravi ili se pridruži</button>
     <button class="mode-btn home-cta" id="leaguesBtn" style="margin-top:10px" onclick="goToLeagues()">🏆 Lige — tabela, norma, pozivni link</button>
     <!-- Obavestenja na telefon (korisnikov zahtev 2026-10-14) — vidno samo
@@ -326,7 +367,10 @@
          korisnicima — samo mobilni, samo ako jos nije instaliran, i samo
          ako korisnik nije ranije zatvorio. -->
     <div class="pwa-install-banner" style="display:none"></div>
+    </div>
 
+    <div class="setup-col">
+    <p class="home-tagline">Preferans online — igraj preferans uživo (poznat i kao balkanski preferans ili preferanc) sa pravim igračima, besplatno u browseru.</p>
     <hr class="home-panel-divider">
 
     <!-- Korisnikov zahtev (2. runda): "Kibicuj, chat uzivo i dr. stavi u
@@ -374,6 +418,7 @@
       <span class="home-panel-links-sep">·</span>
       <a href="#" onclick="backToSetup(); return false;">← Nazad na početni ekran</a>
     </p>
+    </div>
   </div>
 </div>
 
@@ -569,6 +614,6 @@
      je jedini NEPOBITAN nacin — to je BUKVALNO nov URL koji nijedan keš
      ikad nije video, ne postoji nacin da posluzi staru kopiju. UBUDUCE:
      bump-ovati ?v=N ovde pri SVAKOM deploy-u koji dira app.js. -->
-<script type="module" src="./app.js?v=46"></script>
+<script type="module" src="./app.js?v=47"></script>
 </body>
 </html>
