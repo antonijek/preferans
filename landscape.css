@@ -57,8 +57,14 @@
     width: 10px; height: 10px; border-radius: 50%; background: var(--bad);
   }
 
-  /* tvoja pločica dole: jedan tanak red (korisnik: „može da bude mnogo manje visine“) */
-  #seat-south { min-width: 0; padding: 1px 10px; gap: 6px; bottom: 3px; }
+  /* izbor igre desno: Pik/Tref/Herc/Karo samo ime, bez obojene polovine sa znakom (korisnik 2026-11-03) */
+  #rightSidePanel .opt-half-suit { display: none; }
+
+  /* tvoja pločica dole: jedan tanak red (korisnik: „može da bude mnogo manje visine“). Red dolazi iz
+     @media (min-width: 700px) u preferans.css; ovde i za uži telefon (667x375), inače je pločica visoka 70px */
+  #seat-south { display: flex; align-items: center; width: auto; min-width: 0; padding: 1px 10px; gap: 6px; bottom: 3px; }
+  #seat-south .player-name-row { background: none; border-bottom: none; padding: 0; margin-bottom: 0; flex-shrink: 0; }
+  #seat-south .bula-row { margin-top: 0; }
   #seat-south .avatar-circle { width: 20px; height: 20px; font-size: 0.6em; }
   #seat-south .player-bule { font-size: 0.85em; }
 

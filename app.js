@@ -1380,10 +1380,9 @@ function renderTrick() {
 // levi panel vec pokazuje dođem/ne dođem, desno se ponavljalo).
 function renderBidLog(s) {
   const log = $('bidLog');
-  log.innerHTML = '';
-
+  let html = '';
   if (s.bids.length === 0) {
-    log.innerHTML = `<span class="bid-log-empty">Licitacija još nije počela...</span>`;
+    html = `<span class="bid-log-empty">Licitacija još nije počela...</span>`;
   } else {
     for (const b of s.bids) {
       const cls = `bid-entry p${b.player}`;
@@ -1401,8 +1400,16 @@ function renderBidLog(s) {
       const extraCls = b.type === 'PASS' ? 'dalje' : (b.type === 'IGRA' ? 'igra' : (b.type === 'MOGU' ? 'mogu' : 'bid'));
       // bez 🤖 u licitaciji, na svim uređajima (korisnik 2026-11-03: „neka samo piše Milan mogu 3“)
       const name = String(seatLabel).replace(/^🤖 /, '');
-      log.innerHTML += `<span class="${cls} ${extraCls}">${name}: ${txt}</span>`;
+      html += `<span class="${cls} ${extraCls}">${name}: ${txt}</span>`;
     }
+  }
+  // Isti sadržaj: ne diraj ni skrol (korisnik 2026-11-03: dugu licitaciju nije mogao da skroluje na početak,
+  // jer je svako crtanje ekrana vraćalo panel na kraj). Template ispisuje HTML isto kao pregledač, pa se porede.
+  const fresh = document.createElement('template');
+  fresh.innerHTML = html;
+  if (fresh.innerHTML === log.innerHTML) return;
+  log.innerHTML = html;
+  if (s.bids.length > 0) {
     // Skroluj na kraj — HORIZONTALNO za baznu (desktop, red-obrazac) verziju
     // .bid-log-a. BAG (uzivo prijavljeno vise puta: "ne vidim ni pocetak ni
     // kraj" na landscape telefonu/sirokom desktopu): tamo se NE skroluje
@@ -1783,8 +1790,8 @@ function renderFollowing() {
   const isHumanCaller = isHuman(callerCandidate);
   if (isHumanCaller) {
     ctrl.appendChild(el('div', 'section-label', mode === '3human' ? `POTEZ: ${POS_LABELS[callerCandidate]}` : 'TVOJ POTEZ'));
-    const call = el('button', 'bid-btn primary',
-      phoneShort(`Pozovi ${POS_LABELS[neDodjem]}`, `Pozovi ${plainName(neDodjem)}`));
+    // bez 🤖, na svim uređajima (korisnik 2026-11-03)
+    const call = el('button', 'bid-btn primary', `Pozovi ${plainName(neDodjem)}`);
     call.onclick = (e) => { logTrustedAction(`userCall callee=${neDodjem}`, e); game.call(callerCandidate, neDodjem); render(); };
     ctrl.appendChild(call);
     const solo = el('button', 'bid-btn primary', 'Igram sam');
@@ -4133,9 +4140,15 @@ function appendChatMessageOnline(m, isLive = true) {
   // ODVOJENE cvorove (oba i dalje preko textContent/createTextNode, ne
   // interpolacija u HTML) da ime moze dobiti svoju boju po igracu —
   // korisnikov zahtev: "razdvojiti poruke od razlicitih igraca bojama".
+  // Poruke „Sistem“ (isteklo vreme, odgovor na „nosim sve“…) kratko na stolu, ne u chatu (korisnik 2026-11-03:
+  // posle „Nosim sve“ je odgovor tražio ispod niza poruka o isteku vremena, a chat se otvarao sam)
+  if (m.role === 'system') {
+    if (isLive) showAppToast(m.text);
+    return;
+  }
   const log = $('chatLog');
   const isPlayer = m.role === 'player';
-  const who = isPlayer ? POS_LABELS[m.seat] : m.role === 'system' ? 'Sistem' : `${m.name} (kibicer)`;
+  const who = isPlayer ? POS_LABELS[m.seat] : `${m.name} (kibicer)`;
   const div = document.createElement('div');
   div.className = 'chat-msg' + (isPlayer ? ` p${m.seat}` : ' spectator');
   const nameSpan = document.createElement('span');

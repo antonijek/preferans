@@ -475,9 +475,11 @@
      32%), ne mora biti tacno u ravni, samo vidno visa. */
   /* 41%/44% je bilo previse blizu (korisnikov utisak posle probe) — vraceno
      na blaziju sredinu izmedju originalnog 34% i probanog 41%. */
-  #slot-west { top: 50%; left: 37%; transform: translateY(-50%); }
-  #slot-east { top: 50%; right: 37%; transform: translateY(-50%); }
-  #slot-south { bottom: 42%; left: 50%; transform: translateX(-50%); }
+  /* Jug-ova karta dole, najbliže njemu, malo iznad njegove pločice (korisnik 2026-11-03: „čudno deluje da
+     donji igrač baci kartu gore“); Zapad/Istok malo više i šire, da se karte ne preklapaju. */
+  #slot-west { top: 40%; left: 33%; transform: translateY(-50%); }
+  #slot-east { top: 40%; right: 33%; transform: translateY(-50%); }
+  #slot-south { bottom: 96px; left: 50%; transform: translateX(-50%); }
 
   /* === DONJI PANEL === */
   /* Korisnikov zahtev: bid-log i bid-controls su se preselili u desni bocni
@@ -2117,16 +2119,14 @@
     .hand-area .card { margin-left: -2px; }
     .bid-btn { padding: 5px 10px; min-height: 28px; font-size: 0.85em; }
     .bid-log { padding: 2px 6px; min-height: 18px; font-size: 0.75em; }
-    /* .trick-slot je fiksno 68x92 u baznom CSS-u (podesavano za znatno
-       vecu .table-felt visinu) — na ovako niskom feltu (min-height:130px)
-       to gura Jug-ovu odigranu kartu (#slot-south, bottom:42%) da se
-       preklapa sa Jug-ovim sedistem ispod (#seat-south, bottom:6px) —
-       otkriveno mobilnim retestom, potvrdjeno merenjem getBoundingClientRect
-       (slot.bottom=221px > seat.top=202px). Manja karta + slot pomeren
-       nize (bottom:30% umesto 42%) uklanja preklapanje bez diranja baznog
-       (portrait/desktop) pozicioniranja koje je vec fino podeseno. */
-    .trick-slot { width: 44px; height: 60px; }
-    #slot-south { bottom: 60%; }
+    /* Karte na stolu skoro kao u ruci (korisnik 2026-11-03: „premale“, bile su 40x56); sto je od tada do vrha
+       ekrana, a pločica dole tanka, pa ima mesta. Na nižem ekranu se smanjuju sa visinom. Zapad/Istok ispod
+       „Poslednjeg štiha“ (gore na stolu, landscape.css), Jug iznad svoje pločice. */
+    .trick-slot { --trick-h: min(88px, 23vh); width: calc(var(--trick-h) * 8 / 11); height: var(--trick-h); }
+    .trick-slot .card.small { width: 100%; height: 100%; }
+    #slot-west { top: 44%; left: 32%; }
+    #slot-east { top: 44%; right: 32%; }
+    #slot-south { bottom: 52px; }
 
     /* Korisnikov zahtev (telefon horizontalno): brend-red (naslov+bule) i
        licitacija/dodjem-nedodjem OPCIJE ispod stola oduzimaju previse
@@ -2271,7 +2271,7 @@
     .trick-slot { width: 50px; height: 68px; }
     #slot-west { left: 28%; }
     #slot-east { right: 28%; }
-    #slot-south { bottom: 38%; }
+    #slot-south { bottom: 62px; }
     /* Korisnikov zahtev: talon karte na stolu su prevelike na telefonu,
        "nista se ne vidi" (2 karte "small" 58x82 pored labele lako pokriju
        pola uskog stola). Znatno manje ovde, cim se telefon-portret uslov
