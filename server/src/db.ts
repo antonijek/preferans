@@ -154,6 +154,22 @@ export async function initDb(): Promise<void> {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )`);
   }
+  // posete sajtu (korisnikov zahtev 2026-11-03, vidi visits.ts); visitor je nasumican broj iz pregledaca, bez IP adrese
+  if (db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='visits'").length === 0) {
+    db.run(`CREATE TABLE visits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      visitor TEXT NOT NULL,
+      source TEXT NOT NULL,
+      device TEXT NOT NULL,
+      installed INTEGER NOT NULL DEFAULT 0,
+      user_id INTEGER,
+      played_local INTEGER NOT NULL DEFAULT 0,
+      played_online INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+    db.run('CREATE INDEX idx_visits_visitor ON visits(visitor)');
+  }
   // partija odigrana u ligi — tabela lige se racuna iz match_log
   const matchLogCols = new Set((db.exec('PRAGMA table_info(match_log)')[0]?.values ?? []).map((row) => row[1]));
   if (!matchLogCols.has('league_id')) {

@@ -29,6 +29,7 @@ import { initFeedbackUi, handSnapshot } from './feedback-ui.js';
 import { claimIsCertain } from './engine/dist/claim.js';
 import { initMonthly } from './monthly.js';
 import { initLandscapeLayout, placeStatusBanners, phoneShort } from './landscape-layout.js';
+import { initVisits, markPlayed } from './visit.js';
 
 // Feature-flag za search-bazirani AI (Monte Carlo determinizacija, vidi
 // plan "toasty-rolling-sparkle") — localStorage prekidac radi trenutnog
@@ -2671,6 +2672,7 @@ async function startLocalGame() {
 }
 
 function startGame() {
+  markPlayed('local');
   $('setupScreen').classList.remove('active');
   $('resultScreen').classList.remove('active');
 
@@ -3125,6 +3127,7 @@ async function connectOnlineSocket() {
     }
   });
   onlineSocket.on('game:state', (state) => {
+    markPlayed('online');
     debugLog('game:state', {
       phase: state.phase, currentPlayer: state.currentPlayer, mySeat,
       winner: state.winner, kontraLevel: state.kontraLevel,
@@ -4223,6 +4226,7 @@ initFeedbackUi({
     return s && !$('setupScreen').classList.contains('active') ? { mode: 'local', ...handSnapshot(s) } : null;
   },
 });
+initVisits({ getToken: () => onlineToken });
 initLeagueUi({
   getToken: () => onlineToken,
   getSocket: () => onlineSocket,
