@@ -1063,7 +1063,7 @@ function renderStatusBar() {
     }).join('');
     const winnerHtml = `<strong>${phoneShort(POS_LABELS[winnerPos], plainName(winnerPos))}</strong>`;
     lastTrickBanner.innerHTML =
-      `Poslednji štih: ${cardsHtml} <span class="text-full">—</span> ${winnerHtml}`;
+      `<span class="last-trick-label">Poslednji štih:</span> ${cardsHtml} <span class="text-full">—</span> ${winnerHtml}`;
     lastTrickBanner.style.display = 'flex';
   } else {
     lastTrickBanner.style.display = 'none';

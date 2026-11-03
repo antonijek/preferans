@@ -19,12 +19,15 @@
     font-size: 0.72em;
   }
   #leftSidePanel .talon-info { flex-wrap: wrap; gap: 4px; }
-  /* ko je došao i poslednji štih: sitnije (osnovno #leftSidePanel pravilo bi pobedilo .side-panel iz preferans.css) */
-  #leftSidePanel .defense-info,
-  #leftSidePanel .last-trick-info { padding: 6px 4px; font-size: 0.72em; }
-  /* poslednji štih zbijeno: „Poslednji štih: K♠ 7♠ 9♠ Bora“ (korisnik: „ne mora toliko da zauzima“) */
-  #leftSidePanel .last-trick-info { gap: 3px; }
-  #leftSidePanel .last-trick-info .mini-card { padding: 0 3px; }
+  /* ko je došao: sitnije (osnovno #leftSidePanel pravilo bi pobedilo .side-panel iz preferans.css) */
+  #leftSidePanel .defense-info { padding: 6px 4px; font-size: 0.72em; }
+  /* poslednji štih gore na sredini stola, u jednom redu (landscape-layout.js; u levom pojasu je išao u 2 reda) */
+  #tableFelt .last-trick-info {
+    position: absolute; top: 4px; left: 50%; transform: translateX(-50%); z-index: 5;
+    flex-wrap: nowrap; white-space: nowrap; gap: 3px; padding: 2px 8px;
+    background: rgba(0, 0, 0, 0.35); border-radius: 10px; font-size: 0.72em;
+  }
+  #tableFelt .last-trick-info .mini-card { padding: 0 3px; }
 
   /* kratki natpis na dugmetu („Pozovi Milan“, „🏁 Nosim sve“) u jednom redu, da dugme bude niže */
   .bid-btn .text-short { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -62,10 +65,20 @@
   /* sto do vrha i do crte iznad karata (osnovno: najviše 64% visine ekrana) */
   body .table-felt { height: 100%; }
 
-  /* nizak ekran: poslednji štih ne staje u levi pojas pored „ko je došao“ (korisnik: „možemo maći poslednji štih“) */
-  @media (max-height: 380px) {
-    #leftSidePanel .last-trick-info { display: none !important; }
+  /* prozor na kraju ruke u dve kolone (bio je viši od ekrana, „Deli“ se morao doskrolovati):
+     levo ko je igrao / prošao / ko je došao, desno bule sva tri igrača; „Pogledaj karte“ i „Deli“ u jednom redu */
+  #resultBox:not(.match-over) {
+    width: 100%; max-width: 640px;
+    display: flex; flex-wrap: wrap; align-content: flex-start; column-gap: 8px;
   }
+  #resultBox:not(.match-over) > * { flex: 1 1 100%; }
+  #resultBox:not(.match-over) > #viewCardsBtn,
+  #resultBox:not(.match-over) > #nextRoundBtn { flex: 1 1 40%; }
+  #resultBox:not(.match-over) #resultMsg {
+    display: grid; grid-template-columns: 1fr 1fr; column-gap: 12px; align-items: center;
+  }
+  #resultBox:not(.match-over) #resultMsg > * { grid-column: 1; }
+  #resultBox:not(.match-over) #resultMsg > .result-scoreboard { grid-column: 2; grid-row: 1 / span 6; margin-top: 0; }
 
   /* karte u ruci veće, širina prema ekranu (fiksnih 64px je na telefonu širine 800 prelazilo u drugi red);
      desno 54px za ☰ */

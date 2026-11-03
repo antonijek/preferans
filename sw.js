@@ -11,7 +11,7 @@
 // nacin da se stari klijenti odmah prebace: promeniti SADRZAJ ovog fajla
 // (bump verzije), sto tera browser da primeti razliku i instalira NOVI SW.
 // UBUDUCE: bump-ovati OVDE pri SVAKOM deploy-u koji dira app.js/preferans.html.
-const CACHE_NAME = 'preferans-v73';
+const CACHE_NAME = 'preferans-v75';
 const SHELL_FILES = [
   '/',
   '/preferans.html',
@@ -40,6 +40,7 @@ const SHELL_FILES = [
   '/monthly.js',
   '/monthly.css',
   '/landscape.css',
+  '/portrait.css',
   '/landscape-layout.js',
   '/manifest.json',
   '/icon.svg',

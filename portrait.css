@@ -1,0 +1,25 @@
+/* Uspravan telefon (korisnik 2026-11-03). Na računaru i položenom telefonu (landscape.css) se ništa ne menja. */
+@media (max-width: 699px) and (orientation: portrait) {
+  /* „Nosim sve“: .bid-btn ima flex-basis 80px, a u ovoj koloni to postaje visina (dugme je bilo 170x80) */
+  .claim-controls .claim-btn { flex: none; min-height: 28px; padding: 4px 12px; font-size: 0.85em; }
+  .claim-btn .text-full { display: none; }
+  .claim-btn .text-short { display: inline; }
+
+  /* poslednji štih u istom redu sa „Antonije: Dođem“, u desnom uglu, umesto posebnog reda preko cele širine */
+  #leftSidePanel { flex-direction: row; align-items: stretch; }
+  #leftSidePanel .defense-info { flex: 1 1 auto; min-width: 0; }
+  #leftSidePanel .last-trick-info {
+    flex: 0 1 auto; margin-left: auto; max-width: 50%;
+    justify-content: flex-end; align-content: center; gap: 4px;
+  }
+  #leftSidePanel .last-trick-label { flex-basis: 100%; text-align: right; }
+
+  /* tvoja pločica: manja i na donjoj ivici stola, da ne pokriva karte na sredini */
+  #seat-south { bottom: 0; width: auto; min-width: 72px; }
+  #seat-south .player-name-row { padding: 1px 3px; margin-bottom: 0; }
+  #seat-south:has(.player-refe:not(:empty)) .player-name-row { padding-right: 18px; }
+  #seat-south .bula-row { margin-top: 0; }
+  #seat-south .player-bule { font-size: 0.75em; }
+  /* refe u redu sa imenom, desno (bez posebnog reda) */
+  #seat-south .player-refe { position: absolute; top: 3px; right: 4px; margin: 0; }
+}
