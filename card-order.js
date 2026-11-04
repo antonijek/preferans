@@ -8,6 +8,7 @@ const SUIT_TO_FILE_LETTER = { '♠': 'S', '♥': 'H', '♦': 'D', '♣': 'C' };
 
 export const rankValue = (r) => RANK_ORDER.indexOf(r);
 export const isRed = (s) => s === '♥' || s === '♦';
+export const suitFileLetter = (suit) => SUIT_TO_FILE_LETTER[suit];
 export const cardImageSrc = (c) => `/icons/cards/${c.rank}${SUIT_TO_FILE_LETTER[c.suit]}.svg`;
 
 export const sortHand = (cards) => cards.slice().sort((a, b) => {

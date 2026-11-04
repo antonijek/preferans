@@ -36,6 +36,16 @@
   /* licitacija desno: „Milan: mogu 3“ kao običan red teksta. Kao flex se rasturalo:
      ikonica gore, „mogu“ desno, „Milan:“ i „3“ ispod. */
   #rightSidePanel .bid-entry { display: block; }
+  /* licitacija ima svoj skrol, a dugmad ispod nje ne učestvuju u njemu (korisnik 2026-11-04: duga licitacija se
+     na telefonu nije dala skrolovati do početka, vraćalo ga je dole; skrolovao se ceo panel sa dugmadima koja se
+     posle svakog poteza ponovo crtaju) */
+  #rightSidePanel .bid-log {
+    flex: 0 1 auto; min-height: 2.5em; overflow-y: auto; overflow-x: hidden;
+    /* osnovni .bid-log centrira (justify-content: center), a tada višak ide i iznad vrha, gde skrol ne stiže */
+    justify-content: flex-start;
+    overscroll-behavior: contain; touch-action: pan-y;
+  }
+  #rightSidePanel .bid-controls, #rightSidePanel .claim-controls { flex: none; }
 
   /* chat se otvara desno od levog pojasa, da ga ne pokrije */
   .chat-panel { left: 128px; }

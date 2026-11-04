@@ -11,7 +11,7 @@
 // nacin da se stari klijenti odmah prebace: promeniti SADRZAJ ovog fajla
 // (bump verzije), sto tera browser da primeti razliku i instalira NOVI SW.
 // UBUDUCE: bump-ovati OVDE pri SVAKOM deploy-u koji dira app.js/preferans.html.
-const CACHE_NAME = 'preferans-v80';
+const CACHE_NAME = 'preferans-v81';
 const SHELL_FILES = [
   '/',
   '/preferans.html',
@@ -30,6 +30,7 @@ const SHELL_FILES = [
   '/session-replaced.js',
   '/share.js',
   '/card-order.js',
+  '/card-deck.js',
   '/claim-ui.js',
   '/seat-delta.js',
   '/avatar-ui.js',

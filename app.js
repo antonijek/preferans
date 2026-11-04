@@ -21,7 +21,8 @@ import { initLeagueUi, goToLeagues, consumeLeagueLink, wantedLeagueCode } from '
 import { askConfirm, copyLink } from './dialog.js';
 import { watchSessionReplaced } from './session-replaced.js';
 import { shareResult } from './share.js';
-import { isRed, sortHand, cardImageSrc } from './card-order.js';
+import { isRed, sortHand } from './card-order.js';
+import { getCardStyle, nextCardStyle, cardFaceSrc, cardBackSrc } from './card-deck.js';
 import { renderClaim } from './claim-ui.js';
 import { showSeatDeltas, fadeSeatDeltas, clearSeatDeltas } from './seat-delta.js';
 import { initAvatarUi, setMyAvatar, paintAvatar, firstLetter } from './avatar-ui.js';
@@ -751,20 +752,12 @@ function applyHandFan(container) {
   });
 }
 
-// Klasicne ilustrovane karte (korisnikov zahtev 2026-09-26 — "balkanski
-// izgled", ne tekstualni rank+suit) — CC0 set u icons/cards/, fajlovi
-// imenovani <rank><SUIT_LETTER>.svg (npr. "10S.svg", "AH.svg"). Korisnik je
-// posle toga trazio da izgled bude IZBOR (neki su navikli na stare
-// tekstualne karte, "sad djeluju premale") — cuva se po korisniku
-// (localStorage), cisto kozmetika na klijentu, isti obrazac kao toggleSound.
-function getCardStyle() {
-  try { return localStorage.getItem('cardStyle') === 'text' ? 'text' : 'illustrated'; } catch { return 'illustrated'; }
-}
+// izgled karata (francuske / mađarice / tekstualne): card-deck.js
 function toggleCardStyle() {
-  const next = getCardStyle() === 'illustrated' ? 'text' : 'illustrated';
-  try { localStorage.setItem('cardStyle', next); } catch {}
+  const label = nextCardStyle();
   const btn = $('cardStyleToggleBtn');
-  if (btn) btn.title = next === 'illustrated' ? 'Izgled karata: ilustrovane (klik za tekstualne)' : 'Izgled karata: tekstualne (klik za ilustrovane)';
+  if (btn) btn.title = `${label} (klik za sledeće)`;
+  showAppToast(label);
   render();
 }
 window.toggleCardStyle = toggleCardStyle;
@@ -783,7 +776,7 @@ const cardEl = (c, opts = {}) => {
     node.innerHTML = `<div class="rank">${c.rank}</div><div class="suit">${c.suit}</div>`;
   } else {
     const img = document.createElement('img');
-    img.src = cardImageSrc(c);
+    img.src = cardFaceSrc(c);
     img.alt = `${c.rank}${c.suit}`;
     img.draggable = false;
     // Width/height (CSS i dalje odredjuje stvarnu velicinu, .card je uvek
@@ -1027,11 +1020,10 @@ function renderStatusBar() {
     // dve boje iz istog seta (back-red.svg / back-blue.svg), prati isti
     // toggle kao prednja strana. Ranija CSS zeleno-zlatna verzija odbijena
     // ("ne valja ni jedna ni druga") — uklonjena.
-    const useText = getCardStyle() === 'text';
     for (let i = 0; i < 2; i++) {
       const back = el('div', 'card small talon-back');
       const img = document.createElement('img');
-      img.src = useText ? '/icons/cards/back-blue.svg' : '/icons/cards/back-red.svg';
+      img.src = cardBackSrc();
       img.alt = 'Talon';
       img.draggable = false;
       img.width = 68;
@@ -1424,6 +1416,8 @@ function renderBidLog(s) {
     // roditelj panel (vertikalno, ako je kolona) — jedno od njih je uvek
     // no-op zavisno od layout-a, bezopasno.
     log.scrollLeft = log.scrollWidth;
+    // položen telefon: licitacija ima svoj vertikalni skrol (landscape.css)
+    log.scrollTop = log.scrollHeight;
     const sidePanel = log.closest('.side-panel');
     if (sidePanel) sidePanel.scrollTop = sidePanel.scrollHeight;
   }
