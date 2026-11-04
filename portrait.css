@@ -20,6 +20,9 @@
   .hand-area .card { margin-left: 0; }
   .hand-area .card ~ .card { margin-left: min(6px, calc((100% - var(--hand-n) * 68px - 1px) / (var(--hand-n) - 1))); }
 
+  /* dugmad za izbor igre samo sa imenom, bez znaka boje (kao na položenom telefonu, korisnik 2026-11-04) */
+  #rightSidePanel .opt-half-suit { display: none; }
+
   /* tvoja pločica: manja i na donjoj ivici stola, da ne pokriva karte na sredini */
   #seat-south { bottom: 0; width: auto; min-width: 72px; }
   #seat-south .player-name-row { padding: 1px 3px; margin-bottom: 0; }
