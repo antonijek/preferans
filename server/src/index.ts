@@ -21,6 +21,7 @@ import { isPublicPath } from './publicPaths.js';
 import { avatarRouter } from './avatars.js';
 import { feedbackRouter, feedbackAdminRouter } from './feedback.js';
 import { visitRouter, visitsAdminRouter } from './visits.js';
+import { startLonelyMail } from './lonelyMail.js';
 
 // dist/index.js -> server/dist -> server -> project root, where
 // preferans.html/app.js/engine/dist all live. Serving them same-origin
@@ -106,6 +107,7 @@ async function main(): Promise<void> {
   const httpServer = http.createServer(app);
   const io = new SocketIOServer(httpServer, { cors: { origin: true } });
   registerSocketHandlers(io);
+  startLonelyMail();
 
   const port = Number(process.env.PORT) || 3001;
   httpServer.listen(port, () => {

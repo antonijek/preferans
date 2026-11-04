@@ -5,6 +5,7 @@ import { registerRoomHandlers } from './roomEvents.js';
 import { registerClaimHandlers } from './claimEvents.js';
 import { markOnline, markOffline, getSocketIdsForUser, listOnlineUsers } from '../presence.js';
 import { playerArrived } from '../push.js';
+import { lonelyArrived, lonelyLeft } from '../lonelyMail.js';
 
 // Uzivo prijavljen bag KROZ AUDIT (2026-09-26, pred lansiranje): NIJEDAN
 // socket handler (game:action, chat:send, room:create...) nije imao
@@ -86,6 +87,8 @@ export function registerSocketHandlers(io: Server): void {
     socket.data.name = user?.name || user?.email || `player-${userId}`;
     console.log(`Socket ${socket.id} authenticated as user ${userId} (${socket.data.name})`);
     wrapSocketErrors(socket);
+    // pre gašenja stare veze ispod, da prelazak na drugi uređaj ne izgleda kao odlazak
+    lonelyArrived(userId, !!user?.is_admin);
     // Jedan uredjaj u isto vreme (po uzoru na Loru, 2026-10-20): stariji tab
     // ili telefon bi ostao sa zastarelim stolom (stanje ide samo poslednjoj
     // vezi), a potezi sa njega bi i dalje vazili za isto mesto. Stariji dobija
@@ -104,7 +107,10 @@ export function registerSocketHandlers(io: Server): void {
     if (!user?.is_admin) {
       playerArrived(socket.data.name, listOnlineUsers().filter((u) => u.userId !== userId).length);
     }
-    socket.on('disconnect', () => markOffline(socket.id));
+    socket.on('disconnect', () => {
+      markOffline(socket.id);
+      lonelyLeft(userId);
+    });
     registerRoomHandlers(io, socket);
     registerClaimHandlers(socket, userId);
   });

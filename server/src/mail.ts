@@ -30,7 +30,8 @@ export async function sendMail(
   to: string,
   subject: string,
   text: string,
-  fromName = process.env.SMTP_FROM_NAME ?? 'Preferans online'
+  fromName = process.env.SMTP_FROM_NAME ?? 'Preferans online',
+  replyTo?: string
 ): Promise<void> {
   const t = getTransporter();
   if (!t) throw new Error('SMTP nije podesen (SMTP_HOST/SMTP_USER/SMTP_PASS u .env)');
@@ -39,6 +40,7 @@ export async function sendMail(
     const info = await t.sendMail({
       from: `"${fromName}" <${process.env.SMTP_FROM ?? process.env.SMTP_USER}>`,
       to,
+      replyTo,
       subject,
       text,
     });
