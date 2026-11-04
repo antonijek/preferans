@@ -14,6 +14,12 @@
   }
   #leftSidePanel .last-trick-label { flex-basis: 100%; text-align: right; }
 
+  /* karte u ruci u jednom redu, od ivice do ivice (bile su u 2 reda, drugi skriven); preklapanje zavisi od broja
+     karata (--hand-n iz applyHandFan). Sa strane 10px jer se krajnje karte lepezasto naginju. */
+  .hand-area { padding-left: 10px; padding-right: 10px; column-gap: 0; }
+  .hand-area .card { margin-left: 0; }
+  .hand-area .card ~ .card { margin-left: min(6px, calc((100% - var(--hand-n) * 68px - 1px) / (var(--hand-n) - 1))); }
+
   /* tvoja pločica: manja i na donjoj ivici stola, da ne pokriva karte na sredini */
   #seat-south { bottom: 0; width: auto; min-width: 72px; }
   #seat-south .player-name-row { padding: 1px 3px; margin-bottom: 0; }

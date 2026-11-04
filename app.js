@@ -737,6 +737,7 @@ const fmt = c => `${c.rank}${c.suit}`;
 function applyHandFan(container) {
   const cards = Array.from(container.children).filter(el => el.classList.contains('card'));
   const n = cards.length;
+  container.style.setProperty('--hand-n', String(n));
   if (n <= 1) { cards.forEach(c => { c.style.removeProperty('--rot'); c.style.removeProperty('--lift'); }); return; }
   const mid = (n - 1) / 2;
   const maxRotate = Math.min(2 + n * 0.8, 12);
