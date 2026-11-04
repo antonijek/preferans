@@ -166,6 +166,11 @@ export function clearUserLocation(userId: number): void {
   userLocation.delete(userId);
 }
 
+/** Kao clearUserLocation, ali samo ako je igrač baš za ovim stolom (pauzirana partija: on je već za drugim). */
+export function clearUserLocationIn(userId: number, code: string): void {
+  if (userLocation.get(userId)?.code === code) userLocation.delete(userId);
+}
+
 export function isAnyoneConnected(room: RoomState): boolean {
   return room.sockets.some((s) => s !== null) || Array.from(room.spectators.values()).some((s) => s.socket !== null);
 }
@@ -187,7 +192,7 @@ export function removeAbandonedWaitingRooms(): number {
     const isWaiting = room.game.state.phase === 'WAITING';
     if (isWaiting && !isAnyoneConnected(room) && now - room.lastActivityAt > WAITING_AWAY_MS) {
       for (const uid of room.seatUserIds) {
-        if (uid !== null) clearUserLocation(uid);
+        if (uid !== null) clearUserLocationIn(uid, code);
       }
       roomsByCode.delete(code);
       deleteActiveRoom(code);
@@ -217,7 +222,7 @@ export function removeStuckRooms(): number {
     const isWaiting = room.game.state.phase === 'WAITING';
     if (!isWaiting && !isAnyoneConnected(room) && now - room.lastActivityAt > STUCK_ROOM_MS) {
       for (const uid of room.seatUserIds) {
-        if (uid !== null) clearUserLocation(uid);
+        if (uid !== null) clearUserLocationIn(uid, code);
       }
       roomsByCode.delete(code);
       deleteActiveRoom(code);
@@ -250,6 +255,7 @@ interface SerializedRoom {
   chatLog: RoomState['chatLog'];
   abandonedSeat: Position | null;
   frozenBula: number | null;
+  pausedSeat?: Position | null;
   botSeats?: Position[];
   hadBots?: boolean;
   turnSeconds?: number;
@@ -276,6 +282,7 @@ function serializeRoom(room: RoomState): SerializedRoom {
     chatLog: room.chatLog,
     abandonedSeat: room.abandonedSeat,
     frozenBula: room.frozenBula,
+    pausedSeat: room.pausedSeat,
     botSeats: Array.from(room.botSeats),
     hadBots: room.hadBots,
     turnSeconds: room.turnSeconds,
@@ -334,6 +341,7 @@ export function loadPersistedRooms(): number {
       chatLog: parsed.chatLog,
       abandonedSeat: parsed.abandonedSeat,
       frozenBula: parsed.frozenBula,
+      pausedSeat: parsed.pausedSeat ?? null,
       // stariji zapisi (pre racunara za stolom) nemaju ova polja
       botSeats: new Set(parsed.botSeats ?? []),
       hadBots: parsed.hadBots ?? false,
@@ -361,7 +369,8 @@ export function loadPersistedRooms(): number {
     roomsByCode.set(room.code, room);
     for (const seat of [0, 1, 2] as Position[]) {
       const uid = room.seatUserIds[seat];
-      if (uid !== null) userLocation.set(uid, { code: room.code, role: 'player', seat });
+      // pauzirana partija sa računarom ne vraća igrača za taj sto (sedi za drugim ili je na početnoj)
+      if (uid !== null && seat !== room.pausedSeat) userLocation.set(uid, { code: room.code, role: 'player', seat });
     }
     loaded++;
   }

@@ -30,6 +30,7 @@ import { claimIsCertain } from './engine/dist/claim.js';
 import { initMonthly } from './monthly.js';
 import { initLandscapeLayout, placeStatusBanners, phoneShort } from './landscape-layout.js';
 import { initVisits, markPlayed } from './visit.js';
+import { initPausedBotUi, refreshPausedBot } from './paused-bot-ui.js';
 
 // Feature-flag za search-bazirani AI (Monte Carlo determinizacija, vidi
 // plan "toasty-rolling-sparkle") — localStorage prekidac radi trenutnog
@@ -3107,14 +3108,13 @@ async function connectOnlineSocket() {
       try { alreadyTried = sessionStorage.getItem(`pref_tried_room:${wantedRoomCode}`) === '1'; } catch (e) { /* ok bez pamcenja */ }
       if (!alreadyTried) {
         try { sessionStorage.setItem(`pref_tried_room:${wantedRoomCode}`, '1'); } catch (e) { /* ok bez pamcenja */ }
-        goToRoomScreen();
-        $('roomCodeInput').value = wantedRoomCode;
-        joinRoomOnline();
+        joinRoomByCode(wantedRoomCode);
         return;
       }
     }
     $('homeScreen').classList.add('active');
     $('roomScreen').classList.remove('active');
+    refreshPausedBot();
   });
   // Salje se pri (re)konekciji ako korisnik VEC ima aktivnu sobu (M6
   // reconnect) — bez ovoga bi refresh stranice dok se ceka na jos igraca
@@ -3350,6 +3350,14 @@ function goToRoomScreen() {
 function goToHomeScreen() {
   $('roomScreen').classList.remove('active');
   $('homeScreen').classList.add('active');
+  refreshPausedBot();
+}
+
+// poziv, link sa kodom sobe, sačuvana partija sa računarom
+function joinRoomByCode(code) {
+  goToRoomScreen();
+  $('roomCodeInput').value = code;
+  joinRoomOnline();
 }
 
 // "Ustani od stola" bez napustanja partije — soket/sediste ostaju netaknuti
@@ -3365,6 +3373,7 @@ function peekHomeScreen() {
   $('setupScreen').classList.remove('active');
   $('homeScreen').classList.add('active');
   $('backToTableBtn').style.display = '';
+  refreshPausedBot();
 }
 window.peekHomeScreen = peekHomeScreen;
 
@@ -3482,9 +3491,7 @@ function showInviteBanner(code, fromName) {
   join.textContent = 'Pridruži se';
   join.onclick = () => {
     banner.remove();
-    goToRoomScreen();
-    $('roomCodeInput').value = code;
-    joinRoomOnline();
+    joinRoomByCode(code);
   };
   const dismiss = document.createElement('button');
   dismiss.className = 'bid-btn';
@@ -3751,8 +3758,8 @@ function emitSeating(event, payload, onDone) {
     if (res?.seatedIn) {
       const leave = await askConfirm({
         title: `Već igraš za stolom ${res.seatedIn}`,
-        text: 'Da napustiš tu partiju i počneš novu? Sto sa računarom se zatvara, a za stolom sa ljudima '
-          + 'računar igra umesto tebe do kraja ruke.',
+        text: 'Da pređeš za drugi sto? Partija sa računarom se čuva i nastavljaš je sa početne, a za stolom '
+          + 'sa ljudima računar igra umesto tebe do kraja ruke.',
         ok: 'Napusti i nastavi',
         cancel: 'Nazad za sto',
         danger: true,
@@ -4240,6 +4247,7 @@ initFeedbackUi({
   },
 });
 initVisits({ getToken: () => onlineToken });
+initPausedBotUi({ getSocket: () => onlineSocket, onResume: joinRoomByCode });
 initLeagueUi({
   getToken: () => onlineToken,
   getSocket: () => onlineSocket,

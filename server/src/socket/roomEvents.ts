@@ -24,6 +24,7 @@ import {
 } from './roomBroadcast.js';
 import { notifyUser } from '../push.js';
 import { getLeague, isLeagueMember, leagueStatus } from '../leagues.js';
+import { pausedBotInfo } from './botPause.js';
 
 type Ack = (response: Record<string, unknown>) => void;
 
@@ -56,6 +57,7 @@ function joinAsPlayer(room: RoomState, userId: number, socket: Socket, name: str
   room.seatNames[seat] = name;
   room.seatRatings[seat] = getUserRating(userId);
   room.sockets[seat] = socket;
+  if (room.pausedSeat === seat) room.pausedSeat = null; // vratio se u sačuvanu partiju sa računarom (botPause.ts)
   socket.join(room.code);
   setUserLocation(userId, { code: room.code, role: 'player', seat });
 
@@ -226,6 +228,11 @@ export function registerRoomHandlers(io: Server, socket: Socket): void {
         maybeNotifyTurn(room, true);
       }
     }, 10000);
+  });
+
+  // početna: dugme „Nastavi partiju sa računarom“ (botPause.ts)
+  socket.on('room:paused-bot', (_payload: unknown, ack?: Ack) => {
+    ack?.(pausedBotInfo(userId));
   });
 
   socket.on('presence:list', (_payload: unknown, ack?: Ack) => {

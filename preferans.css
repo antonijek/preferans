@@ -21,6 +21,9 @@
     touch-action: manipulation;
     overflow: hidden;
     min-height: 100vh; min-height: 100dvh;
+    /* viewport-fit=cover: na Androidu stranica ide i ispod trake sa dugmicima, pa je donji red karata
+       bio skriven (korisnik 2026-11-03). */
+    padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
   }
 
   /* === TOP BAR === */
@@ -1475,7 +1478,8 @@
      upotrebljiv oko/iza njega. */
   .chat-panel {
     display: none;
-    position: fixed; left: 8px; bottom: 8px; z-index: 250;
+    position: fixed; z-index: 250;
+    left: calc(8px + env(safe-area-inset-left, 0px)); bottom: calc(8px + env(safe-area-inset-bottom, 0px));
     width: min(320px, calc(100vw - 16px));
     /* Vise prostora za same poruke (korisnikov zahtev — "sto vise prostora
        porukama") — visina panela povecana, dok su header/input dole svedeni
@@ -2155,7 +2159,8 @@
        justify-content:center (umesto grid) centrira SVAKI red nezavisno —
        max-width ogranicava na TACNO 3 po redu (icon ~34px + gap 4px). */
     .top-actions {
-      position: fixed; bottom: 4px; right: 4px;
+      position: fixed;
+      bottom: calc(4px + env(safe-area-inset-bottom, 0px)); right: calc(4px + env(safe-area-inset-right, 0px));
       display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; z-index: 90;
       max-width: 138px;
       background: rgba(0,0,0,0.4); padding: 4px; border-radius: 10px;

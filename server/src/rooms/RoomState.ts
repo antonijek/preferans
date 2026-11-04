@@ -36,6 +36,8 @@ export interface RoomState {
   chatLog: ChatMessage[];
   abandonedSeat: Position | null;
   frozenBula: number | null;
+  // Mesto igrača koji je sa stola sa računarima prešao za drugi sto: partija čeka da se vrati (botPause.ts)
+  pausedSeat: Position | null;
   // Korisnikov zahtev (2026-10-14): racunar popunjava prazna mesta da niko
   // ne ceka sam. Sedista koja od pocetka vozi server AI (aiSeat.ts) —
   // seatUserIds[seat] im je null, pa joinAsPlayer() covekom koji naidje
@@ -161,6 +163,7 @@ export function createRoomState(code: string, options: RoomOptions = {}): RoomSt
     chatLog: [],
     abandonedSeat: null,
     frozenBula: null,
+    pausedSeat: null,
     botSeats: new Set(),
     hadBots: false,
     aiTurnTimeout: null,

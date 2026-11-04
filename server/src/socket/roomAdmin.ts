@@ -1,4 +1,4 @@
-import { clearUserLocation, removeRoom } from '../rooms/RoomManager.js';
+import { clearUserLocation, clearUserLocationIn, removeRoom } from '../rooms/RoomManager.js';
 import type { RoomState, ChatMessage } from '../rooms/RoomState.js';
 import { CHAT_LOG_LIMIT } from '../rooms/RoomState.js';
 import type { Position } from '../../../engine/dist/types.js';
@@ -83,7 +83,7 @@ export function adminCloseRoom(room: RoomState, reason?: string): void {
   const payload = { code: room.code, reason: reason ?? null };
   room.sockets.forEach((socket, seat) => {
     const uid = room.seatUserIds[seat];
-    if (uid !== null) clearUserLocation(uid);
+    if (uid !== null) clearUserLocationIn(uid, room.code);
     socket?.emit('room:closed', payload);
     socket?.leave(room.code);
   });

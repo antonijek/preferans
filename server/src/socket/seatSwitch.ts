@@ -1,7 +1,8 @@
 // Igrač koji seda za drugi sto (nova soba, pridruživanje) prvo ustaje sa starog. Korisnik 2026-11-01: posle 🏠
 // i „Napravi novu sobu“ server ga je držao za oba stola — stizala su mu stanja sa oba, a „Popuni računarom i
 // počni“ kao da ne radi. Partija u toku se napušta samo kad igrač to potvrdi (leaveCurrent), isto kao
-// „Napusti svakako“; sto koji čeka, završena partija i kibicovanje puštaju se bez pitanja.
+// „Napusti svakako“; sto koji čeka, završena partija i kibicovanje puštaju se bez pitanja. Sa stola sa računarima
+// se ustaje bez gubitka: partija čeka da se vrati (botPause.ts).
 
 import type { Socket } from 'socket.io';
 import { clearUserLocation, getRoomByCode, getUserLocation, removeRoom } from '../rooms/RoomManager.js';
@@ -9,13 +10,9 @@ import type { RoomState } from '../rooms/RoomState.js';
 import type { Position } from '../../../engine/dist/types.js';
 import { adminCloseRoom } from './roomAdmin.js';
 import { broadcastRoomState, postSystemMessage } from './roomBroadcast.js';
+import { isAloneWithBots, othersAtTable, pauseBotMatch } from './botPause.js';
 
 export type SeatRelease = { ok: true } | { error: string; seatedIn: string };
-
-const othersAtTable = (room: RoomState, seat: Position) =>
-  ([0, 1, 2] as Position[]).filter(
-    (p) => p !== seat && p !== room.abandonedSeat && !room.botSeats.has(p) && room.seatUserIds[p] !== null
-  );
 
 /**
  * Napuštanje partije u toku (game:leave i prelazak za drugi sto). Vraća bulu na kojoj igrač ostaje zamrznut.
@@ -24,7 +21,7 @@ const othersAtTable = (room: RoomState, seat: Position) =>
  */
 export function leaveRunningMatch(room: RoomState, seat: Position, userId: number, name: string, socket: Socket): number {
   const frozenBula = room.game.state.bulas[seat];
-  const alone = othersAtTable(room, seat).length === 0 && room.botSeats.size > 0;
+  const alone = isAloneWithBots(room, seat);
   room.sockets[seat] = null;
   socket.leave(room.code);
   clearUserLocation(userId);
@@ -77,6 +74,7 @@ export function releaseOtherSeat(
     return { ok: true };
   }
   if (!leaveCurrent) return { error: `Već igraš za stolom ${old.code} — vrati se za sto ili ga napusti.`, seatedIn: old.code };
-  leaveRunningMatch(old, seat, userId, name, socket);
+  if (isAloneWithBots(old, seat)) pauseBotMatch(old, seat, userId, socket, targetCode);
+  else leaveRunningMatch(old, seat, userId, name, socket);
   return { ok: true };
 }
