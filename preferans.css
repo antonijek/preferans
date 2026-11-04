@@ -21,8 +21,8 @@
     touch-action: manipulation;
     overflow: hidden;
     min-height: 100vh; min-height: 100dvh;
-    /* viewport-fit=cover: na Androidu stranica ide i ispod trake sa dugmicima, pa je donji red karata
-       bio skriven (korisnik 2026-11-03). */
+    /* ako stranica ipak ide ispod sistemskih traka (iPhone, Android), karte ostaju iznad njih (korisnik 2026-11-03);
+       viewport-fit=cover je skinut 2026-11-04, vidi preferans.html */
     padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
   }
 

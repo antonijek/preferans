@@ -2,7 +2,9 @@
 <html lang="sr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<!-- bez viewport-fit=cover (korisnik 2026-11-04): sa njim je Android crtao stranicu ispod donje trake sa dugmićima,
+     a uspravno nije javljao njenu visinu (safe-area 0), pa je traka sekla karte. Bez njega telefon sam drži stranicu iznad trake. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#1b5e20">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
