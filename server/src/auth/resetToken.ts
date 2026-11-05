@@ -10,6 +10,7 @@ export const MIN_PASSWORD = 4;
 export const RESET_APPS = {
   lora: { name: 'Lora', url: 'https://lora.igrajmo.online/' },
   preferans: { name: 'Preferans online', url: 'https://preferans.igrajmo.online/' },
+  jamb: { name: 'Jamb', url: 'https://jamb.igrajmo.online/' },
 } as const;
 export type ResetApp = keyof typeof RESET_APPS;
 

@@ -22,6 +22,7 @@ test('token: svaki put nov, a hash uvek isti za isti token', () => {
 test('sajt za link: samo poznati, ne bilo sta od klijenta', () => {
   assert.equal(isResetApp('lora'), true);
   assert.equal(isResetApp('preferans'), true);
+  assert.equal(isResetApp('jamb'), true);
   for (const bad of ['https://zlo.com', '__proto__', 'toString', '', null, 7]) assert.equal(isResetApp(bad), false);
 });
 
