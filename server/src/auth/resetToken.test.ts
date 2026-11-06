@@ -39,6 +39,16 @@ test('poruka: ime igraca, link i ime sajta', () => {
   assert.match(mail.text, /sat vremena/);
 });
 
+test('poruka ima dugme sa linkom, a ime igraca je bezbedno upisano', () => {
+  const link = 'https://jamb.igrajmo.online/?reset=a-b_c';
+  const mail = resetMail('jamb', '<b>Ana</b>', link);
+  assert.ok(mail.html.includes(`href="${link}"`));
+  assert.match(mail.html, /Postavi novu lozinku<\/a>/);
+  assert.ok(!mail.html.includes('<b>Ana</b>'));
+  assert.ok(mail.html.includes('&lt;b&gt;Ana&lt;/b&gt;'));
+  assert.match(mail.text, /Nije spam/);
+});
+
 test('link vazi samo dok nije iskoriscen i dok nije istekao', () => {
   const now = 1_000_000;
   const row = { id: 1, user_id: 5, expires_at: now + 1, used_at: null };

@@ -38,7 +38,7 @@
 <link rel="stylesheet" href="./theme.css?v=3">
 <link rel="stylesheet" href="./preferans.css?v=17">
 <link rel="stylesheet" href="./league.css?v=1">
-<link rel="stylesheet" href="./dialog.css?v=1">
+<link rel="stylesheet" href="./dialog.css?v=2">
 <link rel="stylesheet" href="./avatar.css?v=1">
 <link rel="stylesheet" href="./feedback.css?v=4">
 <link rel="stylesheet" href="./game-menu.css?v=1">
@@ -303,6 +303,7 @@
       <label for="loginPassword">Lozinka</label>
       <input type="password" id="loginPassword" placeholder="lozinka" autocomplete="current-password">
     </div>
+    <button type="button" class="forgot-link" id="forgotBtn">Zaboravili ste lozinku?</button>
     <div class="field-error" id="loginError"></div>
     <div style="display:flex;gap:8px">
       <button class="mode-btn primary" onclick="doLogin()">Uloguj se</button>
@@ -619,6 +620,42 @@
      je jedini NEPOBITAN nacin — to je BUKVALNO nov URL koji nijedan keš
      ikad nije video, ne postoji nacin da posluzi staru kopiju. UBUDUCE:
      bump-ovati ?v=N ovde pri SVAKOM deploy-u koji dira app.js. -->
-<script type="module" src="./app.js?v=54"></script>
+<!-- „Zaboravili ste lozinku?“ i „Nova lozinka“ (password-reset.js) -->
+<dialog id="forgotDlg" class="app-dialog">
+  <h2 class="app-dialog-title">Zaboravili ste lozinku?</h2>
+  <p class="app-dialog-text">Upišite email naloga. Poslaćemo vam link za novu lozinku.</p>
+  <form id="forgotForm">
+    <div class="text-field">
+      <label for="forgotEmail">Email</label>
+      <input type="email" id="forgotEmail" required autocomplete="email">
+    </div>
+    <p class="app-dialog-text" id="forgotMsg" role="status"></p>
+    <div class="field-error" id="forgotError" role="alert"></div>
+    <div class="app-dialog-buttons">
+      <button type="button" class="mode-btn" id="forgotClose">Zatvori</button>
+      <button type="submit" class="mode-btn primary" id="forgotSend">Pošalji link</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="resetDlg" class="app-dialog">
+  <h2 class="app-dialog-title">Nova lozinka</h2>
+  <form id="resetForm">
+    <div class="text-field">
+      <label for="resetPassword">Nova lozinka</label>
+      <input type="password" id="resetPassword" required minlength="4" autocomplete="new-password">
+    </div>
+    <div class="text-field">
+      <label for="resetPassword2">Ponovite lozinku</label>
+      <input type="password" id="resetPassword2" required minlength="4" autocomplete="new-password">
+    </div>
+    <div class="field-error" id="resetError" role="alert"></div>
+    <div class="app-dialog-buttons">
+      <button type="button" class="mode-btn" id="resetCancel">Odustani</button>
+      <button type="submit" class="mode-btn primary" id="resetSave">Sačuvaj lozinku</button>
+    </div>
+  </form>
+</dialog>
+<script src="/password-eye.js"></script>
+<script type="module" src="./app.js?v=55"></script>
 </body>
 </html>

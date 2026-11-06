@@ -79,7 +79,7 @@ passwordResetRouter.post('/password/forgot', forgotLimiter, (req, res) => {
     now,
   ]);
   const mail = resetMail(app, user.name || user.email, resetLink(app, token));
-  sendMail(user.email, mail.subject, mail.text, RESET_APPS[app].name).catch((err) =>
+  sendMail(user.email, mail.subject, mail.text, RESET_APPS[app].name, undefined, mail.html).catch((err) =>
     console.error(`[reset] link za nalog ${user.id} nije poslat:`, err)
   );
 });

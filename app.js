@@ -32,6 +32,7 @@ import { initMonthly } from './monthly.js';
 import { initLandscapeLayout, placeStatusBanners, phoneShort } from './landscape-layout.js';
 import { initVisits, markPlayed } from './visit.js';
 import { initPausedBotUi, refreshPausedBot } from './paused-bot-ui.js';
+import { initPasswordReset } from './password-reset.js';
 
 // Feature-flag za search-bazirani AI (Monte Carlo determinizacija, vidi
 // plan "toasty-rolling-sparkle") — localStorage prekidac radi trenutnog
@@ -4243,6 +4244,15 @@ initFeedbackUi({
 });
 initVisits({ getToken: () => onlineToken });
 initPausedBotUi({ getSocket: () => onlineSocket, onResume: joinRoomByCode });
+initPasswordReset({
+  emailNow: () => $('loginEmail').value.trim(),
+  // posle nove lozinke igrač je odmah prijavljen, kao posle obične prijave (onlineAuth)
+  onToken: (token) => {
+    onlineToken = token;
+    try { localStorage.setItem('pref_token', token); } catch (e) { /* ok bez pamcenja */ }
+    goOnline();
+  },
+});
 initLeagueUi({
   getToken: () => onlineToken,
   getSocket: () => onlineSocket,

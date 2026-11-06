@@ -31,7 +31,8 @@ export async function sendMail(
   subject: string,
   text: string,
   fromName = process.env.SMTP_FROM_NAME ?? 'Preferans online',
-  replyTo?: string
+  replyTo?: string,
+  html?: string
 ): Promise<void> {
   const t = getTransporter();
   if (!t) throw new Error('SMTP nije podesen (SMTP_HOST/SMTP_USER/SMTP_PASS u .env)');
@@ -43,6 +44,7 @@ export async function sendMail(
       replyTo,
       subject,
       text,
+      html,
     });
     // Korisnikov zahtev (2026-09-20, "ne znam je li poslato stvarno"): bez
     // ovoga jedini nacin da se proveri da li je slanje uspelo bio je rucni
