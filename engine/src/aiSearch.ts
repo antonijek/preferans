@@ -14,7 +14,7 @@ import { estimatedMaxLevel } from './aiHandEval.js';
 import { choosePlayCard } from './aiDiscardPlay.js';
 import { betlPlay } from './aiBetl.js';
 import {
-  sansDefenderLead, defenderTrumpGameLead, waitsForDeclarer, weakTrumpLeadAllowed,
+  sansDefenderLead, defenderTrumpGameLead, waitsForDeclarer, twoHandedQueenSuit, weakTrumpLeadAllowed,
   type LeadContext,
 } from './aiLeads.js';
 import { activePlayerCount, nextActivePlayer } from './turnOrder.js';
@@ -308,7 +308,8 @@ function defenderPlayFilter(state: GameState, seat: Position, legal: Card[]): Ca
       if (lead) return [lead];
       const sideSuits = legal.filter((c) => c.suit !== state.trump);
       const open = sideSuits.filter((c) => !waitsForDeclarer(sideSuits.filter((x) => x.suit === c.suit)));
-      const pool = open.length > 0 ? open : keep(sideSuits);
+      const queenSuit = ctx.twoHanded && open.length === 0 ? twoHandedQueenSuit(sideSuits, state.trump) : null;
+      const pool = open.length > 0 ? open : keep(sideSuits.filter((c) => !queenSuit || c.suit === queenSuit));
       // Udvoje nema partnera da uzme stih, pa se iz boje vodi najjaca karta (korisnik 2026-11-02, #21 ruka 36:
       // Milan 9 pik iz D,J,9 — "uvek najjacu, ovde D pik, ne malu").
       if (!ctx.twoHanded) return pool;

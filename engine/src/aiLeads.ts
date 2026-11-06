@@ -368,6 +368,18 @@ export function waitsForDeclarer(cards: Card[]): boolean {
   return bareKing || bareQueen || isTenace(cards);
 }
 
+/**
+ * Udvoje, kad sve boje cekaju: prvo dama treca (D,10,8), pa makaze kecom, kralj (K,10) poslednji — makaze i
+ * kralj vec idu tim redom kao najjace karte. Korisnik 2026-11-06: K,10 herc / A,D,7 karo / D,10,8 tref →
+ * "D tref"; K,10,8 herc / A,D,7 karo → A karo.
+ */
+export function twoHandedQueenSuit(cards: Card[], trump: Suit): Suit | null {
+  return SUITS.find((s) => {
+    const inSuit = cardsIn(cards, s);
+    return s !== trump && inSuit.length >= 3 && inSuit[0]!.rank === 'Q' && !inSuit.some((c) => c.rank === 'J');
+  }) ?? null;
+}
+
 export function defenderSafeExit(ctx: LeadContext): Card | null {
   if (!ctx.trump) return null;
   const safe: Card[] = [];
@@ -378,7 +390,7 @@ export function defenderSafeExit(ctx: LeadContext): Card | null {
   }
   const lowest = safe.sort(desc)[safe.length - 1];
   if (!ctx.twoHanded) return lowest ?? null;
-  const suit = lowest?.suit;
+  const suit = lowest?.suit ?? twoHandedQueenSuit(ctx.legal, ctx.trump);
   const pool = suit ? cardsIn(ctx.legal, suit) : ctx.legal.filter((c) => c.suit !== ctx.trump).sort(desc);
   return pool[0] ?? null;
 }

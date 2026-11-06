@@ -12,7 +12,7 @@ export const hand = (s: string): Card[] => (s ? s.split(' ').map(card) : []);
 export const trick = (s: string) => s.split(' ').map((x) => ({ player: Number(x[0]) as Position, card: card(x.slice(1)) }));
 
 export interface Position18 {
-  game: 'Herc' | 'Karo' | 'Tref' | 'Igra-Pik' | 'Igra-Karo' | 'Igra-Herc' | 'Igra-Tref' | 'Betl';
+  game: 'Pik' | 'Herc' | 'Karo' | 'Tref' | 'Igra-Pik' | 'Igra-Karo' | 'Igra-Herc' | 'Igra-Tref' | 'Betl';
   declarer: Position;
   follow: (FollowChoice | null)[];
   hands: [string, string, string];
@@ -20,10 +20,13 @@ export interface Position18 {
   current?: string;
   discard?: string;
   talon?: string;
+  /** ko vodi prvi stih kad jos nema odigranih (podrazumevano nosilac) */
+  leader?: Position;
 }
 
 export const TRUMP: Record<Position18['game'], Suit | null> = {
-  Herc: '♥', Karo: '♦', Tref: '♣', 'Igra-Pik': '♠', 'Igra-Karo': '♦', 'Igra-Herc': '♥', 'Igra-Tref': '♣', Betl: null,
+  Pik: '♠', Herc: '♥', Karo: '♦', Tref: '♣',
+  'Igra-Pik': '♠', 'Igra-Karo': '♦', 'Igra-Herc': '♥', 'Igra-Tref': '♣', Betl: null,
 };
 
 export function stateOf(p: Position18) {
@@ -39,7 +42,7 @@ export function stateOf(p: Position18) {
       return x.card.suit === trump || (x.card.suit === led && best.card.suit !== trump) ? x : best;
     }).player;
   };
-  const leader = tricks.length > 0 ? winnerOf(tricks[tricks.length - 1]!) : p.declarer;
+  const leader = tricks.length > 0 ? winnerOf(tricks[tricks.length - 1]!) : p.leader ?? p.declarer;
   const order = p.follow.map((f, i) => (f === 'NE_DODJEM' ? -1 : i)).filter((i) => i >= 0);
   const next = (q: number) => order[(order.indexOf(q) + 1) % order.length]!;
   let current = leader;
