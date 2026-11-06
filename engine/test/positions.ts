@@ -63,7 +63,7 @@ export const rules = (p: Position18) => {
     twoHanded: p.follow.includes('NE_DODJEM'),
   })!.id;
 };
-export const search = (p: Position18) => {
+export const search = (p: Position18, samples = 30) => {
   const s = stateOf(p);
-  return searchChoosePlayCard(s, s.currentPlayer, 30).id;
+  return searchChoosePlayCard(s, s.currentPlayer, samples).id;
 };

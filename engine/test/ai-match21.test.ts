@@ -108,5 +108,5 @@ const H31: Position18 = {
 
 test('ruka 31: Milan ne izvlaci poslednji adut J tref, nego igra A pik', () => {
   assert.equal(rules(H31), 'A♠');
-  assert.equal(search(H31), 'A♠');
+  assert.equal(search(H31, 100), 'A♠');
 });

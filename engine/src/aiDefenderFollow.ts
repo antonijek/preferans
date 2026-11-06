@@ -85,12 +85,18 @@ export function secondHandLow(ctx: DefenderFollowContext, partnerAfter: boolean)
  * Skart pratioca bez karte koja ostavlja kralja samog (K i jos jedna karta),
  * dok ima druge — korisnik: "mala uz K,J cuva kralja" (#13 ruka 32), a u #14
  * (ruka 16) Bora je bacio 10 herc pa 7 pik i izgubio oba kralja ("morao je
- * karo jer zna da to sece Milan").
+ * karo jer zna da to sece Milan"). Isto i za asa, ali kralj ima prednost (korisnik 2026-11-05, #22 ruka 22:
+ * Milan bacio J herc iz A,J pa mu je 8 herc nosioca uzela poslednji stih — "ne valja ostavljati suvog asa,
+ * ali ako mora bolje i to nego suvog K").
  */
-export function withoutKingGuards(hand: Card[], cards: Card[]): Card[] {
+export function withoutHonorGuards(hand: Card[], cards: Card[]): Card[] {
+  return withoutGuards(hand, withoutGuards(hand, cards, 'K'), 'A');
+}
+
+function withoutGuards(hand: Card[], cards: Card[], honor: 'A' | 'K'): Card[] {
   const guarded = (c: Card) => {
     const suit = hand.filter((x) => x.suit === c.suit);
-    return suit.length <= 2 && suit.some((x) => x.rank === 'K');
+    return suit.length <= 2 && suit.some((x) => x.rank === honor);
   };
   const rest = cards.filter((c) => !guarded(c));
   return rest.length > 0 ? rest : cards;

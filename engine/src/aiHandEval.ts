@@ -269,13 +269,9 @@ export function estimatedMaxLevel(hand: Card[], declarerLeads = true): number {
 // od estimatedMaxLevel-ovog MIN_TRICKS_TO_BID(5) koji racuna na +1 iz
 // talona za OBICNU licitaciju.
 //
-// Korisnik 2026-10-24 (#13 ruka 16, ♥K,D,J,9,7 ♦A,9,8,7 i jos dve karte):
-// Igra "uvek", i bez prazne boje — 5+ aduta sa K,D,J (ili A,D,J) gube
-// najvise jedan stih, pa je 5 procenjenih stihova dovoljno i bez talona.
-function hasSolidLongTrumps(hand: Card[], suit: Suit): boolean {
-  const ranks = new Set(hand.filter((c) => c.suit === suit).map((c) => c.rank));
-  return ranks.size >= 5 && ranks.has('Q') && ranks.has('J') && (ranks.has('K') || ranks.has('A'));
-}
+// Uvek 6 izracunatih stihova (korisnik 2026-11-05, #22 ruka 1: Bora rekao igra sa ♠K,D,J,8,7 ♦K,D,9 —
+// "4 stiha na adut i jedan na K,D i mala. Nema 6"). Ranije je 5 bilo dosta uz 5 aduta sa K,D,J; #13
+// ruka 16 (♥K,D,J,9,7 ♦A,9,8,7) i bez toga ima 6+, jer se posle aduta A,9,8,7 broji kao 2-3 stiha.
 
 // "Igra" sa tacno 4 aduta (korisnik 2026-10-26, partija #17 ruka 5: Milan rekao igra sa
 // karo K,D,10,8 i pik A,K,D — "preslabo"): A,K u adutu je sigurna igra; K,D,J samo kad
@@ -310,7 +306,7 @@ export function isIgraWorthy(hand: Card[], declarerLeads = false, otherIgra: Oth
   for (const s of SUITS) {
     if (!hasTrumpLength(hand, s) || !igraTrumpsOk(hand, s, declarerLeads)) continue;
     const tricks = countDeclarerTricks(hand, s);
-    if (tricks >= 6 || (tricks >= 5 && hasSolidLongTrumps(hand, s))) return true;
+    if (tricks >= 6) return true;
   }
   return !hasVoidSuit(hand) && countSansTricks(hand) >= 6 && (!otherIgra || sansGuardedAfterIgra(hand, otherIgra.sayerLeads));
 }

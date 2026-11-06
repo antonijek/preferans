@@ -162,8 +162,9 @@ test('Bora sa A,10,9,8,7 tref i K,9,7 karo nema 5 stihova (#12 ruka 10)', () => 
 
 test('Igra sa K,D,J,9,7 herc i A karo, sa praznom bojom i bez nje (#13 ruka 16)', () => {
   // Borina ruka je po korisnikovom Betl pravilu i sigurna za Betl (herc 7,9,J;
-  // karo 7,8,9; suva 8), pa je proglasena igra Igra-Betl; bez sedmice karo — Igra-Herc
-  const cases: [string, string][] = [['K♥ Q♥ J♥ 9♥ 7♥ A♦ 9♦ 8♦ 7♦ 8♠', 'Igra-Betl'], ['K♥ Q♥ J♥ 9♥ 7♥ A♦ 9♦ 8♦ 8♣ 7♠', 'Igra-Herc']];
+  // karo 7,8,9; suva 8), pa je proglasena igra Igra-Betl; sa suvom 10 pik (nije Betl) — Igra-Herc.
+  // Bez sedmice karo (A,9,8) bilo bi 4 + 1 = 5 stihova, pa nema igre (korisnik 2026-11-05, #22 ruka 1).
+  const cases: [string, string][] = [['K♥ Q♥ J♥ 9♥ 7♥ A♦ 9♦ 8♦ 7♦ 8♠', 'Igra-Betl'], ['K♥ Q♥ J♥ 9♥ 7♥ A♦ 9♦ 8♦ 7♦ 10♠', 'Igra-Herc']];
   for (const [h, game] of cases) {
     assert.equal(chooseBidAction(bidCtx(h)).type, 'IGRA', h);
     assert.equal(chooseDeclareGame(hand(h), 0, IGRA_GAMES), game, h);

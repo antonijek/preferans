@@ -16,6 +16,7 @@ import {
   igraTrumpsOk,
   sansGuardedAfterIgra,
   hasTrumpLength,
+  sequentialRunFromAce,
 } from './aiHandEval.js';
 import type { OtherIgra } from './aiHandEval.js';
 
@@ -76,6 +77,17 @@ const CERTAIN_GAME_SCORE = 11; // vise od bilo kog broja stihova, manje od sigur
 // boja sa 3 karte (hasTrumpLength) samo kad nijedna druga igra nije dozvoljena, i tad pre nesigurnog Betla
 const SHORT_TRUMP_PENALTY = 50;
 
+// Igra sa A,K,D i jos jednim adutom gubi najvise jedan adutski stih; sigurna je samo uz drugu boju koja je i
+// sama sigurna igra (korisnik 2026-11-05, #22 ruka 18: Bora ♠A,K,D,J,10,9 ♣A,K,D,10 proglasio Igra-Pik —
+// "Tref", "vazi samo kad ima ovako jake 2 boje").
+function safeLosingOneTrump(hand: Card[], trump: Suit, declarerLeads: boolean, required: number): boolean {
+  const trumps = hand.filter((c) => c.suit === trump).length;
+  if (trumps !== 4 || sequentialRunFromAce(hand, trump) !== 3) return false;
+  const sides = (['♠', '♥', '♦', '♣'] as Suit[]).filter((s) => s !== trump);
+  const tricks = trumps - 1 + sides.reduce((n, s) => n + sequentialRunFromAce(hand, s), 0);
+  return tricks >= required && sides.some((s) => certainTricks(hand, s, declarerLeads) >= required);
+}
+
 /** Da li je neko drugi u ovoj ruci vec rekao "igra" (i da li on prvi baca kartu). */
 export function otherIgraOf(s: { bids: { player: Position; type: string }[]; bidStartPlayer: Position }, seat: Position): OtherIgra {
   const sayers = s.bids.filter((b) => b.type.toUpperCase() === 'IGRA' && b.player !== seat).map((b) => b.player);
@@ -105,7 +117,8 @@ export function chooseDeclareGame(
       score = sans >= REQUIRED_TRICKS[g] ? CERTAIN_GAME_SCORE : sans;
     } else {
       const trump = SUIT_FOR_GAME[g] ?? null;
-      const certain = trump !== null && certainTricks(hand, trump, declarerLeads) >= REQUIRED_TRICKS[g];
+      const certain = trump !== null && (certainTricks(hand, trump, declarerLeads) >= REQUIRED_TRICKS[g]
+        || (g.startsWith('Igra-') && safeLosingOneTrump(hand, trump, declarerLeads, REQUIRED_TRICKS[g])));
       // posle "igra" ne bira se boja koju bi isto pravilo odbilo za sam poziv (igraTrumpsOk)
       if (g.startsWith('Igra-') && trump !== null && !certain && !igraTrumpsOk(hand, trump, declarerLeads)) continue;
       score = certain ? CERTAIN_GAME_SCORE : countDeclarerTricks(hand, trump);

@@ -174,7 +174,12 @@ export function continueAceSuit(ctx: LeadContext): Card | null {
   if (!ctx.trump) return null;
   const lead = ctx.tricks[ctx.tricks.length - 1]?.[0];
   if (!lead || lead.player !== ctx.myPosition || lead.card.suit === ctx.trump) return null;
-  if (lead.card.rank === 'A') return masters(ctx, lead.card.suit)[0] ?? null;
+  // Udvoje i kad posle asa nemam sigurnu kartu nastavljam boju najjacom (korisnik 2026-11-05, #22 ruka 16: Bora
+  // posle A karo sa D,10,7 karo otvorio K herc u nosiocev A,D) — sa A,D,x se asom i ne pocinje.
+  if (lead.card.rank === 'A') {
+    const top = masters(ctx, lead.card.suit)[0];
+    return top ?? (ctx.twoHanded ? cardsIn(ctx.legal, lead.card.suit)[0] ?? null : null);
+  }
   // U igri udvoje i posle K koji je uzeo stih nastavljam boju najjacom kartom (korisnik 2026-11-02, #21
   // ruka 36: Milan posle K herc otvorio 9 pik — "umesto da nastavi herc", pa nosilac mora da sece).
   if (lead.card.rank !== 'K' || !ctx.twoHanded) return null;

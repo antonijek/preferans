@@ -11,7 +11,7 @@ import {
   declarerVoidLead,
 } from './aiLeads.js';
 import { declarerRulesLead } from './aiDeclarerPlay.js';
-import { followAfterPartner, secondHandLow, withoutKingGuards, discardFromDeclarerVoid } from './aiDefenderFollow.js';
+import { followAfterPartner, secondHandLow, withoutHonorGuards, discardFromDeclarerVoid } from './aiDefenderFollow.js';
 import { betlPlay } from './aiBetl.js';
 
 // === DISCARD STRATEGIJA ===
@@ -534,9 +534,17 @@ export function choosePlayCard(args: {
     return legal.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
   }
   if (trump && legal.some(c => c.suit === trump)) {
-    // Moraš adut — bacaj najslabiji
-    const trumps = legal.filter(c => c.suit === trump);
-    return trumps.sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank])[0]!;
+    // Moraš adut — najmanji koji tuče adut protivnika već u štihu, inače najslabiji (partija #22, ruka 10:
+    // Bora sa D,J,7 tref bacio 7 ispod Milanove 10 tref i izgubio štih)
+    const trumps = legal.filter(c => c.suit === trump).sort((a, b) => RANK_VALUE[a.rank] - RANK_VALUE[b.rank]);
+    const trickTrumps = currentTrick.filter(tc => tc.card.suit === trump);
+    const topTrump = trickTrumps.sort((a, b) => RANK_VALUE[b.card.rank] - RANK_VALUE[a.card.rank])[0];
+    const teammateHolds = topTrump && !isDeclarer && declarer != null && topTrump.player !== declarer;
+    if (topTrump && !teammateHolds) {
+      const over = trumps.find(c => RANK_VALUE[c.rank] > RANK_VALUE[topTrump.card.rank]);
+      if (over) return over;
+    }
+    return trumps[0]!;
   }
   const isSansGame = args.declaredGame === 'Sans' || args.declaredGame === 'Igra-Sans';
   if (!isDeclarer && isSansGame && myPosition != null && declarer != null) {
@@ -551,7 +559,7 @@ export function choosePlayCard(args: {
   // umesto toga).
   const nonHonor = legal.filter(c => c.rank !== 'A' && c.rank !== 'K');
   const basePool = nonHonor.length > 0 ? nonHonor : legal;
-  const pool = isDeclarer ? basePool : withoutKingGuards(hand, basePool);
+  const pool = isDeclarer ? basePool : withoutHonorGuards(hand, basePool);
   if (!isDeclarer && declarer != null) {
     const fromVoid = discardFromDeclarerVoid({ hand, legal, currentTrick, trump, declarer, tricks }, pool);
     if (fromVoid) return fromVoid;

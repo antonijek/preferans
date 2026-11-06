@@ -18,7 +18,7 @@ import {
   type LeadContext,
 } from './aiLeads.js';
 import { activePlayerCount, nextActivePlayer } from './turnOrder.js';
-import { followAfterPartner, secondHandLow, withoutKingGuards, discardFromDeclarerVoid } from './aiDefenderFollow.js';
+import { followAfterPartner, secondHandLow, withoutHonorGuards, discardFromDeclarerVoid } from './aiDefenderFollow.js';
 import {
   declarerDrawnChoices, declarerRuffedFourChoices, declarerCoveredTrumps, declarerBareTopTrump, declarerAceOnce,
   withoutLowTrumpLead, declarerKeepLastTrump,
@@ -330,7 +330,7 @@ function defenderPlayFilter(state: GameState, seat: Position, legal: Card[]): Ca
     return pick ? [pick] : legal;
   }
   const discards = legal.filter((c) => c.suit === state.trump || (c.rank !== 'A' && c.rank !== 'K'));
-  const pool = withoutKingGuards(hand, keep(discards));
+  const pool = withoutHonorGuards(hand, keep(discards));
   const { currentTrick, trump, tricks } = state;
   const ctx = { hand, legal, currentTrick, trump, declarer: state.winner!, tricks };
   const fromVoid = discardFromDeclarerVoid(ctx, pool);
