@@ -18,6 +18,7 @@ import { monthlyRouter } from './monthly.js';
 import { seoRouter } from './seo.js';
 import { initPush } from './push.js';
 import { isPublicPath } from './publicPaths.js';
+import { androidAppRouter } from './androidApp.js';
 import { avatarRouter } from './avatars.js';
 import { feedbackRouter, feedbackAdminRouter } from './feedback.js';
 import { visitRouter, visitsAdminRouter } from './visits.js';
@@ -62,6 +63,7 @@ async function main(): Promise<void> {
   // express.static ispod (inace bi staticki robots.txt/sitemap.xml, ako bi
   // ih neko vratio, senčili dinamicke verzije).
   app.use(seoRouter(PROJECT_ROOT));
+  app.use(androidAppRouter(PROJECT_ROOT));
   // samo fajlovi koji trebaju pregledacu — nikad server/ (baza), tools/, docs/ (publicPaths.ts)
   app.use((req, res, next) => {
     if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/') || isPublicPath(req.path)) return next();
