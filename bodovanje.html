@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1b5e20">
+<title>Bodovanje u preferansu — bule, supe, refa i primeri</title>
+<meta name="description" content="Kako se računaju bodovi u preferansu: bule, supe, refa i kapa. Formule, primer ruke korak po korak i konačni rezultat partije. Jasno i na srpskom.">
+<link rel="canonical" href="https://preferans.igrajmo.online/bodovanje.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Preferans online">
+<meta property="og:locale" content="sr_RS">
+<meta property="og:title" content="Bodovanje u preferansu — bule, supe, refa i primeri">
+<meta property="og:description" content="Kako se računaju bodovi u preferansu: bule, supe, refa i kapa. Formule, primer ruke korak po korak i konačni rezultat partije. Jasno i na srpskom.">
+<meta property="og:url" content="https://preferans.igrajmo.online/bodovanje.html">
+<meta property="og:image" content="https://preferans.igrajmo.online/icons/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://preferans.igrajmo.online/icons/og-image.jpg">
+<link rel="icon" href="/icons/favicon-32.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","@id":"https://preferans.igrajmo.online/bodovanje.html#article","headline":"Bodovanje u preferansu — bule, supe, refa i primeri","description":"Kako se računaju bodovi u preferansu: bule, supe, refa i kapa. Formule, primer ruke korak po korak i konačni rezultat partije. Jasno i na srpskom.","inLanguage":"sr","url":"https://preferans.igrajmo.online/bodovanje.html","image":"https://preferans.igrajmo.online/icons/og-image.jpg","dateModified":"2026-11-11","author":{"@type":"Organization","name":"Preferans online"},"publisher":{"@type":"Organization","name":"Preferans online","url":"https://preferans.igrajmo.online/"},"isPartOf":{"@id":"https://preferans.igrajmo.online/#site"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Preferans online","item":"https://preferans.igrajmo.online/"},{"@type":"ListItem","position":2,"name":"Bodovanje u preferansu","item":"https://preferans.igrajmo.online/bodovanje.html"}]}]}</script>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/theme.css?v=1">
+<link rel="stylesheet" href="/page.css?v=2">
+</head>
+<body>
+
+<div class="top-bar">
+  <a class="logo" href="/"><img src="/icons/logo-mark.svg" style="height:1.15em;width:1.15em;vertical-align:-0.22em;margin-right:0.15em" alt="">Preferans</a>
+  <a class="back-link" href="/">← Nazad na igru</a>
+</div>
+
+<div class="wrap">
+  <h1 class="page-title">Bodovanje u preferansu</h1>
+  <p class="subtitle">Bule, supe, refa i konačni rezultat — formule i primer ruke korak po korak.</p>
+
+  <section id="ukratko">
+    <h2>Ukratko</h2>
+    <p>U preferansu se bodovi zovu <strong>bule</strong> i <strong>supe</strong>. Svaki igrač počinje sa istim brojem bula (obično 100). Nosilac koji <em>prođe</em> skida bule, a koji <em>padne</em> dopisuje. Pratioci za svoje štihove upisuju supe. Partija traje dok zbir bula svih igrača ne padne tačno na 0.</p>
+    <p>Vrednost igre (2 za Pik do 7 za Sans) nađi u <a href="/licitacija.html">tabeli licitacije</a>.</p>
+  </section>
+
+  <section id="bule">
+    <h2>Bule — prolaz i pad</h2>
+    <p>Nosilac prolazi ako uzme najmanje 6 od 10 štihova. Bule se menjaju ovako:</p>
+    <pre>prolaz: nosilac skida  vrednost igre × 2  bula
+pad:    nosilac dopisuje  vrednost igre × 2  bula</pre>
+    <p>Bez kontre svaki pratilac dobija (ako nosilac prođe) ili gubi (ako padne) <strong>vrednost igre × 1</strong>. Ako je samo jedan pratilac „došao“, njemu ide cela vrednost. Ako je kontra data, kontraš snosi celu promenu bula. O kontri vidi u <a href="/pravila.html#kontra">pravilima</a>.</p>
+  </section>
+
+  <section id="supe">
+    <h2>Supe — nagrada pratiocima</h2>
+    <p>Supe zarađuju <strong>pratioci</strong> protiv nosioca, prema broju uzetih štihova:</p>
+    <pre>supe = broj štihova pratioca × vrednost igre × 2</pre>
+    <p>Supe se množe sa kontrom (×2, ×4, ×8, ×16) i sa ×2 ako je ruka pod refom. Ako nosilac padne, njegovi štihovi se ne računaju kao supe.</p>
+    <p><strong>Betl</strong> je izuzetak: kad nosilac betla padne, svaki pratilac upisuje fiksno <strong>60 supa</strong> (Igra-Betl: 70), bez obzira na broj štihova.</p>
+  </section>
+
+  <section id="primer">
+    <h2>Primer ruke korak po korak</h2>
+    <div class="example"><strong>Marko igra Herc</strong> (vrednost 4) i uzme 7 štihova. Prošao je, pa skida <strong>4 × 2 = 8 bula</strong>.<br>
+    Ana je uhvatila 2 štiha: 2 × 4 × 2 = <strong>16 supa</strong>. Ivan je uhvatio 1 štih: 1 × 4 × 2 = <strong>8 supa</strong>.</div>
+    <p>Posle više ruku zbrajaju se bule i supe svakog igrača.</p>
+  </section>
+
+  <section id="refa">
+    <h2>Refa i kapa</h2>
+    <p><strong>Refa</strong> se piše kad svi igrači kažu „dalje“. Svako dobija po jednu refu, a ona se troši kad taj igrač sledeći put bude nosilac: tada se bodovi te ruke duplaju. Kad igrač pređe sa pozitivnih bula u minus, kaže se da je <strong>„pod kapom“</strong> i tada više ne može da piše refu.</p>
+  </section>
+
+  <section id="kraj">
+    <h2>Kraj partije i konačni rezultat</h2>
+    <p>Partija se završava kad zbir bula svih igrača padne tačno na 0. Svako zatim računa svoj rezultat:</p>
+    <pre>rezultat = −supe koje je dao + supe koje je dobio + bule × 10</pre>
+    <p>Rezultat <strong>ispod nule je dobar</strong> (igrač je u plusu), a iznad nule loš. Ako partija mora da se prekine ranije, bule se otpisuju tako da zbir bude 0.</p>
+    <p>Sva pravila bodovanja, sa izuzecima, su u <a href="/pravila.html#bodovanje">pravilima igre</a>. Probaj sve u praksi: <a href="/">igraj preferans online</a>, računar vodi računa o bodovima umesto tebe.</p>
+  </section>
+
+  <div class="cta">
+    <a class="play-btn" href="/">🎮 Igraj preferans online</a>
+    <p class="subtitle" style="margin-top:18px"><a href="/vodic.html">Vodič za početnike</a> · <a href="/pravila.html">Pravila</a> · <a href="/licitacija.html">Licitacija</a> · <a href="/bodovanje.html">Bodovanje</a> · <a href="/kontra-refa.html">Kontra i refa</a> · <a href="/karte-deljenje.html">Karte i deljenje</a> · <a href="/saveti.html">Saveti</a> · <a href="/betl-sans.html">Betl i Sans</a> · <a href="/recnik.html">Rečnik</a> · <a href="/preferans-online.html">Preferans online</a> · <a href="/pitanja.html">Česta pitanja</a> · <a href="/privatnost.html">Privatnost</a></p>
+  </div>
+</div>
+
+</body>
+</html>
