@@ -170,6 +170,23 @@ export async function initDb(): Promise<void> {
     )`);
     db.run('CREATE INDEX idx_visits_visitor ON visits(visitor)');
   }
+  // sto zatvoren pre kraja meca (unfinished.ts) — odvojeno od match_log, da ne ulazi u statistiku i lige
+  if (db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='unfinished_matches'").length === 0) {
+    db.run(`CREATE TABLE unfinished_matches (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      room_code TEXT NOT NULL,
+      closed_at TEXT NOT NULL DEFAULT (datetime('now')),
+      reason TEXT NOT NULL,
+      rounds_played INTEGER NOT NULL,
+      phase TEXT NOT NULL,
+      had_bots INTEGER NOT NULL DEFAULT 0,
+      names_json TEXT NOT NULL,
+      user_ids_json TEXT NOT NULL,
+      bulas_json TEXT NOT NULL,
+      started_at TEXT NOT NULL,
+      last_activity_at TEXT NOT NULL
+    )`);
+  }
   // partija odigrana u ligi — tabela lige se racuna iz match_log
   const matchLogCols = new Set((db.exec('PRAGMA table_info(match_log)')[0]?.values ?? []).map((row) => row[1]));
   if (!matchLogCols.has('league_id')) {

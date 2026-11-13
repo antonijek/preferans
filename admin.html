@@ -121,7 +121,7 @@
     <button data-tab="pregled" class="active" onclick="showTab('pregled'); loadDashboard();">Pregled</button>
     <button data-tab="korisnici" onclick="showTab('korisnici'); loadUsers();">Korisnici</button>
     <button data-tab="sobe" onclick="showTab('sobe'); loadRooms();">Sobe</button>
-    <button data-tab="partije" onclick="showTab('partije'); loadMatches();">Partije</button>
+    <button data-tab="partije" onclick="showTab('partije'); loadMatches(); loadUnfinished();">Partije</button>
     <button data-tab="kreditlog" onclick="showTab('kreditlog'); loadCreditLog();">Kredit log</button>
     <button data-tab="utisci" onclick="showTab('utisci'); loadFeedback();">Utisci <span id="feedbackUnread"></span></button>
   </div>
@@ -199,6 +199,14 @@
       </table>
       <div class="muted" id="matchesEmpty" style="display:none;margin-top:8px">Još nema završenih partija.</div>
     </div>
+    <div class="card">
+      <h2><span>Nezavršene partije (počele, ali nisu dovršene)</span><button onclick="loadUnfinished()">🔄 Osveži</button></h2>
+      <table>
+        <thead><tr><th>Soba</th><th>Zatvorena</th><th>Poslednja aktivnost</th><th>Razlog</th><th>Rundi</th><th>Faza</th><th>Jug / Istok / Zapad</th><th>Bule</th><th>Računar</th></tr></thead>
+        <tbody id="unfinishedBody"></tbody>
+      </table>
+      <div class="muted" id="unfinishedEmpty" style="display:none;margin-top:8px">Nema nezavršenih partija.</div>
+    </div>
   </div>
 
   <div class="tab-panel" data-tab="kreditlog">
@@ -247,6 +255,7 @@
 </div>
 
 <script src="/admin-feedback.js"></script>
+<script src="/admin-unfinished.js"></script>
 <script src="/admin-visits.js"></script>
 <script src="/password-eye.js"></script>
 <script>

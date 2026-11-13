@@ -3,6 +3,7 @@ import type { RoomState, RoomOptions } from './RoomState.js';
 import { Game } from '../../../engine/dist/game.js';
 import type { Position } from '../../../engine/dist/types.js';
 import { saveActiveRoom, deleteActiveRoom, getAllActiveRooms } from '../db.js';
+import { recordUnfinished } from '../unfinished.js';
 
 export type UserLocation =
   | { code: string; role: 'player'; seat: Position }
@@ -46,8 +47,10 @@ export function getRoomByCode(code: string): RoomState | undefined {
 // je svako ko ju je napravio odavno diskonektovan i nikad se nece vratiti
 // (pozivalac — roomEvents.ts's disconnect handler — sam odlucuje KADA je
 // "prazna", ovo samo cisti mapu).
-export function removeRoom(code: string): void {
+export function removeRoom(code: string, reason = 'Sto je zatvoren.'): void {
   const upper = code.toUpperCase();
+  const room = roomsByCode.get(upper);
+  if (room) recordUnfinished(room, reason);
   roomsByCode.delete(upper);
   deleteActiveRoom(upper);
 }
@@ -224,6 +227,7 @@ export function removeStuckRooms(): number {
       for (const uid of room.seatUserIds) {
         if (uid !== null) clearUserLocationIn(uid, code);
       }
+      recordUnfinished(room, 'Niko se nije vratio 24 sata.');
       roomsByCode.delete(code);
       deleteActiveRoom(code);
       removed++;

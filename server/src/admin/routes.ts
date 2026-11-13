@@ -2,10 +2,11 @@ import { Router } from 'express';
 import { get, all, run, getAllMatches, getMatchById, updateUserRating } from '../db.js';
 import { requireAdmin } from '../auth/middleware.js';
 import type { AuthedRequest } from '../auth/middleware.js';
-import { listAllRoomsDetailed, getRoomByCode, getUserLocation, clearUserLocation } from '../rooms/RoomManager.js';
+import { forEachRoom, listAllRoomsDetailed, getRoomByCode, getUserLocation, clearUserLocation } from '../rooms/RoomManager.js';
 import { adminKickSeat, adminCloseRoom } from '../socket/roomAdmin.js';
 import { forceDisconnectUser } from '../socket/index.js';
 import { listOnlineUsers, listOnlineUsersDetailed } from '../presence.js';
+import { describeUnfinished, isStartedUnfinished, listUnfinished } from '../unfinished.js';
 import { sendMail, isMailConfigured } from '../mail.js';
 import { avatarUrl, removeAvatar } from '../avatars.js';
 import { pushPublicKey, pushCount, savePushSub, removePushSub, notifyOwner, dryRunLog } from '../push.js';
@@ -264,6 +265,19 @@ adminRouter.post('/rooms/:code/close', (req, res) => {
   }
   adminCloseRoom(room, typeof reason === 'string' ? reason : undefined);
   res.json({ ok: true });
+});
+
+// Partije koje su počele a nisu završene: zatvoreni stolovi iz baze + stolovi koji su još otvoreni.
+adminRouter.get('/unfinished', (_req, res) => {
+  const open: ReturnType<typeof listUnfinished> = [];
+  forEachRoom((room) => {
+    if (!isStartedUnfinished(room)) return;
+    const r = describeUnfinished(room, 'Još je otvoren sto.');
+    open.push({ id: 0, roomCode: r.room_code, closedAt: '', reason: r.reason, roundsPlayed: r.rounds_played, phase: r.phase,
+      hadBots: r.had_bots === 1, names: r.names, userIds: r.user_ids, bulas: r.bulas, startedAt: r.started_at,
+      lastActivityAt: r.last_activity_at });
+  });
+  res.json({ unfinished: [...open, ...listUnfinished(200)] });
 });
 
 // Istorija partija (korisnikov zahtev 2026-09-11) — admin vidi SVE partije.

@@ -63,7 +63,7 @@ export function releaseOtherSeat(
     old.sockets[seat] = null;
     socket.leave(old.code);
     clearUserLocation(userId);
-    if (othersAtTable(old, seat).length === 0) removeRoom(old.code);
+    if (othersAtTable(old, seat).length === 0) removeRoom(old.code, 'Poslednji igrač je prešao za drugi sto.');
     else broadcastRoomState(old);
     return { ok: true };
   }

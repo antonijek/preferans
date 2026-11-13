@@ -92,5 +92,5 @@ export function adminCloseRoom(room: RoomState, reason?: string): void {
     sp.socket?.emit('room:closed', payload);
     sp.socket?.leave(room.code);
   });
-  removeRoom(room.code);
+  removeRoom(room.code, reason ?? 'Admin je zatvorio sto.');
 }
