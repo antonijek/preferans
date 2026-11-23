@@ -55,3 +55,11 @@ export function markPlayed(kind) {
   marked.add(kind);
   send('/api/visit/played', { kind });
 }
+
+/**
+ * Ruka iz igre protiv racunara, za analizu igre (korisnikov zahtev 2026-11-23): zapis ruke bez imena,
+ * uz nasumican broj partije (matchId) da se ruke iste partije mogu spojiti. Ne zaustavlja igru.
+ */
+export function recordHand(matchId, hand, final) {
+  send('/api/visit/hand', { matchId, hand, final });
+}

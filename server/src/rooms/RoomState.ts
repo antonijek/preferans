@@ -1,6 +1,7 @@
 import { Game } from '../../../engine/dist/game.js';
 import type { Socket } from 'socket.io';
 import type { Position } from '../../../engine/dist/types.js';
+import type { HandSnapshot } from '../../../engine/dist/handRecord.js';
 
 export interface SpectatorInfo {
   userId: number;
@@ -108,41 +109,7 @@ export interface RoomState {
   claim: { by: Position; accepted: Set<Position>; timeout: ReturnType<typeof setTimeout> } | null;
 }
 
-export interface HandSnapshot {
-  round: number;
-  endedAt: string;
-  // Ko je bio nosilac (deklarant)
-  declarer: Position;
-  // Koja igra (Pik/Herc/Betl/Sans/Igra-...)
-  declaredGame: string;
-  // Ko je sve dosao (pozivalac, pratioci)
-  caller: Position | null;
-  callee: Position | null;
-  followChoices: [string | null, string | null, string | null];
-  // Kontrin nivo na kraju (KONTRA/REKONTRA/SUBKONTRA/MORTKONTRA/null)
-  kontraLevel: string | null;
-  // Ko je pobedio ruku (nosilac prosao ili pao)
-  passed: boolean;
-  // Finalne bule i supe delte POSLE ove ruke
-  bulasAfter: [number, number, number];
-  supeDelta: [number, number, number];
-  // Kompletni štihovi ove ruke — svaki je niz karata sa pozicijama
-  tricks: Array<Array<{ position: Position; suit: string; rank: string }>>;
-  // Poeni po igracu (koliko stihova je svaki uzeo)
-  tricksWon: [number, number, number];
-  // Seed i talon — za rekonstrukciju deljenja
-  talon: Array<{ suit: string; rank: string }>;
-  // Pregled partije (2026-10-20, handRecord.ts) — stariji zapisi ovo nemaju:
-  // delilac, cela licitacija, pocetne ruke sve trojice i skart nosioca.
-  dealer?: Position;
-  bids?: Array<{ player: Position; type: string; value?: number }>;
-  hands?: Array<Array<{ suit: string; rank: string }>>;
-  discard?: Array<{ suit: string; rank: string }>;
-  // ko je dao kontru (2026-10-20) — rekontru/mortkontru daje nosilac, subkontru opet kontras
-  kontraPlayer?: Position | null;
-  // ruka zavrsena sa "nosim sve" — ko je tvrdio (2026-10-20)
-  claimedBy?: Position | null;
-}
+export type { HandSnapshot } from '../../../engine/dist/handRecord.js';
 
 export interface RoomOptions {
   initialBule?: number;

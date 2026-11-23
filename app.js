@@ -30,7 +30,8 @@ import { initFeedbackUi, handSnapshot } from './feedback-ui.js';
 import { claimIsCertain } from './engine/dist/claim.js';
 import { initMonthly } from './monthly.js';
 import { initLandscapeLayout, placeStatusBanners, phoneShort } from './landscape-layout.js';
-import { initVisits, markPlayed } from './visit.js';
+import { initVisits, markPlayed, recordHand } from './visit.js';
+import { buildHandSnapshot } from './engine/dist/handRecord.js';
 import { initPausedBotUi, refreshPausedBot } from './paused-bot-ui.js';
 import { initPasswordReset } from './password-reset.js';
 
@@ -454,6 +455,8 @@ function isHuman(player) {
 let handHistory = [];
 let debtMatrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
 let lastRecordedRound = null;
+// nasumican broj partije protiv racunara: spaja ruke iste partije u analizi (visit.js recordHand)
+let localMatchId = null;
 let lastRefeSum = 0;
 let lastRefePendingSum = 0;
 // bule dok ruka jos traje — za promenu na plocici kad se ruka zavrsi (seat-delta.js);
@@ -638,6 +641,11 @@ function recordHandIfNew() {
     // wasPlayed razlikuje ova dva slucaja za prikaz (vidi renderScoreContent).
     wasPlayed: game.state.tricks.length > 0,
   });
+  // igra protiv racunara: zapis ruke ide serveru za analizu (anonimno, vidi visit.js)
+  if (mode === '1v2') {
+    localMatchId ??= crypto.randomUUID(); // partija nastavljena posle osvezavanja stranice
+    recordHand(localMatchId, buildHandSnapshot(game.state), game.state.phase === 'MATCH_OVER');
+  }
   const supeBefore = [0, 1, 2].map(seatSupe);
   if (result.winner !== null) {
     for (let p = 0; p < 3; p++) {
@@ -2695,6 +2703,7 @@ function startGame() {
   // Bez ovoga bi supe-dug-matrica/istorija ruka procurile u novu partiju.
   handHistory = [];
   debtMatrix = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  localMatchId = crypto.randomUUID();
   lastRecordedRound = null;
   lastRefeSum = 0;
   lastRefePendingSum = 0;

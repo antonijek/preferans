@@ -7,6 +7,8 @@ import type { Request } from 'express';
 import { all, get, run } from './db.js';
 import { requireAdmin, verifyToken } from './auth/middleware.js';
 import { rateLimit } from './rateLimit.js';
+import { cleanLocalHand } from './localHands.js';
+import { localHandsDb } from './localHandsDb.js';
 
 // ponovno otvaranje u ovom roku je ista poseta (osvezavanje, prelazak na "Vodic" i nazad)
 const SAME_VISIT = '-30 minutes';
@@ -89,6 +91,21 @@ visitRouter.post('/played', visitLimit, (req, res) => {
       (SELECT id FROM visits WHERE visitor = ? AND last_at >= datetime('now', '-12 hours') ORDER BY id DESC LIMIT 1)`,
     [visitor]);
   }
+  res.json({ ok: true });
+});
+
+// ruka iz igre protiv racunara: cuva se anonimno, za analizu (localHands.ts, localHandsDb.ts)
+const handLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 400, keyPrefix: 'visit-hand', message: 'Previše zahteva.' });
+
+visitRouter.post('/hand', handLimit, (req, res) => {
+  const visitor = visitorFrom(req.body);
+  const hand = cleanLocalHand(req.body);
+  const userAgent = req.headers['user-agent'] ?? '';
+  if (!visitor || !hand || isBot(userAgent)) {
+    res.json({ ok: false });
+    return;
+  }
+  localHandsDb().save(visitor, visitDevice(userAgent), hand);
   res.json({ ok: true });
 });
 

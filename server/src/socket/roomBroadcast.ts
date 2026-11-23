@@ -11,7 +11,7 @@ import { persistRoom } from '../rooms/RoomManager.js';
 import { notifyUser } from '../push.js';
 import { avatarUrl } from '../avatars.js';
 import { countsForLeague, MIN_HANDS_FOR_EARLY_END } from '../leagueStandings.js';
-import { initialHands } from '../handRecord.js';
+import { buildHandSnapshot } from '../handRecord.js';
 
 // A couple of small values (whose turn it is to kontra, which of MY OWN
 // cards are currently legal to play) require private engine logic
@@ -152,42 +152,7 @@ export function broadcastRoomState(room: RoomState): void {
 // GameState-a dovoljan za replay analizu. Cuva se u room.handsHistory i
 // na kraju partije ceo niz ide u match_log.hands_json.
 function captureHandSnapshot(room: RoomState): HandSnapshot {
-  const s = room.game.state;
-  return {
-    round: s.round,
-    endedAt: new Date().toISOString(),
-    declarer: s.winner ?? 0,
-    declaredGame: s.declaredGame ?? '',
-    caller: s.caller,
-    callee: s.callee,
-    followChoices: [s.followChoices[0], s.followChoices[1], s.followChoices[2]],
-    kontraLevel: s.kontraLevel,
-    passed: s.lastHandResult?.passed ?? false,
-    bulasAfter: [...s.bulas] as [number, number, number],
-    supeDelta: s.lastHandResult?.supeDelta ?? [0, 0, 0],
-    tricks: s.tricks.map((trick) =>
-      trick.map((tc) => ({
-        position: tc.player,
-        suit: tc.card.suit,
-        rank: tc.card.rank,
-      }))
-    ),
-    tricksWon: [
-      s.players[0]!.tricksWon,
-      s.players[1]!.tricksWon,
-      s.players[2]!.tricksWon,
-    ],
-    talon: (s.lastTalon.length ? s.lastTalon : s.talon).map((c) => ({
-      suit: c.suit,
-      rank: c.rank,
-    })),
-    dealer: s.dealer,
-    bids: s.bids.map((b) => ({ ...b })),
-    hands: initialHands(s),
-    discard: s.discard.map((c) => ({ suit: c.suit, rank: c.rank })),
-    kontraPlayer: s.kontraPlayer,
-    claimedBy: s.claimedBy ?? null,
-  };
+  return buildHandSnapshot(room.game.state);
 }
 
 // Online sobe ranije nisu imale NIKAKAV mehanizam da predju na sledecu ruku

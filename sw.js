@@ -11,7 +11,7 @@
 // nacin da se stari klijenti odmah prebace: promeniti SADRZAJ ovog fajla
 // (bump verzije), sto tera browser da primeti razliku i instalira NOVI SW.
 // UBUDUCE: bump-ovati OVDE pri SVAKOM deploy-u koji dira app.js/preferans.html.
-const CACHE_NAME = 'preferans-v87';
+const CACHE_NAME = 'preferans-v88';
 const SHELL_FILES = [
   '/',
   '/preferans.html',
@@ -73,6 +73,7 @@ const SHELL_FILES = [
   '/engine/dist/aiBetl.js',
   '/engine/dist/aiDeclarerPlay.js',
   '/engine/dist/claim.js',
+  '/engine/dist/handRecord.js',
 ];
 
 self.addEventListener('install', (event) => {
