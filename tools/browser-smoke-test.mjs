@@ -43,7 +43,9 @@ async function main() {
     const page = await browser.newContext({ viewport: { width: 1280, height: 900 } }).then(c => c.newPage());
     const errors = [];
     page.on('pageerror', (e) => errors.push(`PAGEERROR: ${e.message}`));
-    page.on('console', (msg) => { if (msg.type() === 'error') errors.push(`CONSOLE: ${msg.text()}`); });
+    // dev server (tools/serve.js) nema /api (beleženje poseta, visit.js) — taj 404 nije greška igre
+    page.on('response', (r) => { if (r.status() === 404 && !new globalThis.URL(r.url()).pathname.startsWith('/api/')) errors.push(`404: ${r.url()}`); });
+    page.on('console', (msg) => { if (msg.type() === 'error' && !msg.text().startsWith('Failed to load resource')) errors.push(`CONSOLE: ${msg.text()}`); });
 
     await page.goto(URL, { waitUntil: 'load' });
     // "3 AI" dugme i "Kreni!" su uklonjeni sa pocetnog ekrana (2026-10-05,

@@ -34,6 +34,7 @@ import { initVisits, markPlayed, recordHand } from './visit.js';
 import { buildHandSnapshot } from './engine/dist/handRecord.js';
 import { initPausedBotUi, refreshPausedBot } from './paused-bot-ui.js';
 import { initPasswordReset } from './password-reset.js';
+import { saveLocalMatch, loadLocalMatch, clearLocalMatch, resumeLabel } from './local-save.js';
 
 // Feature-flag za search-bazirani AI (Monte Carlo determinizacija, vidi
 // plan "toasty-rolling-sparkle") — localStorage prekidac radi trenutnog
@@ -2049,6 +2050,56 @@ function render() {
   if (game.state.phase === 'GAME_OVER' || game.state.phase === 'REFE' || game.state.phase === 'MATCH_OVER') {
     setTimeout(renderResult, 800);
   }
+  persistLocalMatch();
+}
+
+// Partija protiv računara se čuva posle svakog poteza (local-save.js); završena se briše.
+function persistLocalMatch() {
+  if (mode !== '1v2') return;
+  if (game.state.phase === 'MATCH_OVER') { clearLocalMatch(); return; }
+  saveLocalMatch({
+    config: game.getConfig(), state: game.state, handHistory, debtMatrix, localMatchId, lastRecordedRound,
+    lastRefeSum, lastRefePendingSum,
+  });
+}
+
+function refreshResumeButton() {
+  const saved = loadLocalMatch();
+  const btn = $('resumeLocalBtn');
+  btn.hidden = !saved;
+  if (saved) btn.textContent = resumeLabel(saved);
+  $('startLocalBtn').textContent = saved ? '🎮 Nova partija protiv računara' : '🎮 Igraj protiv računara';
+}
+
+function resumeLocalGame() {
+  const saved = loadLocalMatch();
+  if (!saved) { refreshResumeButton(); return; }
+  try {
+    mode = '1v2';
+    handGeneration++; // zaostali tajmeri računara iz ranije partije na ovoj stranici ne smeju da odigraju
+    game = createGame({ seed: debugSeedOverride() ?? (Date.now() & 0xffff), ...saved.config });
+    game.state = saved.state;
+    handHistory = saved.handHistory ?? [];
+    debtMatrix = saved.debtMatrix ?? [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    localMatchId = saved.localMatchId ?? crypto.randomUUID();
+    lastRecordedRound = saved.lastRecordedRound ?? null;
+    lastRefeSum = saved.lastRefeSum ?? 0;
+    lastRefePendingSum = saved.lastRefePendingSum ?? 0;
+    bulasBeforeHandEnd = null;
+    clearSeatDeltas();
+    discardSelected = new Set();
+    markPlayed('local');
+    $('setupScreen').classList.remove('active');
+    $('resultScreen').classList.remove('active');
+    $('localMenuBtn').style.display = '';
+    renderSeats();
+    render();
+  } catch (e) {
+    console.error('[local-save] nastavak nije uspeo:', e);
+    clearLocalMatch();
+    backToSetup();
+    showAppToast('Sačuvana partija nije mogla da se nastavi. Počni novu.');
+  }
 }
 
 // === "Nosim sve štihove" (claim-ui.js): online odlučuje server, lokalno računar ===
@@ -3344,6 +3395,7 @@ function backToSetup() {
   $('kibicRequestPanel').style.display = 'none';
   $('localMenuBtn').style.display = 'none';
   $('setupScreen').classList.add('active');
+  refreshResumeButton();
 }
 
 function goToRoomScreen() {
@@ -4208,6 +4260,7 @@ function setGameMode(m) {
 // Global exposure
 window.startGame = startGame;
 window.startLocalGame = startLocalGame;
+window.resumeLocalGame = resumeLocalGame;
 window.nextRound = nextRound;
 window.resultAction = resultAction;
 window.viewCards = viewCards;
@@ -4293,3 +4346,4 @@ if (onlineToken) {
 } else {
   $('setupScreen').classList.add('active');
 }
+refreshResumeButton();

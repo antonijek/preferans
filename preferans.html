@@ -221,7 +221,9 @@
          uklonjen odavde na isti nacin). mode1v2 ostaje id="mode1v2" zarad
          CSS/JS kompatibilnosti ali vise nije vidljivo dugme za izbor (mode
          je vec '1v2' po podrazumevanoj vrednosti u app.js). -->
-    <button class="mode-btn primary" style="min-height:56px;font-size:1.1em" onclick="startLocalGame()">🎮 Igraj protiv računara</button>
+    <!-- nedovršena partija protiv računara (local-save.js) -->
+    <button class="mode-btn primary" id="resumeLocalBtn" style="min-height:56px;font-size:1.1em;margin-bottom:10px" onclick="resumeLocalGame()" hidden>▶ Nastavi partiju</button>
+    <button class="mode-btn primary" id="startLocalBtn" style="min-height:56px;font-size:1.1em" onclick="startLocalGame()">🎮 Igraj protiv računara</button>
     <button class="mode-btn" style="margin-top:10px" onclick="goOnline()">🌐 Igraj online</button>
     <!-- Primedbe i pohvale (korisnikov zahtev 2026-10-28, feedback-ui.js) -->
     <button class="mode-btn" id="feedbackBtnSetup" style="margin-top:10px" onclick="openFeedback()">✉️ Primedbe i pohvale</button>

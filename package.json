@@ -10,7 +10,8 @@
     "visual:check": "node tools/visual-check.mjs",
     "deploy": "bash tools/deploy.sh",
     "og-image": "node tools/og-image.mjs",
-    "indexnow": "node tools/notify-indexnow.mjs"
+    "indexnow": "node tools/notify-indexnow.mjs",
+    "test:local-save": "node tools/local-save-test.mjs"
   },
   "devDependencies": {
     "playwright": "^1.62.1"

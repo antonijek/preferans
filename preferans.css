@@ -2310,3 +2310,6 @@
     #seat-west { left: 4px; }
     #seat-east { right: 4px; }
   }
+
+  /* dugme „Nastavi partiju“ (local-save.js) je skriveno dok nema sačuvane partije */
+  #resumeLocalBtn[hidden] { display: none; }
